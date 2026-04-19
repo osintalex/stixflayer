@@ -1,0 +1,15 @@
+{
+    "type": "report",
+    "spec_version": "2.1",
+    "id": "report--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Threat Report",
+    "description": "A report on threat actor activity",
+    "report_types": ["threat-actor-summaries"],
+    "published": "2016-04-06T08:00:00.000Z",
+    "object_refs": [
+        "threat-actor--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+        "attack-pattern--c410e480-e42b-47d2-b6f5-f4d8503e6f00"
+    ]
+}

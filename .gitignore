@@ -1,2 +1,7 @@
-/target
-.DS_Store
+/rust/target
+.DS_Store.python-version
+.python-version
+/python/target
+opencode.json
+wasm-plugin/target
+/java/target

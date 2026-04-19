@@ -1,0 +1,10 @@
+{
+    "type": "directory",
+    "spec_version": "2.1",
+    "id": "directory--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+    "path": "/home/user/documents",
+    "path_enc": "66f72656e74",
+    "ctime": "2016-04-06T08:00:00.000Z",
+    "mtime": "2016-04-06T08:00:00.000Z",
+    "refs": []
+}

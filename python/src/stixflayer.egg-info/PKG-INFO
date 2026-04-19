@@ -1,0 +1,7 @@
+Metadata-Version: 2.4
+Name: stixflayer
+Version: 0.1.0
+Summary: STIX 2.1 Python library
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.11

@@ -1,0 +1,16 @@
+{
+    "type": "network-traffic",
+    "spec_version": "2.1",
+    "id": "network-traffic--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+    "src_ref": "ipv4-addr--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+    "dst_ref": "ipv4-addr--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+    "src_port": 80,
+    "dst_port": 443,
+    "protocols": ["http"],
+    "extensions": {
+        "http-request-ext": {
+            "request_method": "get",
+            "request_uri": "/api/data"
+        }
+    }
+}

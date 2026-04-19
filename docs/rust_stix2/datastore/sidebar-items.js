@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["DataSinkType","DataSourceType"],"mod":["filesystem","filters"],"struct":["DataSink","DataSource","DataStore"]};
