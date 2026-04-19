@@ -1,0 +1,19 @@
+{
+    "type": "language-content",
+    "spec_version": "2.1",
+    "id": "language-content--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "object_ref": "threat-actor--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+    "object_modified": "2016-04-06T08:17:27.000Z",
+    "contents": {
+        "de": {
+            "name": "Böse Org",
+            "description": "Die Bedrohungsakteursgruppe 'Böse Org'"
+        },
+        "fr": {
+            "name": "Organisation maléfique",
+            "description": "Le groupe d'acteurs de la menace Organisation maléfique"
+        }
+    }
+}

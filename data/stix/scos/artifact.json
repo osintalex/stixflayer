@@ -1,0 +1,11 @@
+{
+    "type": "artifact",
+    "spec_version": "2.1",
+    "id": "artifact--ca17bcf8-9846-5ab4-8662-75c1bf6e63ee",
+    "mime_type": "image/jpeg",
+    "payload_bin": "aGVsbG8gd29ybGR+Cg==",
+    "url": "https://example.com/malware.exe",
+    "hashes": {
+        "SHA-256": "d7a9f2b24e57209a18e7cfb2439c0b6f3c0d9a4b5c8e6f1a2b3c4d5e6f7a8b9"
+    }
+}

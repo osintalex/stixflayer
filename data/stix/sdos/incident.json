@@ -1,0 +1,9 @@
+{
+    "type": "incident",
+    "spec_version": "2.1",
+    "id": "incident--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Security Incident",
+    "description": "A security incident involving data breach"
+}

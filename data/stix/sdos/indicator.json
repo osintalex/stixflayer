@@ -1,0 +1,19 @@
+{
+    "type": "indicator",
+    "spec_version": "2.1",
+    "id": "indicator--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "indicator_types": ["malicious-activity"],
+    "pattern": "[file:hashes.'SHA-256' = 'd7a9f2b24e57209a18e7cfb2439c0b6f3c0d9a4b5c8e6f1a2b3c4d5e6f7a8b9']",
+    "pattern_type": "stix",
+    "pattern_version": "2.1",
+    "valid_from": "2016-04-06T08:17:27.000Z",
+    "valid_until": "2017-04-06T08:17:27.000Z",
+    "kill_chain_phases": [
+        {
+            "kill_chain_name": "mandiant-attack",
+            "phase_name": "initial-access"
+        }
+    ]
+}

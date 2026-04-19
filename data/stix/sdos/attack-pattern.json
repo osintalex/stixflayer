@@ -1,0 +1,22 @@
+{
+    "type": "attack-pattern",
+    "spec_version": "2.1",
+    "id": "attack-pattern--c410e480-e42b-47d2-b6f5-f4d8503e6f00",
+    "created": "2016-05-12T08:17:27.000Z",
+    "modified": "2016-05-12T08:17:27.000Z",
+    "name": "Spear Phishing",
+    "description": "Spear phishing is a phishing attack that targets a specific individual or group.",
+    "aliases": ["Phishing"],
+    "kill_chain_phases": [
+        {
+            "kill_chain_name": "mandiant-attack",
+            "phase_name": "initial-access"
+        }
+    ],
+    "external_references": [
+        {
+            "source_name": "capec",
+            "external_id": "CAPEC-163"
+        }
+    ]
+}
