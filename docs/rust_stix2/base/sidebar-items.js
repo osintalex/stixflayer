@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["BuilderType","StixObject"],"struct":["CommonProperties","CommonPropertiesBuilder"],"trait":["Stix"]};
