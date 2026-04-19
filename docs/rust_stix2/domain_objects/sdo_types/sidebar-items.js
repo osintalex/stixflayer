@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["AttackPattern","Campaign","CourseOfAction","Grouping","Identity","Incident","Indicator","Infrastructure","IntrusionSet","Location","Malware","MalwareAnalysis","Note","ObservedData","Opinion","Report","ThreatActor","Tool","Vulnerability"]};

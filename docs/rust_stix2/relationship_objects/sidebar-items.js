@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["RelationshipObjectType"],"fn":["check_sro_properties"],"mod":["types"],"struct":["Relationship","RelationshipObject","RelationshipObjectBuilder","Sighting"],"trait":["Related"]};
