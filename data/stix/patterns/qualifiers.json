@@ -1,0 +1,14 @@
+[
+    {
+        "description": "WITHIN qualifier",
+        "pattern": "[domain-name:value = 'example.com'] WITHIN 600 SECONDS"
+    },
+    {
+        "description": "REPEATS qualifier",
+        "pattern": "[domain-name:value = 'example.com'] REPEATS 5 TIMES"
+    },
+    {
+        "description": "Multiple qualifiers",
+        "pattern": "[domain-name:value = 'example.com'] WITHIN 600 SECONDS REPEATS 5 TIMES"
+    }
+]

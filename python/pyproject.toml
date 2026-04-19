@@ -1,0 +1,42 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "stixflayer"
+version = "0.1.0"
+description = "STIX 2.1 library in Rust, exposed to Python"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = []
+
+[tool.maturin]
+module-name = "stixflayer"
+bindings = "pyo3"
+py-limits = ">=3.11"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["PLC0415"]
+
+[tool.pyrefly]
+python-version = "3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+
+[dependency-groups]
+dev = [
+    "pyrefly>=0.60.2",
+    "pytest>=9.0.3",
+    "ruff>=0.15.10",
+]

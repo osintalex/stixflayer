@@ -1,0 +1,9 @@
+{
+    "type": "ipv6-addr",
+    "spec_version": "2.1",
+    "id": "ipv6-addr--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+    "value": "2001:db8:85a3::8a2e:370:7334",
+    "resolves_to_refs": [
+        "mac-addr--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f"
+    ]
+}

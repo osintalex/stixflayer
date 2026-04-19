@@ -1,0 +1,21 @@
+{
+    "type": "x509-certificate",
+    "spec_version": "2.1",
+    "id": "x509-certificate--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+    "serial_number": "04:f3:e2:69:c8:1f:e3:2c:b5:27:8f:3a:7c:92:17:c8:52",
+    "signature_algorithm": "RSA-SHA256",
+    "issuer": "CN=Example CA, O=Example, C=US",
+    "subject": "CN=example.com, O=Example, C=US",
+    "subject_public_key_algorithm": "RSA",
+    "subject_public_key_modulus": "test",
+    "validity_not_before": "2021-01-01T00:00:00Z",
+    "validity_not_after": "2025-01-01T00:00:00Z",
+    "extensions": [
+        {
+            "ext_name": "basicConstraints",
+            "ext_id": 2,
+            "critical": true,
+            "ext_value": "CA:FALSE"
+        }
+    ]
+}
