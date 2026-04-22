@@ -945,6 +945,90 @@ impl LanguageContent {
     fn r#type(&self) -> String {
         "language-content".to_string()
     }
+
+    fn insert_content_strings(
+        &mut self,
+        lang: String,
+        content: pyo3::Bound<'_, pyo3::types::PyDict>,
+    ) -> Result<(), PyErr> {
+        let hashmap: std::collections::HashMap<String, String> = content.extract().map_err(|e| {
+            PyErr::new::<PyO3RuntimeError, _>(format!("Failed to extract content: {}", e))
+        })?;
+        self.0 = self.0.clone()
+            .insert_content_strings(&lang, hashmap)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        Ok(())
+    }
+
+    fn insert_content_lists(
+        &mut self,
+        lang: String,
+        content: pyo3::Bound<'_, pyo3::types::PyDict>,
+    ) -> Result<(), PyErr> {
+        let hashmap: std::collections::HashMap<String, Vec<String>> = content.extract().map_err(|e| {
+            PyErr::new::<PyO3RuntimeError, _>(format!("Failed to extract content: {}", e))
+        })?;
+        self.0 = self.0.clone()
+            .insert_content_lists(&lang, hashmap)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        Ok(())
+    }
+
+    fn insert_content_objects(
+        &mut self,
+        lang: String,
+        content: pyo3::Bound<'_, pyo3::types::PyDict>,
+    ) -> Result<(), PyErr> {
+        let _py = content.py();
+        let mut hashmap: std::collections::HashMap<String, std::collections::HashMap<String, serde_json::Value>> = std::collections::HashMap::new();
+        
+        for (key, value) in content.iter() {
+            let k: String = key.extract().map_err(|e| {
+                PyErr::new::<PyO3RuntimeError, _>(format!("Failed to extract key: {}", e))
+            })?;
+            
+            if value.is_none() {
+                continue;
+            }
+            
+            let v: pyo3::Bound<'_, pyo3::types::PyDict> = value.extract().map_err(|e| {
+                PyErr::new::<PyO3RuntimeError, _>(format!("Failed to extract nested dict: {}", e))
+            })?;
+            
+            let mut inner_hashmap = std::collections::HashMap::new();
+            for (inner_key, inner_value) in v.iter() {
+                let ik: String = inner_key.extract().map_err(|e| {
+                    PyErr::new::<PyO3RuntimeError, _>(format!("Failed to extract inner key: {}", e))
+                })?;
+                
+                if inner_value.is_none() {
+                    inner_hashmap.insert(ik, serde_json::Value::String(String::new()));
+                    continue;
+                }
+                
+                if let Ok(s) = inner_value.extract::<String>() {
+                    inner_hashmap.insert(ik, serde_json::Value::String(s));
+                } else if let Ok(arr) = inner_value.extract::<Vec<String>>() {
+                    inner_hashmap.insert(ik, serde_json::Value::Array(arr.into_iter().map(serde_json::Value::String).collect()));
+                } else {
+                    inner_hashmap.insert(ik, serde_json::Value::String(String::new()));
+                }
+            }
+            hashmap.insert(k, inner_hashmap);
+        }
+        
+        self.0 = self.0.clone()
+            .insert_content_objects(&lang, hashmap)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        Ok(())
+    }
+
+    #[getter]
+    fn object_ref(&self) -> String {
+        self.0.clone().build()
+            .map(|lc| lc.object_ref.to_string())
+            .unwrap_or_default()
+    }
 }
 
 #[pymodule(name = "stixflayer")]

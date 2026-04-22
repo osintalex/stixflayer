@@ -1,7 +1,11 @@
 /rust/target
-.DS_Store.python-version
+.python-version
 .python-version
 /python/target
+python/.venv
+python/.pytest_cache
+python/__pycache__
 opencode.json
 wasm-plugin/target
 /java/target
+target
