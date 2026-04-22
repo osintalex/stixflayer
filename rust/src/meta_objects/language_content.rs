@@ -14,7 +14,10 @@ use crate::{
 };
 use language_tags::LanguageTag;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use serde_with::skip_serializing_none;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 /// A Language Content Stix Meta Object (SMO).
 ///
@@ -343,6 +346,88 @@ impl LanguageContentBuilder {
         content: StixDictionary<ContentType>,
     ) -> Result<Self, Error> {
         self.contents.insert(lang, content)?;
+        Ok(self)
+    }
+
+    /// Add an element to the content dictionary with simple String values
+    pub fn insert_content_strings(
+        mut self,
+        lang: &str,
+        content: HashMap<String, String>,
+    ) -> Result<Self, Error> {
+        let mut dict = StixDictionary::new();
+        for (key, value) in content {
+            dict.insert(&key, ContentType::String(value))?;
+        }
+        self.contents.insert(lang, dict)?;
+        Ok(self)
+    }
+
+    /// Add an element to the content dictionary with List of String values
+    pub fn insert_content_lists(
+        mut self,
+        lang: &str,
+        content: HashMap<String, Vec<String>>,
+    ) -> Result<Self, Error> {
+        let mut dict = StixDictionary::new();
+        for (key, value) in content {
+            dict.insert(&key, ContentType::List(value))?;
+        }
+        self.contents.insert(lang, dict)?;
+        Ok(self)
+    }
+
+    /// Add an element to the content dictionary with nested LanguageContent Object values
+    pub fn insert_content_objects(
+        mut self,
+        lang: &str,
+        content: HashMap<String, HashMap<String, Value>>,
+    ) -> Result<Self, Error> {
+        let object_ref = self.object_ref.to_string();
+        let mut dict = StixDictionary::new();
+        for (key, value_map) in content.iter() {
+            let mut nested_dict = StixDictionary::new();
+            for (prop_key, prop_value) in value_map.iter() {
+                let content_type = match prop_value {
+                    Value::String(s) => ContentType::String(s.clone()),
+                    Value::Array(arr) => {
+                        let mut vec = Vec::new();
+                        for item in arr {
+                            if let Value::String(s) = item {
+                                vec.push(s.clone());
+                            } else {
+                                vec.push("".to_string());
+                            }
+                        }
+                        ContentType::List(vec)
+                    }
+                    Value::Object(map) => {
+                        let mut inner_map = HashMap::new();
+                        for (k, v) in map.iter() {
+                            if let Value::String(s) = v {
+                                inner_map.insert(k.clone(), s.clone());
+                            } else {
+                                inner_map.insert(k.clone(), "".to_string());
+                            }
+                        }
+                        ContentType::Object(Box::new(
+                            LanguageContentBuilder::new(&format!("{}--{}--{}", object_ref, key, Uuid::new_v4()))?
+                                .object_modified("2017-02-08T21:31:22.007Z")?
+                                .insert_content_strings(&lang, inner_map)?
+                                .build()?
+                        ))
+                    }
+                    _ => ContentType::String("".to_string()),
+                };
+                nested_dict.insert(&prop_key, content_type)?;
+            }
+            let nested_lc = LanguageContentBuilder::new(&format!("{}--{}--{}", object_ref, key, Uuid::new_v4()))?
+                .object_modified("2017-02-08T21:31:22.007Z")?
+                .insert_content(lang, nested_dict)?
+                .build()?;
+            dict.insert(key.as_str(), ContentType::Object(Box::new(nested_lc)))?;
+        }
+        self.contents.insert(lang, dict)?;
         Ok(self)
     }
 

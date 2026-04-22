@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "rust",
+    "wasm-plugin",
+    "python",
+    "node"
+]
+
+[workspace.profile.release]
+panic = "abort"
+lto = true
