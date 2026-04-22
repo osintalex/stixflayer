@@ -7,5 +7,9 @@ python/.pytest_cache
 python/__pycache__
 opencode.json
 wasm-plugin/target
-/java/target
-target
+/target
+
+target/
+.opencode/
+python/__pycache__
+python/tests/__pycache__
