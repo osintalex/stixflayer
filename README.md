@@ -2,6 +2,10 @@
 
 High-performance STIX 2.1 library written in Rust with bindings for Python, Go, and Node.js.
 
+## Heavily Based On
+
+This project is heavily based on [github.com/oasis-open/cti-rust-stix](https://github.com/oasis-open/cti-rust-stix) - the official OASIS TC reference implementation.
+
 ## Features
 
 - **Rust core**: Fast STIX 2.1 serialization/deserialization

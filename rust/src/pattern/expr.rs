@@ -1,17 +1,13 @@
 //! Data structures used by the STIX Patterning parser
 
-use std::{collections::HashSet, ops::Not};
+use std::collections::HashSet;
 
 use crate::{
     base::Stix,
     error::{add_error, return_multiple_errors, StixError as Error},
     types::Timestamp,
 };
-use log::warn;
 use ordered_float::OrderedFloat;
-
-#[cfg(feature = "pattern")]
-use pcre2::bytes::RegexBuilder;
 
 /// A STIX Pattern Constant
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -154,30 +150,9 @@ impl ComparisonExpression {
                     };
                 }
                 ComparisonOperator::Matches => {
-                    // First check that the constant is a String of any kind
-                    let Constant::String(pattern) = constant else {
+                    let Constant::String(_) = constant else {
                         return Err(Error::ValidationError("A comparison expression in the pattern has a `MATCHES` Comparison Operator that expects a regular expression string but is not applied to a string".to_string()));
                     };
-                    #[cfg(feature = "pattern")]
-                    {
-                        // Define an accepted PCRE regex pattern according to the STIX 2.1 standard (DOTALL enabled; UNICODE disabled if matching a binary or hex property)
-                        let mut builder = RegexBuilder::new();
-                        builder.dotall(true);
-                        if self.object_path.sco.ends_with("_bin").not()
-                            && self.object_path.sco.ends_with("_hex").not()
-                        {
-                            builder.ucp(true);
-                        }
-                        // Warn the user if the constant is not a valid PCRE regex.
-                        // We warn instead of error because the pcre2 crate is still in beta and is not guaranteed to cover all possible PCRE regex patterns at this time
-                        if let Err(e) = builder.build(pattern) {
-                            warn!("A comparison expression in the pattern has a `MATCHES` Comparison Operator that expects a regular expression string, but the string {} may not be valid PCRE regular expression: {}", pattern, e);
-                        }
-                    }
-                    #[cfg(not(feature = "pattern"))]
-                    {
-                        let _ = pattern; // Suppress unused variable warning
-                    }
                 }
                 _ => (),
             }

@@ -8,7 +8,7 @@ This is a Rust implementation of STIX 2.1 (Structured Threat Information Express
 
 - **Repository**: Forked from OASIS TC cti-rust-stix
 - **Edition**: Rust 2021
-- **Dependencies**: See `rust/Cargo.toml`
+- **Dependencies**: See `rust/Cargo.toml` (note: pattern MATCHES operator does not validate regex syntax - runtime validation is the responsibility of the consuming application)
 
 ---
 
