@@ -18,6 +18,7 @@ dependencies = []
 module-name = "stixflayer"
 bindings = "pyo3"
 py-limits = ">=3.11"
+use-abi3-if-possible = "true"
 
 [tool.ruff]
 line-length = 120
