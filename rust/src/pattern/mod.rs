@@ -35,8 +35,6 @@ pub fn validate_pattern(pattern: &str) -> Result<(), StixError> {
         ));
     }
 
-    println!("Observation: {:?}", observation);
-
     // Check that the STIX Pattern does not violate any additional rules
     observation.stix_check()
 }

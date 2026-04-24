@@ -7,7 +7,6 @@ license = "BSD-3-Clause"
 [features]
 default = ["pyo3"]
 pyo3 = ["dep:pyo3"]
-pattern = ["dep:pcre2"]
 
 [dependencies]
 addr = "0.15.6"
@@ -25,7 +24,7 @@ nom = "8.0.0"
 nom-language = "0.1.0"
 ordered-float = { version = "4.4.0", features = ["serde"] }
 pathbuf = "1.0.0"
-pcre2 = { version = "0.2.9", optional = true }
+
 pyo3 = { version = "0.22", optional = true, features = ["extension-module"] }
 regex = "1.11.0"
 serde = { version = "1.0.210", features = ["derive"] }

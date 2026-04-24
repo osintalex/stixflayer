@@ -11,5 +11,5 @@ wasm-plugin/target
 
 target/
 .opencode/
-python/__pycache__
-python/tests/__pycache__
+index.darwin-arm64.node
+__pycache__/

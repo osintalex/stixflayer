@@ -325,6 +325,145 @@ impl EmailAddress {
 }
 
 #[pyclass]
+pub struct EmailMessage(CyberObjectBuilder);
+
+#[pymethods]
+impl EmailMessage {
+    #[new]
+    fn new(
+        from_ref: String,
+        is_multipart: Option<bool>,
+        date: Option<String>,
+        content_type: Option<String>,
+        sender_ref: Option<String>,
+        to_refs: Option<Vec<String>>,
+        cc_refs: Option<Vec<String>>,
+        bcc_refs: Option<Vec<String>>,
+        message_id: Option<String>,
+        subject: Option<String>,
+        recieved_lines: Option<Vec<String>>,
+        body: Option<String>,
+        raw_email_ref: Option<String>,
+    ) -> Result<Self, PyErr> {
+        let from: Identifier = from_ref
+            .parse()
+            .map_err(|_| PyErr::new::<PyO3RuntimeError, _>("Invalid from_ref ID"))?;
+
+        let mut builder = CyberObjectBuilder::new("email-message")
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
+            .from_ref(from)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+
+        if is_multipart.unwrap_or(false) {
+            builder = builder.is_multipart()
+                .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        }
+
+        if let Some(d) = date {
+            let ts = Timestamp::new(&d)
+                .map_err(|_| PyErr::new::<PyO3RuntimeError, _>("Invalid date format"))?;
+            builder = builder.date(ts)
+                .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        }
+
+        if let Some(ct) = content_type {
+            builder = builder.content_type(ct)
+                .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        }
+
+        if let Some(sr) = sender_ref {
+            let sender: Identifier = sr
+                .parse()
+                .map_err(|_| PyErr::new::<PyO3RuntimeError, _>("Invalid sender_ref ID"))?;
+            builder = builder.sender_ref(sender)
+                .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        }
+
+        if let Some(tr) = to_refs {
+            let refs: Vec<Identifier> = tr
+                .iter()
+                .filter_map(|s| s.parse().ok())
+                .collect();
+            builder = builder.to_refs(refs)
+                .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        }
+
+        if let Some(cr) = cc_refs {
+            let refs: Vec<Identifier> = cr
+                .iter()
+                .filter_map(|s| s.parse().ok())
+                .collect();
+            builder = builder.cc_refs(refs)
+                .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        }
+
+        if let Some(br) = bcc_refs {
+            let refs: Vec<Identifier> = br
+                .iter()
+                .filter_map(|s| s.parse().ok())
+                .collect();
+            builder = builder.bcc_refs(refs)
+                .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        }
+
+        if let Some(mid) = message_id {
+            builder = builder.message_id(mid)
+                .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        }
+
+        if let Some(s) = subject {
+            builder = builder.subject(s)
+                .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        }
+
+        if let Some(rl) = recieved_lines {
+            builder = builder.recieved_lines(rl)
+                .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        }
+
+        if let Some(b) = body {
+            builder = builder.body(b)
+                .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        }
+
+        if let Some(re) = raw_email_ref {
+            let raw: Identifier = re
+                .parse()
+                .map_err(|_| PyErr::new::<PyO3RuntimeError, _>("Invalid raw_email_ref ID"))?;
+            builder = builder.raw_email_ref(raw)
+                .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        }
+
+        Ok(EmailMessage(builder))
+    }
+
+    fn to_json(&self) -> String {
+        if let Ok(sco) = self.0.clone().build() {
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+        } else {
+            "{}".to_string()
+        }
+    }
+
+    #[getter]
+    fn r#type(&self) -> String {
+        "email-message".to_string()
+    }
+
+    #[getter]
+    fn from_ref(&self) -> String {
+        if let Ok(sco) = self.0.clone().build() {
+            if let stixflayer::cyber_observable_objects::sco::CyberObjectType::EmailMessage(em) =
+                &sco.object_type
+            {
+                return em.from_ref.clone().map(|i| i.to_string()).unwrap_or_default();
+            }
+        }
+        "".to_string()
+    }
+}
+
+#[pyclass]
 pub struct MacAddr(CyberObjectBuilder);
 
 #[pymethods]
@@ -1062,6 +1201,7 @@ pub fn stixflayer_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<DomainName>()?;
     m.add_class::<URL>()?;
     m.add_class::<EmailAddress>()?;
+    m.add_class::<EmailMessage>()?;
     m.add_class::<MacAddr>()?;
     m.add_class::<AutonomousSystem>()?;
     m.add_class::<File>()?;

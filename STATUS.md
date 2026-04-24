@@ -11,9 +11,9 @@ Rust-based STIX 2.1 library with Python bindings via pyo3/maturin.
 - Malware, MalwareAnalysis, Note, ObservedData, Opinion
 - Report, ThreatActor, Tool, Vulnerability
 
-### SCOs (17/17) ✅
+### SCOs (18/18) ✅
 - IPv4Address, IPv6Address, DomainName, URL
-- EmailAddress, MacAddr, AutonomousSystem
+- EmailAddress, EmailMessage, MacAddr, AutonomousSystem
 - File, Software, Directory, Mutex
 - Process, NetworkTraffic, UserAccount
 - WindowsRegistryKey, X509Certificate, Artifact
@@ -27,7 +27,7 @@ Rust-based STIX 2.1 library with Python bindings via pyo3/maturin.
 ## Language Bindings
 
 ### Python (pyo3/maturin) ✅
-- 74 tests passing
+- 94 tests passing
 - Located in `python/tests/`
 - Build: `cd python && uv run maturin develop`
 
@@ -46,15 +46,6 @@ Rust-based STIX 2.1 library with Python bindings via pyo3/maturin.
 
 ### 1. Empty JSON for Some Types
 Types like `Grouping`, `Report`, `Relationship` return `{}` when built without required fields (validation fails silently in to_json). Should propagate errors instead.
-
-### 2. LanguageContent Complex API
-The Rust `insert_content()` method expects `StixDictionary<ContentType>` - a nested dictionary structure requiring multiple insert calls. Not suitable for simple Python API.
-
-### 3. EmailMessage SCO Not Implemented
-Complex multipart email object - needs separate implementation.
-
-### 4. pcre2 and Wasm
-The pattern parser uses `pcre2` which requires a C library that doesn't compile for wasm targets. A `pattern` feature flag has been added to make it optional. For full wasm support, replace pcre2 with native Rust regex (see stix2 crate for reference implementation using nom + regex).
 
 ## Build
 
@@ -78,7 +69,4 @@ go test -v ./...
 
 ## Future Work
 - Fix empty JSON error handling
-- Implement EmailMessage
-- Simplify LanguageContent API in Rust for easier Python bindings
-- Replace pcre2 with native Rust regex for wasm compatibility
 - Java bindings
