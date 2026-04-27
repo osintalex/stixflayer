@@ -1,6 +1,10 @@
 use pyo3::exceptions::PyRuntimeError as PyO3RuntimeError;
 use pyo3::prelude::*;
+use pyo3::types::PyAny;
+use std::collections::BTreeMap;
+use ordered_float::OrderedFloat;
 use stixflayer::cyber_observable_objects::sco::CyberObjectBuilder;
+use stixflayer::custom_objects::CustomObjectBuilder;
 use stixflayer::domain_objects::sdo::DomainObjectBuilder;
 use stixflayer::error::StixError;
 use stixflayer::meta_objects::extension_definition::ExtensionDefinitionBuilder;
@@ -11,6 +15,7 @@ use stixflayer::relationship_objects::RelationshipObjectBuilder;
 use stixflayer::types::ExtensionType;
 use stixflayer::types::Identifier;
 use stixflayer::types::Timestamp;
+use stixflayer::types::{DictionaryValue, StixDictionary};
 
 #[pyfunction]
 pub fn version() -> String {
@@ -1014,6 +1019,85 @@ impl MarkingDefinition {
 }
 
 #[pyclass]
+pub struct CustomObject {
+    type_: String,
+    custom_properties_json: String,
+    extension_type: String,
+    extension_definition_id: Option<String>,
+}
+
+#[pymethods]
+impl CustomObject {
+    #[new]
+    fn new(
+        type_: String,
+        extension_type: String,
+        custom_properties_json: String,
+        extension_definition_id: Option<String>,
+    ) -> Result<Self, PyErr> {
+        // Validate it's valid JSON
+        let _: serde_json::Value = serde_json::from_str(&custom_properties_json)
+            .map_err(|e| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        
+        Ok(CustomObject {
+            type_,
+            extension_type,
+            custom_properties_json,
+            extension_definition_id,
+        })
+    }
+
+    fn to_json(&self) -> Result<String, PyErr> {
+        let props: serde_json::Value = serde_json::from_str(&self.custom_properties_json)
+            .map_err(|e| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        
+        let props_map: BTreeMap<String, serde_json::Value> = if let serde_json::Value::Object(m) = props {
+            m.into_iter().collect()
+        } else {
+            return Err(PyErr::new::<PyO3RuntimeError, _>("custom_properties must be a JSON object".to_string()));
+        };
+        
+        let ext_def_id = self.extension_definition_id
+            .as_ref()
+            .map(|s| s.as_str())
+            .unwrap_or("extension-definition--00000000-0000-0000-0000-000000000000");
+        
+        let builder = match self.extension_type.as_str() {
+            "new-sdo" => CustomObjectBuilder::new_sdo(&self.type_, props_map, ext_def_id),
+            "new-sro" => CustomObjectBuilder::new_sro(&self.type_, props_map, ext_def_id),
+            "new-sco" => CustomObjectBuilder::new_sco(&self.type_, props_map, ext_def_id),
+            _ => {
+                return Err(PyErr::new::<PyO3RuntimeError, _>(
+                    "extension_type must be new-sdo, new-sco, or new-sro".to_string(),
+                ))
+            }
+        }
+        .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+
+        builder
+            .build()
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))
+            .and_then(|obj| {
+                serde_json::to_string(&StixObject::Custom(obj))
+                    .map_err(|e| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))
+            })
+    }
+
+    // from_json commented out - need to fix pyo3 0.22 classmethod signature
+    // fn from_json(_py: &PyAny, json_str: String) -> Result<Self, PyErr> {
+
+    #[getter]
+    fn r#type(&self) -> String {
+        self.type_.clone()
+    }
+
+    #[getter]
+    fn custom_properties(&self) -> String {
+        self.custom_properties_json.clone()
+    }
+}
+
+#[pyclass]
 pub struct ExtensionDefinition(ExtensionDefinitionBuilder);
 
 #[pymethods]
@@ -1218,6 +1302,7 @@ pub fn stixflayer_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Relationship>()?;
     m.add_class::<Sighting>()?;
     m.add_class::<MarkingDefinition>()?;
+    m.add_class::<CustomObject>()?;
     m.add_class::<ExtensionDefinition>()?;
     m.add_class::<LanguageContent>()?;
 

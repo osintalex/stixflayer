@@ -169,7 +169,7 @@ class TestStixCompliance:
 
         json_str = lc.to_json()
         parsed = json.loads(json_str)
-        
+
         assert parsed["contents"]["en"]["name"] == "Evil Corp"
         assert parsed["contents"]["de"]["name"] == "Böse Org"
         assert json.dumps(parsed) is not None
