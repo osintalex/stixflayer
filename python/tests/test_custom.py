@@ -108,6 +108,44 @@ class TestCustomProperties:
         assert parsed["type"] == "attack-pattern"
         assert parsed["name"] == "Spear Phishing"
 
+    def test_sdo_with_extensions(self):
+        """Test AttackPattern with custom properties via extensions."""
+        attack_pattern = AttackPattern(
+            name="Spear Phishing",
+            extensions_json=json.dumps({
+                "extension-definition--abc123": {
+                    "extension_type": "property-extension",
+                    "x-threat-actor": "APT29",
+                }
+            }),
+        )
+        json_str = attack_pattern.to_json()
+        parsed = json.loads(json_str)
+        assert parsed["name"] == "Spear Phishing"
+        assert "extensions" in parsed
+        ext = parsed["extensions"]["extension-definition--abc123"]
+        assert ext["x-threat-actor"] == "APT29"
+
+    def test_sdo_with_multiple_extensions(self):
+        """Test AttackPattern with multiple custom properties."""
+        attack_pattern = AttackPattern(
+            name="Phishing",
+            extensions_json=json.dumps({
+                "extension-definition--ext1": {
+                    "extension_type": "property-extension",
+                    "x-custom-1": "value1",
+                },
+                "extension-definition--ext2": {
+                    "extension_type": "property-extension",
+                    "x-custom-2": "value2",
+                },
+            }),
+        )
+        json_str = attack_pattern.to_json()
+        parsed = json.loads(json_str)
+        assert "extensions" in parsed
+        assert len(parsed["extensions"]) == 2
+
     def test_standard_sco_basic(self):
         """Test standard IPv4Address still works."""
         ipv4 = IPv4Address(value="192.168.1.100")
@@ -115,6 +153,40 @@ class TestCustomProperties:
         parsed = json.loads(json_str)
         assert parsed["type"] == "ipv4-addr"
         assert parsed["value"] == "192.168.1.100"
+
+    def test_sco_with_extensions(self):
+        """Test IPv4Address with custom properties via extensions."""
+        ipv4 = IPv4Address(
+            value="192.168.1.100",
+            extensions_json=json.dumps({
+                "extension-definition--xyz789": {
+                    "extension_type": "property-extension",
+                    "x-internal-id": "firewall-001",
+                }
+            }),
+        )
+        json_str = ipv4.to_json()
+        parsed = json.loads(json_str)
+        assert parsed["value"] == "192.168.1.100"
+        assert "extensions" in parsed
+        ext = parsed["extensions"]["extension-definition--xyz789"]
+        assert ext["x-internal-id"] == "firewall-001"
+
+    def test_identity_with_extensions(self):
+        """Test Identity with custom properties."""
+        identity = Identity(
+            name="ACME Corp",
+            extensions_json=json.dumps({
+                "extension-definition--org": {
+                    "extension_type": "property-extension",
+                    "x-org-id": "ORG-12345",
+                }
+            }),
+        )
+        json_str = identity.to_json()
+        parsed = json.loads(json_str)
+        assert parsed["name"] == "ACME Corp"
+        assert parsed["extensions"]["extension-definition--org"]["x-org-id"] == "ORG-12345"
 
 
 class TestExtensionDefinition:
