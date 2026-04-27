@@ -81,6 +81,21 @@ class TestCustomObject:
         parsed = json.loads(json_str)
         assert parsed["type"] == "roundtrip-test"
 
+    def test_from_json(self):
+        """CustomObject deserializes from JSON."""
+        original = CustomObject(
+            type_="my-custom-sdo",
+            extension_type="new-sdo",
+            custom_properties_json=json.dumps(
+                {
+                    "name": "Test Object",
+                }
+            ),
+        )
+        json_str = original.to_json()
+        restored = CustomObject.from_json(json_str)
+        assert restored.type == "my-custom-sdo"
+
 
 class TestCustomProperties:
     """Test custom properties on standard objects via extensions."""
@@ -103,9 +118,31 @@ class TestCustomProperties:
 
 
 class TestExtensionDefinition:
-    """Test ExtensionDefinition for defining extensions - skip due to missing create_by_ref param."""
+    """Test ExtensionDefinition for defining extensions."""
 
-    def test_extension_definition_exists(self):
-        """ExtensionDefinition class exists."""
-        # Verify the class is importable
-        assert ExtensionDefinition is not None
+    def test_create_property_extension(self):
+        """Create an extension definition for custom properties."""
+        ext_def = ExtensionDefinition(
+            name="My Custom Properties",
+            schema="https://example.com/schema.json",
+            version="1.0.0",
+            extension_type="property",
+            created_by_ref="identity--c78cb6d5-3867-4e77-9a2f-978e0d1d3c7e",
+        )
+        json_str = ext_def.to_json()
+        parsed = json.loads(json_str)
+        assert parsed["name"] == "My Custom Properties"
+        assert "property-extension" in parsed["extension_types"]
+
+    def test_create_new_object_extension(self):
+        """Create an extension definition for a new object type."""
+        ext_def = ExtensionDefinition(
+            name="My New Object Type",
+            schema="https://example.com/new-object.json",
+            version="1.0.0",
+            extension_type="new-sdo",
+            created_by_ref="identity--c78cb6d5-3867-4e77-9a2f-978e0d1d3c7e",
+        )
+        json_str = ext_def.to_json()
+        parsed = json.loads(json_str)
+        assert "new-sdo" in parsed["extension_types"]

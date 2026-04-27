@@ -1,7 +1,7 @@
 use pyo3::exceptions::PyRuntimeError as PyO3RuntimeError;
 use pyo3::prelude::*;
-use pyo3::types::PyAny;
 use std::collections::BTreeMap;
+use std::str::FromStr;
 use ordered_float::OrderedFloat;
 use stixflayer::cyber_observable_objects::sco::CyberObjectBuilder;
 use stixflayer::custom_objects::CustomObjectBuilder;
@@ -1052,7 +1052,11 @@ impl CustomObject {
             .map_err(|e| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
         
         let props_map: BTreeMap<String, serde_json::Value> = if let serde_json::Value::Object(m) = props {
-            m.into_iter().collect()
+            let mut map = BTreeMap::new();
+            for (k, v) in m {
+                let _ = map.insert(k, v);
+            }
+            map
         } else {
             return Err(PyErr::new::<PyO3RuntimeError, _>("custom_properties must be a JSON object".to_string()));
         };
@@ -1083,8 +1087,39 @@ impl CustomObject {
             })
     }
 
-    // from_json commented out - need to fix pyo3 0.22 classmethod signature
-    // fn from_json(_py: &PyAny, json_str: String) -> Result<Self, PyErr> {
+    /// Deserialize a CustomObject from JSON string
+    /// Note: from_json needs pyo3 0.22 fix - using staticmethod pattern
+    /// Usage: CustomObject.from_json('{"type": "my-sdo", ...}')
+    #[staticmethod]
+    fn from_json(json_str: String) -> Result<Self, PyErr> {
+        let obj = stixflayer::custom_objects::CustomObject::from_json(&json_str)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+
+        let extension_type = obj
+            .get_object_type()
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+
+        let ext_type_str = match extension_type {
+            ExtensionType::NewSdo => "new-sdo",
+            ExtensionType::NewSro => "new-sro",
+            ExtensionType::NewSco => "new-sco",
+            _ => "unknown",
+        };
+
+        let extension_definition_id = obj.common_properties.extensions.as_ref().and_then(|exts| {
+            exts.keys().next().cloned()
+        });
+
+        let custom_properties_json = serde_json::to_string(&obj.custom_properties)
+            .map_err(|e| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+
+        Ok(CustomObject {
+            type_: obj.object_type,
+            custom_properties_json,
+            extension_type: ext_type_str.to_string(),
+            extension_definition_id,
+        })
+    }
 
     #[getter]
     fn r#type(&self) -> String {
@@ -1108,6 +1143,7 @@ impl ExtensionDefinition {
         schema: String,
         version: String,
         extension_type: String,
+        created_by_ref: Option<String>,
     ) -> Result<Self, PyErr> {
         let mut builder = ExtensionDefinitionBuilder::new(&name)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
@@ -1121,6 +1157,11 @@ impl ExtensionDefinition {
             _ => ExtensionType::ToplevelPropertyExtension,
         };
         builder = builder.extension_types(vec![ext_type]);
+        if let Some(cref) = created_by_ref {
+            if let Ok(id) = Identifier::from_str(&cref) {
+                builder = builder.created_by_ref(id).map_err(|e| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+            }
+        }
         Ok(ExtensionDefinition(builder))
     }
 
