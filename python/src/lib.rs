@@ -241,9 +241,10 @@ impl IPv4Address {
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -297,9 +298,10 @@ impl IPv6Address {
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -353,9 +355,10 @@ impl DomainName {
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -409,9 +412,10 @@ impl URL {
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -465,9 +469,10 @@ impl EmailAddress {
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -636,9 +641,10 @@ impl EmailMessage {
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -692,9 +698,10 @@ impl MacAddr {
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -748,9 +755,10 @@ impl AutonomousSystem {
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -779,19 +787,36 @@ pub struct File(CyberObjectBuilder);
 #[pymethods]
 impl File {
     #[new]
-    fn new(name: String) -> Result<Self, PyErr> {
-        let builder = CyberObjectBuilder::new("file")
+    #[pyo3(signature = (name, extensions_json = None))]
+    fn new(name: String, extensions_json: Option<String>) -> Result<Self, PyErr> {
+        let mut builder = CyberObjectBuilder::new("file")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .name(name)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+
+        if let Some(exts_json) = extensions_json {
+            let ext_dict = json_to_stix_dict(&exts_json)?;
+            for (key, value) in ext_dict.iter() {
+                let mut single_ext = StixDictionary::new();
+                if let DictionaryValue::Dict(ext_props) = value {
+                    for (prop_key, prop_val) in ext_props.iter() {
+                        let _ = single_ext.insert(prop_key, prop_val.clone());
+                    }
+                }
+                builder = builder
+                    .add_extension(key, single_ext)
+                    .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+            }
+        }
         Ok(File(builder))
     }
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -845,9 +870,10 @@ impl Software {
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -901,9 +927,10 @@ impl Directory {
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -957,9 +984,10 @@ impl Mutex {
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -1023,9 +1051,10 @@ impl NetworkTraffic {
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -1041,19 +1070,36 @@ pub struct UserAccount(CyberObjectBuilder);
 #[pymethods]
 impl UserAccount {
     #[new]
-    fn new(account_login: String) -> Result<Self, PyErr> {
-        let builder = CyberObjectBuilder::new("user-account")
+    #[pyo3(signature = (account_login, extensions_json = None))]
+    fn new(account_login: String, extensions_json: Option<String>) -> Result<Self, PyErr> {
+        let mut builder = CyberObjectBuilder::new("user-account")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .account_login(account_login)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+
+        if let Some(exts_json) = extensions_json {
+            let ext_dict = json_to_stix_dict(&exts_json)?;
+            for (key, value) in ext_dict.iter() {
+                let mut single_ext = StixDictionary::new();
+                if let DictionaryValue::Dict(ext_props) = value {
+                    for (prop_key, prop_val) in ext_props.iter() {
+                        let _ = single_ext.insert(prop_key, prop_val.clone());
+                    }
+                }
+                builder = builder
+                    .add_extension(key, single_ext)
+                    .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+            }
+        }
         Ok(UserAccount(builder))
     }
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -1091,9 +1137,10 @@ impl WindowsRegistryKey {
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -1148,9 +1195,10 @@ impl X509Certificate {
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
@@ -1188,9 +1236,10 @@ impl Artifact {
 
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
-            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
+            serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
         } else {
-            "{}".to_string()
+            let err = self.0.clone().build().unwrap_err();
+            format!("{{\"build_error\": \"{}\"}}", err)
         }
     }
 
