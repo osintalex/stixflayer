@@ -112,6 +112,16 @@ macro_rules! make_sdo {
                 Ok($name(builder))
             }
 
+            #[staticmethod]
+            fn from_json(json_str: String) -> Result<Self, PyErr> {
+                // Use version() to create builder from existing DomainObject
+                let domain_object = stixflayer::domain_objects::sdo::DomainObject::from_json(&json_str, false)
+                    .map_err(|e: stixflayer::error::StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+                let builder = DomainObjectBuilder::version(&domain_object)
+                    .map_err(|e: stixflayer::error::StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+                Ok($name(builder))
+            }
+
             fn to_json(&self) -> String {
                 if let Ok(obj) = self.0.clone().build() {
                     serde_json::to_string(&StixObject::Sdo(obj))
