@@ -342,6 +342,18 @@ impl CyberObjectBuilder {
         })
     }
 
+    /// Create a CyberObjectBuilder from an existing CyberObject.
+    /// Used for deserialization to convert a parsed CyberObject back into a builder.
+    pub fn from(cyber_object: &CyberObject) -> Result<CyberObjectBuilder, Error> {
+        let object_type = cyber_object.object_type.clone();
+        let common_properties =
+            CommonPropertiesBuilder::version("sco", &cyber_object.common_properties)?;
+        Ok(CyberObjectBuilder {
+            object_type,
+            common_properties,
+        })
+    }
+
     // Setter functions for optional properties common to all SCOs
 
     /// Set the optional `created_by_ref` field for an SCO under construction.
