@@ -2846,6 +2846,7 @@ dependencies = [
  "heck 0.3.3",
  "maturin",
  "ordered-float 4.6.0",
+ "paste",
  "pyo3",
  "serde",
  "serde_json",
