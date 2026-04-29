@@ -16,6 +16,8 @@ use stixflayer::types::ExtensionType;
 use stixflayer::types::Identifier;
 use stixflayer::types::Timestamp;
 use stixflayer::types::{DictionaryValue, StixDictionary};
+use pyo3::types::PyDict;
+use pyo3::types::PyList;
 
 #[pyfunction]
 pub fn version() -> String {
@@ -38,47 +40,56 @@ pub fn create_timestamp(value: &str) -> String {
 // PyO3 limitation: #[pyclass] and #[pymethods] cannot be generated via macros.
 // Each SCO struct must be written explicitly with these proc-macro attributes.
 
-fn json_to_stix_dict(json_str: &str) -> Result<StixDictionary<DictionaryValue>, PyErr> {
-    let value: serde_json::Value = serde_json::from_str(json_str)
-        .map_err(|e| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
-    
+fn pydict_to_stix_dict(dict: &Bound<'_, PyDict>) -> Result<StixDictionary<DictionaryValue>, PyErr> {
     let mut output = StixDictionary::new();
-    if let serde_json::Value::Object(map) = value {
-        for (k, v) in map {
-            let dict_val = json_value_to_dict_value(&v);
-            let _ = output.insert(&k, dict_val);
-        }
+    for (key, value) in dict.iter() {
+        let k: String = key.extract()
+            .map_err(|e| PyErr::new::<PyO3RuntimeError, _>(format!("Extension key must be a string: {}", e)))?;
+        let v = pyobj_to_dict_value(value)?;
+        let _ = output.insert(&k, v);
     }
     Ok(output)
 }
 
-fn json_value_to_dict_value(value: &serde_json::Value) -> DictionaryValue {
-    match value {
-        serde_json::Value::String(s) => DictionaryValue::String(s.clone()),
-        serde_json::Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                DictionaryValue::SInt(i)
-            } else if let Some(u) = n.as_u64() {
-                DictionaryValue::Int(u)
-            } else if let Some(f) = n.as_f64() {
-                DictionaryValue::Float(OrderedFloat::from(f))
-            } else {
-                DictionaryValue::String(n.to_string())
-            }
-        }
-        serde_json::Value::Bool(b) => DictionaryValue::Bool(*b),
-        serde_json::Value::Array(arr) => {
-            DictionaryValue::List(arr.iter().map(json_value_to_dict_value).collect())
-        }
-        serde_json::Value::Object(obj) => {
-            let mut map = StixDictionary::new();
-            for (k, v) in obj {
-                let _ = map.insert(k, json_value_to_dict_value(v));
-            }
-            DictionaryValue::Dict(map)
-        }
-        _ => DictionaryValue::String(value.to_string()),
+fn pyobj_to_dict_value(obj: Bound<'_, PyAny>) -> Result<DictionaryValue, PyErr> {
+    // Handle None
+    if obj.is_none() {
+        return Ok(DictionaryValue::String(String::new()));
     }
+    // Handle string
+    if let Ok(s) = obj.extract::<String>() {
+        return Ok(DictionaryValue::String(s));
+    }
+    // Handle integer (i64 first, then u64)
+    if let Ok(i) = obj.extract::<i64>() {
+        return Ok(DictionaryValue::SInt(i));
+    }
+    if let Ok(u) = obj.extract::<u64>() {
+        return Ok(DictionaryValue::Int(u));
+    }
+    // Handle float
+    if let Ok(f) = obj.extract::<f64>() {
+        return Ok(DictionaryValue::Float(OrderedFloat::from(f)));
+    }
+    // Handle boolean
+    if let Ok(b) = obj.extract::<bool>() {
+        return Ok(DictionaryValue::Bool(b));
+    }
+    // Handle list
+    if let Ok(list) = obj.downcast::<PyList>() {
+        let mut items = Vec::new();
+        for item in list.iter() {
+            items.push(pyobj_to_dict_value(item)?);
+        }
+        return Ok(DictionaryValue::List(items));
+    }
+    // Handle dict
+    if let Ok(dict) = obj.downcast::<PyDict>() {
+        let stix_dict = pydict_to_stix_dict(dict)?;
+        return Ok(DictionaryValue::Dict(stix_dict));
+    }
+    // Fallback: convert to string
+    Ok(DictionaryValue::String(obj.to_string()))
 }
 
 macro_rules! make_sdo {
@@ -89,20 +100,18 @@ macro_rules! make_sdo {
         #[pymethods]
         impl $name {
             #[new]
-            #[pyo3(signature = (name, extensions_json = None))]
-            fn new(name: String, extensions_json: Option<String>) -> Result<Self, PyErr> {
+            #[pyo3(signature = (name, extensions = None))]
+            fn new(name: String, extensions: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
                 let mut builder = DomainObjectBuilder::new($type_name)
                     .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
                     .name(name)
                     .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
 
-                if let Some(exts_json) = extensions_json {
-                    let ext_dict = json_to_stix_dict(&exts_json)?;
+                if let Some(exts_dict) = extensions {
+                    let ext_dict = pydict_to_stix_dict(&exts_dict)?;
                     for (key, value) in ext_dict.iter() {
-                        let ext_value: &DictionaryValue = value;
                         let mut single_ext = StixDictionary::new();
-                        // The value is already a Dict containing extension props
-                        if let DictionaryValue::Dict(ext_props) = ext_value {
+                        if let DictionaryValue::Dict(ext_props) = value {
                             for (prop_key, prop_val) in ext_props.iter() {
                                 let _ = single_ext.insert(prop_key, prop_val.clone());
                             }
@@ -117,7 +126,6 @@ macro_rules! make_sdo {
 
             #[staticmethod]
             fn from_json(json_str: String) -> Result<Self, PyErr> {
-                // Use version() to create builder from existing DomainObject
                 let domain_object = stixflayer::domain_objects::sdo::DomainObject::from_json(&json_str, false)
                     .map_err(|e: stixflayer::error::StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
                 let builder = DomainObjectBuilder::version(&domain_object)
@@ -150,11 +158,11 @@ macro_rules! make_sdo_optional {
         #[pymethods]
         impl $name {
             #[new]
-            #[pyo3(signature = (name = None, description = None, extensions_json = None))]
+            #[pyo3(signature = (name = None, description = None, extensions = None))]
             fn new(
                 name: Option<String>,
                 description: Option<String>,
-                extensions_json: Option<String>,
+                extensions: Option<Bound<'_, PyDict>>,
             ) -> Result<Self, PyErr> {
                 let mut builder = DomainObjectBuilder::new($type_name)
                     .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
@@ -168,8 +176,8 @@ macro_rules! make_sdo_optional {
                         .description(d)
                         .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
                 }
-                if let Some(exts_json) = extensions_json {
-                    let ext_dict = json_to_stix_dict(&exts_json)?;
+                if let Some(exts_dict) = extensions {
+                    let ext_dict = pydict_to_stix_dict(&exts_dict)?;
                     for (key, value) in ext_dict.iter() {
                         let mut single_ext = StixDictionary::new();
                         if let DictionaryValue::Dict(ext_props) = value {
@@ -228,15 +236,15 @@ pub struct IPv4Address(CyberObjectBuilder);
 #[pymethods]
 impl IPv4Address {
     #[new]
-    #[pyo3(signature = (value, extensions_json = None))]
-    fn new(value: String, extensions_json: Option<String>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (value, extensions = None))]
+    fn new(value: String, extensions: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
         let mut builder = CyberObjectBuilder::new("ipv4-addr")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .value(value)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
 
-        if let Some(exts_json) = extensions_json {
-            let ext_dict = json_to_stix_dict(&exts_json)?;
+        if let Some(exts_dict) = extensions {
+            let ext_dict = pydict_to_stix_dict(&exts_dict)?;
             for (key, value) in ext_dict.iter() {
                 let mut single_ext = StixDictionary::new();
                 if let DictionaryValue::Dict(ext_props) = value {
@@ -294,15 +302,15 @@ pub struct IPv6Address(CyberObjectBuilder);
 #[pymethods]
 impl IPv6Address {
     #[new]
-    #[pyo3(signature = (value, extensions_json = None))]
-    fn new(value: String, extensions_json: Option<String>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (value, extensions = None))]
+    fn new(value: String, extensions: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
         let mut builder = CyberObjectBuilder::new("ipv6-addr")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .value(value)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
 
-        if let Some(exts_json) = extensions_json {
-            let ext_dict = json_to_stix_dict(&exts_json)?;
+        if let Some(exts_dict) = extensions {
+            let ext_dict = pydict_to_stix_dict(&exts_dict)?;
             for (key, value) in ext_dict.iter() {
                 let mut single_ext = StixDictionary::new();
                 if let DictionaryValue::Dict(ext_props) = value {
@@ -360,15 +368,15 @@ pub struct DomainName(CyberObjectBuilder);
 #[pymethods]
 impl DomainName {
     #[new]
-    #[pyo3(signature = (value, extensions_json = None))]
-    fn new(value: String, extensions_json: Option<String>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (value, extensions = None))]
+    fn new(value: String, extensions: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
         let mut builder = CyberObjectBuilder::new("domain-name")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .value(value)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
 
-        if let Some(exts_json) = extensions_json {
-            let ext_dict = json_to_stix_dict(&exts_json)?;
+        if let Some(exts_dict) = extensions {
+            let ext_dict = pydict_to_stix_dict(&exts_dict)?;
             for (key, value) in ext_dict.iter() {
                 let mut single_ext = StixDictionary::new();
                 if let DictionaryValue::Dict(ext_props) = value {
@@ -426,15 +434,15 @@ pub struct URL(CyberObjectBuilder);
 #[pymethods]
 impl URL {
     #[new]
-    #[pyo3(signature = (value, extensions_json = None))]
-    fn new(value: String, extensions_json: Option<String>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (value, extensions = None))]
+    fn new(value: String, extensions: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
         let mut builder = CyberObjectBuilder::new("url")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .value(value)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
 
-        if let Some(exts_json) = extensions_json {
-            let ext_dict = json_to_stix_dict(&exts_json)?;
+        if let Some(exts_dict) = extensions {
+            let ext_dict = pydict_to_stix_dict(&exts_dict)?;
             for (key, value) in ext_dict.iter() {
                 let mut single_ext = StixDictionary::new();
                 if let DictionaryValue::Dict(ext_props) = value {
@@ -492,15 +500,15 @@ pub struct EmailAddress(CyberObjectBuilder);
 #[pymethods]
 impl EmailAddress {
     #[new]
-    #[pyo3(signature = (value, extensions_json = None))]
-    fn new(value: String, extensions_json: Option<String>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (value, extensions = None))]
+    fn new(value: String, extensions: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
         let mut builder = CyberObjectBuilder::new("email-address")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .value(value)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
 
-        if let Some(exts_json) = extensions_json {
-            let ext_dict = json_to_stix_dict(&exts_json)?;
+        if let Some(exts_dict) = extensions {
+            let ext_dict = pydict_to_stix_dict(&exts_dict)?;
             for (key, value) in ext_dict.iter() {
                 let mut single_ext = StixDictionary::new();
                 if let DictionaryValue::Dict(ext_props) = value {
@@ -572,7 +580,7 @@ impl EmailMessage {
         recieved_lines = None,
         body = None,
         raw_email_ref = None,
-        extensions_json = None,
+        extensions = None,
     ))]
     fn new(
         from_ref: String,
@@ -588,7 +596,7 @@ impl EmailMessage {
         recieved_lines: Option<Vec<String>>,
         body: Option<String>,
         raw_email_ref: Option<String>,
-        extensions_json: Option<String>,
+        extensions: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
         let from: Identifier = from_ref
             .parse()
@@ -679,8 +687,8 @@ impl EmailMessage {
                 .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
         }
 
-        if let Some(exts_json) = extensions_json {
-            let ext_dict = json_to_stix_dict(&exts_json)?;
+        if let Some(exts_dict) = extensions {
+            let ext_dict = pydict_to_stix_dict(&exts_dict)?;
             for (key, value) in ext_dict.iter() {
                 let mut single_ext = StixDictionary::new();
                 if let DictionaryValue::Dict(ext_props) = value {
@@ -739,15 +747,15 @@ pub struct MacAddr(CyberObjectBuilder);
 #[pymethods]
 impl MacAddr {
     #[new]
-    #[pyo3(signature = (value, extensions_json = None))]
-    fn new(value: String, extensions_json: Option<String>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (value, extensions = None))]
+    fn new(value: String, extensions: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
         let mut builder = CyberObjectBuilder::new("mac-addr")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .value(value)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
 
-        if let Some(exts_json) = extensions_json {
-            let ext_dict = json_to_stix_dict(&exts_json)?;
+        if let Some(exts_dict) = extensions {
+            let ext_dict = pydict_to_stix_dict(&exts_dict)?;
             for (key, value) in ext_dict.iter() {
                 let mut single_ext = StixDictionary::new();
                 if let DictionaryValue::Dict(ext_props) = value {
@@ -805,15 +813,15 @@ pub struct AutonomousSystem(CyberObjectBuilder);
 #[pymethods]
 impl AutonomousSystem {
     #[new]
-    #[pyo3(signature = (number, extensions_json = None))]
-    fn new(number: u64, extensions_json: Option<String>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (number, extensions = None))]
+    fn new(number: u64, extensions: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
         let mut builder = CyberObjectBuilder::new("autonomous-system")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .number(number)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
 
-        if let Some(exts_json) = extensions_json {
-            let ext_dict = json_to_stix_dict(&exts_json)?;
+        if let Some(exts_dict) = extensions {
+            let ext_dict = pydict_to_stix_dict(&exts_dict)?;
             for (key, value) in ext_dict.iter() {
                 let mut single_ext = StixDictionary::new();
                 if let DictionaryValue::Dict(ext_props) = value {
@@ -863,15 +871,15 @@ pub struct File(CyberObjectBuilder);
 #[pymethods]
 impl File {
     #[new]
-    #[pyo3(signature = (name, extensions_json = None))]
-    fn new(name: String, extensions_json: Option<String>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (name, extensions = None))]
+    fn new(name: String, extensions: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
         let mut builder = CyberObjectBuilder::new("file")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .name(name)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
 
-        if let Some(exts_json) = extensions_json {
-            let ext_dict = json_to_stix_dict(&exts_json)?;
+        if let Some(exts_dict) = extensions {
+            let ext_dict = pydict_to_stix_dict(&exts_dict)?;
             for (key, value) in ext_dict.iter() {
                 let mut single_ext = StixDictionary::new();
                 if let DictionaryValue::Dict(ext_props) = value {
@@ -929,15 +937,15 @@ pub struct Software(CyberObjectBuilder);
 #[pymethods]
 impl Software {
     #[new]
-    #[pyo3(signature = (name, extensions_json = None))]
-    fn new(name: String, extensions_json: Option<String>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (name, extensions = None))]
+    fn new(name: String, extensions: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
         let mut builder = CyberObjectBuilder::new("software")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .name(name)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
 
-        if let Some(exts_json) = extensions_json {
-            let ext_dict = json_to_stix_dict(&exts_json)?;
+        if let Some(exts_dict) = extensions {
+            let ext_dict = pydict_to_stix_dict(&exts_dict)?;
             for (key, value) in ext_dict.iter() {
                 let mut single_ext = StixDictionary::new();
                 if let DictionaryValue::Dict(ext_props) = value {
@@ -995,15 +1003,15 @@ pub struct Directory(CyberObjectBuilder);
 #[pymethods]
 impl Directory {
     #[new]
-    #[pyo3(signature = (path, extensions_json = None))]
-    fn new(path: String, extensions_json: Option<String>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (path, extensions = None))]
+    fn new(path: String, extensions: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
         let mut builder = CyberObjectBuilder::new("directory")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .path(path)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
 
-        if let Some(exts_json) = extensions_json {
-            let ext_dict = json_to_stix_dict(&exts_json)?;
+        if let Some(exts_dict) = extensions {
+            let ext_dict = pydict_to_stix_dict(&exts_dict)?;
             for (key, value) in ext_dict.iter() {
                 let mut single_ext = StixDictionary::new();
                 if let DictionaryValue::Dict(ext_props) = value {
@@ -1061,15 +1069,15 @@ pub struct Mutex(CyberObjectBuilder);
 #[pymethods]
 impl Mutex {
     #[new]
-    #[pyo3(signature = (name, extensions_json = None))]
-    fn new(name: String, extensions_json: Option<String>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (name, extensions = None))]
+    fn new(name: String, extensions: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
         let mut builder = CyberObjectBuilder::new("mutex")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .name(name)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
 
-        if let Some(exts_json) = extensions_json {
-            let ext_dict = json_to_stix_dict(&exts_json)?;
+        if let Some(exts_dict) = extensions {
+            let ext_dict = pydict_to_stix_dict(&exts_dict)?;
             for (key, value) in ext_dict.iter() {
                 let mut single_ext = StixDictionary::new();
                 if let DictionaryValue::Dict(ext_props) = value {
@@ -1200,15 +1208,15 @@ pub struct UserAccount(CyberObjectBuilder);
 #[pymethods]
 impl UserAccount {
     #[new]
-    #[pyo3(signature = (account_login, extensions_json = None))]
-    fn new(account_login: String, extensions_json: Option<String>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (account_login, extensions = None))]
+    fn new(account_login: String, extensions: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
         let mut builder = CyberObjectBuilder::new("user-account")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .account_login(account_login)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
 
-        if let Some(exts_json) = extensions_json {
-            let ext_dict = json_to_stix_dict(&exts_json)?;
+        if let Some(exts_dict) = extensions {
+            let ext_dict = pydict_to_stix_dict(&exts_dict)?;
             for (key, value) in ext_dict.iter() {
                 let mut single_ext = StixDictionary::new();
                 if let DictionaryValue::Dict(ext_props) = value {
@@ -1317,15 +1325,15 @@ pub struct X509Certificate(CyberObjectBuilder);
 #[pymethods]
 impl X509Certificate {
     #[new]
-    #[pyo3(signature = (serial_number, extensions_json = None))]
-    fn new(serial_number: String, extensions_json: Option<String>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (serial_number, extensions = None))]
+    fn new(serial_number: String, extensions: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
         let mut builder = CyberObjectBuilder::new("x509-certificate")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .serial_number(serial_number)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
 
-        if let Some(exts_json) = extensions_json {
-            let ext_dict = json_to_stix_dict(&exts_json)?;
+        if let Some(exts_dict) = extensions {
+            let ext_dict = pydict_to_stix_dict(&exts_dict)?;
             for (key, value) in ext_dict.iter() {
                 let mut single_ext = StixDictionary::new();
                 if let DictionaryValue::Dict(ext_props) = value {

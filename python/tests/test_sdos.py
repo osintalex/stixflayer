@@ -137,3 +137,35 @@ class TestKnownLimitations:
         report = Report(name="Test")
         result = report.to_json()
         assert result == "{}"
+
+
+class TestExtensions:
+    """Test extensions parameter with Python dict."""
+
+    def test_sdo_with_extensions_dict(self):
+        """Test creating SDO with extensions as Python dict."""
+        ext = {"ext--123": {"property1": "value1", "property2": 42}}
+        obj = AttackPattern(name="Test", extensions=ext)
+        data = json.loads(obj.to_json())
+        assert "extensions" in data
+        assert "ext--123" in data["extensions"]
+
+    def test_sdo_without_extensions(self):
+        """Test creating SDO without extensions."""
+        obj = AttackPattern(name="Test")
+        data = json.loads(obj.to_json())
+        assert "extensions" not in data
+
+    def test_malware_with_extensions(self):
+        """Test Malware with extensions dict."""
+        ext = {"ext--456": {"analysis": "static"}}
+        obj = Malware(name="Emotet", extensions=ext)
+        data = json.loads(obj.to_json())
+        assert "extensions" in data
+
+    def test_identity_with_extensions(self):
+        """Test Identity with extensions dict."""
+        ext = {"ext--789": {"sector": "technology"}}
+        obj = Identity(name="ACME Corp", extensions=ext)
+        data = json.loads(obj.to_json())
+        assert "extensions" in data

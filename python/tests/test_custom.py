@@ -112,12 +112,12 @@ class TestCustomProperties:
         """Test AttackPattern with custom properties via extensions."""
         attack_pattern = AttackPattern(
             name="Spear Phishing",
-            extensions_json=json.dumps({
+            extensions={
                 "extension-definition--abc123": {
                     "extension_type": "property-extension",
                     "x-threat-actor": "APT29",
                 }
-            }),
+            },
         )
         json_str = attack_pattern.to_json()
         parsed = json.loads(json_str)
@@ -130,7 +130,7 @@ class TestCustomProperties:
         """Test AttackPattern with multiple custom properties."""
         attack_pattern = AttackPattern(
             name="Phishing",
-            extensions_json=json.dumps({
+            extensions={
                 "extension-definition--ext1": {
                     "extension_type": "property-extension",
                     "x-custom-1": "value1",
@@ -139,7 +139,7 @@ class TestCustomProperties:
                     "extension_type": "property-extension",
                     "x-custom-2": "value2",
                 },
-            }),
+            },
         )
         json_str = attack_pattern.to_json()
         parsed = json.loads(json_str)
@@ -158,12 +158,12 @@ class TestCustomProperties:
         """Test IPv4Address with custom properties via extensions."""
         ipv4 = IPv4Address(
             value="192.168.1.100",
-            extensions_json=json.dumps({
+            extensions={
                 "extension-definition--xyz789": {
                     "extension_type": "property-extension",
                     "x-internal-id": "firewall-001",
                 }
-            }),
+            },
         )
         json_str = ipv4.to_json()
         parsed = json.loads(json_str)
@@ -176,12 +176,12 @@ class TestCustomProperties:
         """Test Identity with custom properties."""
         identity = Identity(
             name="ACME Corp",
-            extensions_json=json.dumps({
+            extensions={
                 "extension-definition--org": {
                     "extension_type": "property-extension",
                     "x-org-id": "ORG-12345",
                 }
-            }),
+            },
         )
         json_str = identity.to_json()
         parsed = json.loads(json_str)
