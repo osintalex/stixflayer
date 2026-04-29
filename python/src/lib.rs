@@ -1,6 +1,5 @@
 use pyo3::exceptions::PyRuntimeError as PyO3RuntimeError;
 use pyo3::prelude::*;
-use paste::paste;
 use std::collections::BTreeMap;
 use std::str::FromStr;
 use ordered_float::OrderedFloat;
@@ -37,7 +36,7 @@ pub fn create_timestamp(value: &str) -> String {
 }
 
 // PyO3 limitation: #[pyclass] and #[pymethods] cannot be generated via macros.
-// Each SCO struct must be written explicitly. This is why we have manual implementations.
+// Each SCO struct must be written explicitly with these proc-macro attributes.
 
 fn json_to_stix_dict(json_str: &str) -> Result<StixDictionary<DictionaryValue>, PyErr> {
     let value: serde_json::Value = serde_json::from_str(json_str)
