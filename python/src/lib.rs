@@ -697,6 +697,15 @@ impl EmailMessage {
         Ok(EmailMessage(builder))
     }
 
+    #[staticmethod]
+    fn from_json(json_str: String) -> Result<Self, PyErr> {
+        let cyber_object = stixflayer::cyber_observable_objects::sco::CyberObject::from_json(&json_str, false)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        let builder = CyberObjectBuilder::from(&cyber_object)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        Ok(EmailMessage(builder))
+    }
+
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
             serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
@@ -751,6 +760,15 @@ impl MacAddr {
                     .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
             }
         }
+        Ok(MacAddr(builder))
+    }
+
+    #[staticmethod]
+    fn from_json(json_str: String) -> Result<Self, PyErr> {
+        let cyber_object = stixflayer::cyber_observable_objects::sco::CyberObject::from_json(&json_str, false)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        let builder = CyberObjectBuilder::from(&cyber_object)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
         Ok(MacAddr(builder))
     }
 
@@ -869,6 +887,15 @@ impl File {
         Ok(File(builder))
     }
 
+    #[staticmethod]
+    fn from_json(json_str: String) -> Result<Self, PyErr> {
+        let cyber_object = stixflayer::cyber_observable_objects::sco::CyberObject::from_json(&json_str, false)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        let builder = CyberObjectBuilder::from(&cyber_object)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        Ok(File(builder))
+    }
+
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
             serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
@@ -923,6 +950,15 @@ impl Software {
                     .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
             }
         }
+        Ok(Software(builder))
+    }
+
+    #[staticmethod]
+    fn from_json(json_str: String) -> Result<Self, PyErr> {
+        let cyber_object = stixflayer::cyber_observable_objects::sco::CyberObject::from_json(&json_str, false)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        let builder = CyberObjectBuilder::from(&cyber_object)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
         Ok(Software(builder))
     }
 
@@ -983,6 +1019,15 @@ impl Directory {
         Ok(Directory(builder))
     }
 
+    #[staticmethod]
+    fn from_json(json_str: String) -> Result<Self, PyErr> {
+        let cyber_object = stixflayer::cyber_observable_objects::sco::CyberObject::from_json(&json_str, false)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        let builder = CyberObjectBuilder::from(&cyber_object)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        Ok(Directory(builder))
+    }
+
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
             serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
@@ -1040,6 +1085,15 @@ impl Mutex {
         Ok(Mutex(builder))
     }
 
+    #[staticmethod]
+    fn from_json(json_str: String) -> Result<Self, PyErr> {
+        let cyber_object = stixflayer::cyber_observable_objects::sco::CyberObject::from_json(&json_str, false)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        let builder = CyberObjectBuilder::from(&cyber_object)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        Ok(Mutex(builder))
+    }
+
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
             serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
@@ -1079,6 +1133,15 @@ impl Process {
         Ok(Process(builder))
     }
 
+    #[staticmethod]
+    fn from_json(json_str: String) -> Result<Self, PyErr> {
+        let cyber_object = stixflayer::cyber_observable_objects::sco::CyberObject::from_json(&json_str, false)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        let builder = CyberObjectBuilder::from(&cyber_object)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        Ok(Process(builder))
+    }
+
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
             serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|_| "{}".to_string())
@@ -1103,6 +1166,15 @@ impl NetworkTraffic {
         let builder = CyberObjectBuilder::new("network-traffic")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .protocols(protocols)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        Ok(NetworkTraffic(builder))
+    }
+
+    #[staticmethod]
+    fn from_json(json_str: String) -> Result<Self, PyErr> {
+        let cyber_object = stixflayer::cyber_observable_objects::sco::CyberObject::from_json(&json_str, false)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        let builder = CyberObjectBuilder::from(&cyber_object)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
         Ok(NetworkTraffic(builder))
     }
@@ -1152,6 +1224,15 @@ impl UserAccount {
         Ok(UserAccount(builder))
     }
 
+    #[staticmethod]
+    fn from_json(json_str: String) -> Result<Self, PyErr> {
+        let cyber_object = stixflayer::cyber_observable_objects::sco::CyberObject::from_json(&json_str, false)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        let builder = CyberObjectBuilder::from(&cyber_object)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        Ok(UserAccount(builder))
+    }
+
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
             serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
@@ -1189,6 +1270,15 @@ impl WindowsRegistryKey {
         let builder = CyberObjectBuilder::new("windows-registry-key")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .key(key)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        Ok(WindowsRegistryKey(builder))
+    }
+
+    #[staticmethod]
+    fn from_json(json_str: String) -> Result<Self, PyErr> {
+        let cyber_object = stixflayer::cyber_observable_objects::sco::CyberObject::from_json(&json_str, false)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        let builder = CyberObjectBuilder::from(&cyber_object)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
         Ok(WindowsRegistryKey(builder))
     }
@@ -1251,6 +1341,15 @@ impl X509Certificate {
         Ok(X509Certificate(builder))
     }
 
+    #[staticmethod]
+    fn from_json(json_str: String) -> Result<Self, PyErr> {
+        let cyber_object = stixflayer::cyber_observable_objects::sco::CyberObject::from_json(&json_str, false)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        let builder = CyberObjectBuilder::from(&cyber_object)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        Ok(X509Certificate(builder))
+    }
+
     fn to_json(&self) -> String {
         if let Ok(sco) = self.0.clone().build() {
             serde_json::to_string(&StixObject::Sco(sco)).unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
@@ -1288,6 +1387,15 @@ impl Artifact {
         let builder = CyberObjectBuilder::new("artifact")
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?
             .mime_type(mime_type)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        Ok(Artifact(builder))
+    }
+
+    #[staticmethod]
+    fn from_json(json_str: String) -> Result<Self, PyErr> {
+        let cyber_object = stixflayer::cyber_observable_objects::sco::CyberObject::from_json(&json_str, false)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        let builder = CyberObjectBuilder::from(&cyber_object)
             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
         Ok(Artifact(builder))
     }
