@@ -5,13 +5,5 @@
     "name": "malware.exe",
     "size": 123456,
     "magic_number_hex": "4d5a",
-    "mime_type": "application/x-dosexec",
-    "md5": "d41d8cd98f00b204e9800998ecf8427e",
-    "sha1": "5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8",
-    "sha256": "d7a9f2b24e57209a18e7cfb2439c0b6f3c0d9a4b5c8e6f1a2b3c4d5e6f7a8b9",
-    "extensions": {
-        "file-extension": {
-            "file_extension": "exe"
-        }
-    }
+    "mime_type": "application/x-dosexec"
 }
