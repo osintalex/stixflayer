@@ -138,16 +138,31 @@ class TestSDOFromJson:
     def test_load_from_json(self, sdo_type):
         """Test loading SDO from canonical test data."""
         data = load_sdo(sdo_type)
-        # SDO classes that have from_json (only make_sdo! has it)
+        # SDO classes that have from_json - both make_sdo! and make_sdo_optional! have it
         cls_map = {
             "attack-pattern": AttackPattern,
             "campaign": Campaign,
             "course-of-action": CourseOfAction,
+            "grouping": Grouping,
             "identity": Identity,
+            "incident": Incident,
+            "indicator": Indicator,
+            "infrastructure": Infrastructure,
+            "intrusion-set": IntrusionSet,
+            "location": Location,
+            "malware": Malware,
+            "malware-analysis": MalwareAnalysis,
+            "note": Note,
+            "observed-data": ObservedData,
+            "opinion": Opinion,
+            "report": Report,
+            "threat-actor": ThreatActor,
+            "tool": Tool,
+            "vulnerability": Vulnerability,
         }
         cls = cls_map.get(sdo_type)
         if cls is None:
-            pytest.skip(f"{sdo_type} doesn't have from_json method")
+            pytest.skip(f"Unknown SDO type: {sdo_type}")
             return
         json_str = json.dumps(data)
         obj = cls.from_json(json_str)

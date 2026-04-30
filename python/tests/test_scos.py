@@ -265,39 +265,45 @@ class TestSCOFromJson:
     @pytest.mark.parametrize("sco_type", SCO_TYPES)
     def test_load_from_json(self, sco_type):
         """Test loading SCO from canonical test data."""
-        # Test data filename mapping fix
+        # Handle filename mapping differences
         filename_map = {"email-addr": "email-address"}
         filename = filename_map.get(sco_type, sco_type)
         
-        # Check if file exists
+        # Check if file exists and load it
         import os
         data_dir = os.path.join(os.path.dirname(__file__).replace('tests', 'data/stix'), 'scos')
         filepath = f"{data_dir}/{filename}.json"
         if not os.path.exists(filepath):
-            pytest.skip(f"test data file not found: {filepath}")
+            pytest.skip(f"test data file not found")
             return
             
         data = load_sco(sco_type)
-        # Only test SCOs with from_json and valid test data (no embedded objects)
-        valid = {"ipv4-addr", "ipv6-addr", "domain-name", "url", "mac-addr", "software", "windows-registry-key"}
-        if sco_type not in valid:
-            pytest.skip(f"{sco_type} test data has issues")
-            return
-            
-        from stixflayer import IPv4Address, IPv6Address, DomainName, URL, MacAddr, Software, WindowsRegistryKey
+        # All SCO classes have from_json in their #[pymethods] implementations
         cls_map = {
+            "artifact": Artifact,
+            "autonomous-system": AutonomousSystem,
+            "directory": Directory,
+            "domain-name": DomainName,
+            "email-addr": EmailAddress,
+            "email-message": EmailMessage,
+            "file": File,
             "ipv4-addr": IPv4Address,
             "ipv6-addr": IPv6Address,
-            "domain-name": DomainName,
-            "url": URL,
             "mac-addr": MacAddr,
+            "mutex": Mutex,
+            "network-traffic": NetworkTraffic,
+            "process": Process,
             "software": Software,
+            "url": URL,
+            "user-account": UserAccount,
             "windows-registry-key": WindowsRegistryKey,
+            "x509-certificate": X509Certificate,
         }
         cls = cls_map.get(sco_type)
         if cls is None:
-            pytest.skip(f"{sco_type} doesn't have from_json method")
+            pytest.skip(f"Unknown SCO type: {sco_type}")
             return
         json_str = json.dumps(data)
         obj = cls.from_json(json_str)
         assert obj.type == sco_type
+        assert json.loads(obj.to_json())["type"] == sco_type
