@@ -1013,12 +1013,13 @@ pub enum SdoTypes {
     Incident,
     Indicator,
     Infrastructure,
-    IntrustionSet,
+    IntrusionSet,
     Location,
     Malware,
     MalwareAnalysis,
     Note,
     ObservedData,
+    Opinion,
     Report,
     ThreatActor,
     Tool,
@@ -1065,6 +1066,7 @@ pub enum StixMetaTypes {
     LanguageContent,
     MarkingDefinition,
     ExtensionDefinition,
+    Bundle,
 }
 
 /// Function to return the STIX Object type associated with the "type" value, or return "custom" if the type is not recognized

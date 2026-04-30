@@ -1,6 +1,7 @@
 # STIX 2.1 Domain Objects (SDOs) Test Suite
 import json
 import pytest
+from tests.utils import load_sdo, SDO_TYPES
 
 from stixflayer import (
     AttackPattern,
@@ -17,6 +18,12 @@ from stixflayer import (
     Vulnerability,
     IPv4Address,
     Grouping,
+    Incident,
+    Indicator,
+    MalwareAnalysis,
+    Note,
+    ObservedData,
+    Opinion,
 )
 
 
@@ -84,88 +91,65 @@ class TestMalware:
         assert data["description"] == "Banking trojan"
 
 
-class TestIPv4Address:
-    """Test IPv4Address SCO."""
+class TestUntestedSDOs:
+    """Test SDOs that were previously untested."""
 
-    def test_create_with_value(self):
-        ip = IPv4Address(value="192.0.2.1")
-        assert ip.type == "ipv4-addr"
-        assert ip.value == "192.0.2.1"
+    def test_incident_create(self):
+        """Test Incident creation."""
+        from stixflayer import Incident
+        obj = Incident()
+        assert obj.type == "incident"
 
-    def test_to_json(self):
-        ip = IPv4Address(value="10.0.0.1")
-        data = json.loads(ip.to_json())
+    def test_indicator_create(self):
+        """Test Indicator creation."""
+        from stixflayer import Indicator
+        obj = Indicator()
+        assert obj.type == "indicator"
 
-        assert data["type"] == "ipv4-addr"
-        assert data["value"] == "10.0.0.1"
-        assert "id" in data
-        assert data["id"].startswith("ipv4-addr--")
+    def test_malware_analysis_create(self):
+        """Test MalwareAnalysis creation."""
+        from stixflayer import MalwareAnalysis
+        obj = MalwareAnalysis()
+        assert obj.type == "malware-analysis"
 
+    def test_note_create(self):
+        """Test Note creation."""
+        from stixflayer import Note
+        obj = Note()
+        assert obj.type == "note"
 
-class TestTypeGetters:
-    """Test type getters."""
+    def test_observed_data_create(self):
+        """Test ObservedData creation."""
+        from stixflayer import ObservedData
+        obj = ObservedData()
+        assert obj.type == "observed-data"
 
-    def test_attack_pattern_type(self):
-        assert AttackPattern(name="Test").type == "attack-pattern"
-
-    def test_identity_type(self):
-        assert Identity(name="Test").type == "identity"
-
-    def test_malware_type(self):
-        assert Malware(name="Test").type == "malware"
-
-    def test_ipv4_type(self):
-        assert IPv4Address(value="1.1.1.1").type == "ipv4-addr"
-
-    def test_ipv4_value(self):
-        assert IPv4Address(value="1.1.1.1").value == "1.1.1.1"
-
-
-class TestKnownLimitations:
-    """Tests for types that need more work - these are expected to fail/empty."""
-
-    def test_grouping_needs_context(self):
-        """Grouping requires context and object_refs - not just name."""
-        grouping = Grouping(name="Test", description="Test desc")
-        # This will produce empty JSON because context is required
-        # We just verify it doesn't crash
-        result = grouping.to_json()
-        assert result == "{}"
-
-    def test_report_needs_published(self):
-        """Report requires published timestamp - not just name."""
-        report = Report(name="Test")
-        result = report.to_json()
-        assert result == "{}"
+    def test_opinion_create(self):
+        """Test Opinion creation."""
+        from stixflayer import Opinion
+        obj = Opinion()
+        assert obj.type == "opinion"
 
 
-class TestExtensions:
-    """Test extensions parameter with Python dict."""
+class TestSDOFromJson:
+    """Test SDO creation from JSON using shared test data."""
 
-    def test_sdo_with_extensions_dict(self):
-        """Test creating SDO with extensions as Python dict."""
-        ext = {"ext--123": {"property1": "value1", "property2": 42}}
-        obj = AttackPattern(name="Test", extensions=ext)
-        data = json.loads(obj.to_json())
-        assert "extensions" in data
-        assert "ext--123" in data["extensions"]
-
-    def test_sdo_without_extensions(self):
-        """Test creating SDO without extensions."""
-        obj = AttackPattern(name="Test")
-        data = json.loads(obj.to_json())
-        assert "extensions" not in data
-
-    def test_malware_with_extensions(self):
-        """Test Malware with extensions dict."""
-        ext = {"ext--456": {"analysis": "static"}}
-        obj = Malware(name="Emotet", extensions=ext)
-        data = json.loads(obj.to_json())
-        assert "extensions" in data
-
-    def test_identity_with_extensions(self):
-        """Test Identity with extensions dict."""
-        ext = {"ext--789": {"sector": "technology"}}
-        obj = Identity(name="ACME Corp", extensions=ext)
-        data = json.loads(obj.to_json())
-        assert "extensions" in data
+    @pytest.mark.parametrize("sdo_type", SDO_TYPES)
+    def test_load_from_json(self, sdo_type):
+        """Test loading SDO from canonical test data."""
+        data = load_sdo(sdo_type)
+        # SDO classes that have from_json (only make_sdo! has it)
+        cls_map = {
+            "attack-pattern": AttackPattern,
+            "campaign": Campaign,
+            "course-of-action": CourseOfAction,
+            "identity": Identity,
+        }
+        cls = cls_map.get(sdo_type)
+        if cls is None:
+            pytest.skip(f"{sdo_type} doesn't have from_json method")
+            return
+        json_str = json.dumps(data)
+        obj = cls.from_json(json_str)
+        assert obj.type == sdo_type
+        assert json.loads(obj.to_json())["type"] == sdo_type

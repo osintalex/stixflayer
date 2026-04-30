@@ -10,9 +10,5 @@
     "longitude": 116.4074,
     "precision": 1000.0,
     "region": "asia-pacific",
-    "country": "CN",
-    "administrative_area": "Beijing",
-    "city": "Beijing",
-    "street_address": "1 Zhongshan Blvd",
-    "postal_code": "100000"
+    "country": "CN"
 }

@@ -12,12 +12,75 @@ use stixflayer::meta_objects::language_content::LanguageContentBuilder;
 use stixflayer::meta_objects::marking_definition::MarkingDefinitionBuilder;
 use stixflayer::object::StixObject;
 use stixflayer::relationship_objects::RelationshipObjectBuilder;
+use stixflayer::bundles::Bundle as StixBundle;
+use stixflayer::pattern::validate_pattern as rust_validate_pattern;
+use strum::IntoEnumIterator;
 use stixflayer::types::ExtensionType;
 use stixflayer::types::Identifier;
 use stixflayer::types::Timestamp;
 use stixflayer::types::{DictionaryValue, StixDictionary};
 use pyo3::types::PyDict;
 use pyo3::types::PyList;
+
+/// Macro to generate a Python class for STIX vocabulary enums
+macro_rules! make_vocab_enum {
+    ($name:ident, $enum_type:ty) => {
+        #[pyclass]
+        pub struct $name(String);
+
+        #[pymethods]
+        impl $name {
+            #[new]
+            fn new(value: &str) -> Result<Self, PyErr> {
+                // Check if the string matches any variant of the enum
+                let valid = <$enum_type>::iter()
+                    .any(|v| v.as_ref() == value);
+                if valid {
+                    Ok($name(value.to_string()))
+                } else {
+                    // Get all valid variants for error message
+                    let valid_values: Vec<String> = <$enum_type>::iter()
+                        .map(|v| v.as_ref().to_string())
+                        .collect();
+                    Err(PyErr::new::<PyO3RuntimeError, _>(
+                        format!("Invalid {} value: '{}'. Valid values: {:?}", 
+                            stringify!($enum_type), value, valid_values)
+                    ))
+                }
+            }
+
+            /// Get the string value of the vocabulary enum
+            fn value(&self) -> String {
+                self.0.clone()
+            }
+
+            /// Get all valid values for this vocabulary enum
+            #[staticmethod]
+            fn values() -> Vec<String> {
+                <$enum_type>::iter()
+                    .map(|v| v.as_ref().to_string())
+                    .collect()
+            }
+
+            /// Check if a value is valid for this vocabulary enum
+            #[staticmethod]
+            fn is_valid(value: &str) -> bool {
+                <$enum_type>::iter()
+                    .any(|v| v.as_ref() == value)
+            }
+        }
+    };
+}
+
+// Generate vocab enum classes
+make_vocab_enum!(AttackMotivation, stixflayer::domain_objects::vocab::AttackMotivation);
+make_vocab_enum!(IdentitySectors, stixflayer::domain_objects::vocab::IdentitySectors);
+make_vocab_enum!(ThreatActorType, stixflayer::domain_objects::vocab::ThreatActorType);
+make_vocab_enum!(MalwareType, stixflayer::domain_objects::vocab::MalwareType);
+make_vocab_enum!(IndicatorType, stixflayer::domain_objects::vocab::IndicatorType);
+make_vocab_enum!(ReportType, stixflayer::domain_objects::vocab::ReportType);
+make_vocab_enum!(AttackResourceLevel, stixflayer::domain_objects::vocab::AttackResourceLevel);
+make_vocab_enum!(ThreatActorSophistication, stixflayer::domain_objects::vocab::ThreatActorSophistication);
 
 #[pyfunction]
 pub fn version() -> String {
@@ -35,6 +98,13 @@ pub fn create_timestamp(value: &str) -> String {
         Ok(t) => t.to_string(),
         Err(_) => value.to_string(),
     }
+}
+
+/// Validate a STIX Pattern string against the STIX 2.1 pattern grammar
+#[pyfunction]
+pub fn validate_pattern(pattern: &str) -> Result<(), PyErr> {
+    rust_validate_pattern(pattern)
+        .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))
 }
 
 // PyO3 limitation: #[pyclass] and #[pymethods] cannot be generated via macros.
@@ -190,6 +260,15 @@ macro_rules! make_sdo_optional {
                             .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
                     }
                 }
+                Ok($name(builder))
+            }
+
+            #[staticmethod]
+            fn from_json(json_str: String) -> Result<Self, PyErr> {
+                let domain_object = stixflayer::domain_objects::sdo::DomainObject::from_json(&json_str, false)
+                    .map_err(|e: stixflayer::error::StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+                let builder = DomainObjectBuilder::version(&domain_object)
+                    .map_err(|e: stixflayer::error::StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
                 Ok($name(builder))
             }
 
@@ -1806,11 +1885,62 @@ impl LanguageContent {
     }
 }
 
+#[pyclass]
+pub struct Bundle(StixBundle);
+
+#[pymethods]
+impl Bundle {
+    #[new]
+    fn new() -> Result<Self, PyErr> {
+        Ok(Bundle(StixBundle {
+            object_type: "bundle".to_string(),
+            id: stixflayer::types::Identifier::new("bundle")
+                .map_err(|e| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?,
+            objects: Vec::new(),
+        }))
+    }
+
+    fn add(&mut self, stix_json: String) -> Result<(), PyErr> {
+        let obj = stixflayer::object::StixObject::from_json(&stix_json, true)
+            .map_err(|e| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        self.0.add(obj);
+        Ok(())
+    }
+
+    #[staticmethod]
+    fn from_json(json_str: String) -> Result<Self, PyErr> {
+        let bundle = StixBundle::from_json(&json_str)
+            .map_err(|e| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        Ok(Bundle(bundle))
+    }
+
+    fn to_json(&self) -> String {
+        serde_json::to_string(&self.0)
+            .unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e))
+    }
+
+    #[getter]
+    fn id(&self) -> String {
+        self.0.id.to_string()
+    }
+
+    #[getter]
+    fn object_count(&self) -> usize {
+        self.0.get_objects().len()
+    }
+
+    #[getter]
+    fn r#type(&self) -> String {
+        "bundle".to_string()
+    }
+}
+
 #[pymodule(name = "stixflayer")]
 pub fn stixflayer_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(version, m)?)?;
     m.add_function(wrap_pyfunction!(test_stix, m)?)?;
     m.add_function(wrap_pyfunction!(create_timestamp, m)?)?;
+    m.add_function(wrap_pyfunction!(validate_pattern, m)?)?;
 
     m.add_class::<AttackPattern>()?;
     m.add_class::<Campaign>()?;
@@ -1857,6 +1987,17 @@ pub fn stixflayer_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<CustomObject>()?;
     m.add_class::<ExtensionDefinition>()?;
     m.add_class::<LanguageContent>()?;
+    m.add_class::<Bundle>()?;
+
+    // Vocab enums
+    m.add_class::<AttackMotivation>()?;
+    m.add_class::<IdentitySectors>()?;
+    m.add_class::<ThreatActorType>()?;
+    m.add_class::<MalwareType>()?;
+    m.add_class::<IndicatorType>()?;
+    m.add_class::<ReportType>()?;
+    m.add_class::<AttackResourceLevel>()?;
+    m.add_class::<ThreatActorSophistication>()?;
 
     Ok(())
 }

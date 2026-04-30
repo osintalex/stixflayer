@@ -2851,6 +2851,8 @@ dependencies = [
  "serde",
  "serde_json",
  "stixflayer",
+ "strum",
+ "strum_macros",
 ]
 
 [[package]]

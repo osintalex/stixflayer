@@ -16,6 +16,8 @@ serde_json = "1.0"
 heck = "0.3"
 ordered-float = "4.4"
 paste = "1.0"
+strum = "0.26"
+strum_macros = "0.26"
 
 [build-dependencies]
 maturin = "1.0"
