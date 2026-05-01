@@ -925,6 +925,15 @@ impl AutonomousSystem {
         }
     }
 
+    #[staticmethod]
+    fn from_json(json_str: String) -> Result<Self, PyErr> {
+        let cyber_object = stixflayer::cyber_observable_objects::sco::CyberObject::from_json(&json_str, false)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        let builder = CyberObjectBuilder::from(&cyber_object)
+            .map_err(|e: StixError| PyErr::new::<PyO3RuntimeError, _>(e.to_string()))?;
+        Ok(AutonomousSystem(builder))
+    }
+
     #[getter]
     fn r#type(&self) -> String {
         "autonomous-system".to_string()

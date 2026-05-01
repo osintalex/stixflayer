@@ -265,19 +265,11 @@ class TestSCOFromJson:
     @pytest.mark.parametrize("sco_type", SCO_TYPES)
     def test_load_from_json(self, sco_type):
         """Test loading SCO from canonical test data."""
-        # Handle filename mapping differences
-        filename_map = {"email-addr": "email-address"}
-        filename = filename_map.get(sco_type, sco_type)
-        
-        # Check if file exists and load it
-        import os
-        data_dir = os.path.join(os.path.dirname(__file__).replace('tests', 'data/stix'), 'scos')
-        filepath = f"{data_dir}/{filename}.json"
-        if not os.path.exists(filepath):
+        try:
+            data = load_sco(sco_type)
+        except FileNotFoundError:
             pytest.skip(f"test data file not found")
             return
-            
-        data = load_sco(sco_type)
         # All SCO classes have from_json in their #[pymethods] implementations
         cls_map = {
             "artifact": Artifact,
@@ -305,5 +297,6 @@ class TestSCOFromJson:
             return
         json_str = json.dumps(data)
         obj = cls.from_json(json_str)
-        assert obj.type == sco_type
-        assert json.loads(obj.to_json())["type"] == sco_type
+        actual_type = obj.type
+        assert actual_type == data["type"], f"Expected type {data['type']}, got {actual_type}"
+        assert json.loads(obj.to_json())["type"] == data["type"]

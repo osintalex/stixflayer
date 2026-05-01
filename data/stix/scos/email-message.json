@@ -5,10 +5,8 @@
     "is_multipart": false,
     "subject": "Test Email",
     "body": "This is the email body",
-    "from_ref": "email-address--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+    "from_ref": "email-addr--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
     "to_refs": [
-        "email-address--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f"
-    ],
-    "cc_refs": [],
-    "bcc_refs": []
+        "email-addr--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f"
+    ]
 }

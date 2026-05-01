@@ -5,6 +5,5 @@
     "name": "explorer.exe",
     "pid": 1234,
     "parent_ref": "process--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
-    "child_refs": [],
     "creator_user_ref": "user-account--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f"
 }
