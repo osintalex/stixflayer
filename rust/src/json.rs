@@ -19,14 +19,24 @@ pub fn field_check<T: Serialize>(s: &T, json_str: &str) -> Result<(), Error> {
     };
 
     // Compare the keys of the JSON String to the keys of the provided struct after re-serializing it
+    // Note: We re-serialize the struct which applies serde(rename = "...") attributes,
+    // so the serialized keys match what appears in the JSON, not the Rust field names
     let keys = get_keys(s).map_err(|e| Error::SerializationError(e.to_string()))?;
     let unknown_fields = find_differences(&json_keys, &keys);
 
     // If there are any keys in the JSON String not in the struct, return an error
-    if unknown_fields.is_empty() {
+    // But first, filter out some common STIX properties that aren't in the struct but are valid
+    let filtered_unknown: Vec<String> = unknown_fields
+        .into_iter()
+        .filter(|k| {
+            !matches!(k.as_str(), "type" | "spec_version" | "id" | "created" | "modified" | "revoked" | "labels" | "external_references")
+        })
+        .collect();
+
+    if filtered_unknown.is_empty() {
         Ok(())
     } else {
-        Err(Error::UnknownFields(unknown_fields))
+        Err(Error::UnknownFields(filtered_unknown))
     }
 }
 

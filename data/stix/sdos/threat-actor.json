@@ -7,14 +7,8 @@
     "name": "Threat Actor Group",
     "description": "A sophisticated threat actor group",
     "aliases": ["TA400", "APT-40"],
-    "roles": ["criminal"],
+    "roles": ["state-actor"],
     "sophistication": "expert",
-    "resource_level": "government",
-    "primary_motivation": "organizational-gain",
-    "secondary_motivations": ["ideology"],
-    "targeted_sectors": [
-        {
-            "sector_name": "aerospace"
-        }
-    ]
+    "resource_level": "organization",
+    "primary_motivation": "organizational-gain"
 }

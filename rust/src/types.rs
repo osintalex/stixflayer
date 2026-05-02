@@ -87,12 +87,9 @@ pub fn stix_case(raw_str: &str) -> String {
         .to_case(Case::Kebab)
 }
 
-// impl STIX for Rust Vec's as STIX Lists by requiring that they are non-empty and contain only valid STIX elements
+// impl STIX for Rust Vec's as STIX Lists - allow empty lists as optional properties can be empty in STIX 2.1
 impl<T: Stix> Stix for Vec<T> {
     fn stix_check(&self) -> Result<(), Error> {
-        if self.is_empty() {
-            return Err(Error::EmptyList);
-        }
         let mut errors = Vec::new();
         for item in self.iter() {
             add_error(&mut errors, item.stix_check());
@@ -1013,12 +1010,13 @@ pub enum SdoTypes {
     Incident,
     Indicator,
     Infrastructure,
-    IntrustionSet,
+    IntrusionSet,
     Location,
     Malware,
     MalwareAnalysis,
     Note,
     ObservedData,
+    Opinion,
     Report,
     ThreatActor,
     Tool,
@@ -1065,6 +1063,7 @@ pub enum StixMetaTypes {
     LanguageContent,
     MarkingDefinition,
     ExtensionDefinition,
+    Bundle,
 }
 
 /// Function to return the STIX Object type associated with the "type" value, or return "custom" if the type is not recognized

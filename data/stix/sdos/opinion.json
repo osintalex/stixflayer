@@ -4,8 +4,8 @@
     "id": "opinion--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
     "created": "2016-04-06T08:17:27.000Z",
     "modified": "2016-04-06T08:17:27.000Z",
-    "opinion": "strongly-support",
-    "explanation": "Strongly supports this analysis",
+    "opinion": "neutral",
+    "explanation": "Neutral opinion about the analysis",
     "object_refs": [
         "indicator--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f"
     ]

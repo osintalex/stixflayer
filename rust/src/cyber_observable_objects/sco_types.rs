@@ -719,7 +719,7 @@ impl Stix for NetworkTraffic {
             }
         }
         if let Some(dst_port) = self.dst_port {
-            if (0..=65535).contains(&dst_port) {
+            if !(0..=65535).contains(&dst_port) {
                 errors.push(Error::ValidationError(
                 format!("dst_port {} Specifies the source port used in the network traffic, as an integer. The port value MUST be in the range of 0 - 65535.",dst_port),
             ));
@@ -829,6 +829,8 @@ impl Stix for NetworkTraffic {
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Process {
+    /// Specifies the name of the process.
+    pub name: Option<String>,
     /// Specifies whether the process is hidden.
     pub is_hidden: Option<bool>,
     /// Specifies the Process ID, or PID, of the process.
@@ -1006,6 +1008,8 @@ pub struct UserAccount {
     pub user_id: Option<String>,
     // Specifies a cleartext credential
     pub credential: Option<String>,
+    // Specifies the type of credential
+    pub credential_type: Option<String>,
     //Specifies the account login string,
     pub account_login: Option<String>,
     //pecifies the type of the account.
@@ -1166,6 +1170,7 @@ pub struct X509Certificate {
     #[serde(default, deserialize_with = "as_opt_i64")]
     pub subject_public_key_exponent: Option<i64>,
     /// Specifies any standard X.509 v3 extensions that may be used in the certificate.
+    #[serde(rename = "x509_v3_extensions", alias = "extensions", default)]
     pub x509_v3_extensions: Option<X509V3Extensions>,
 }
 impl Stix for X509Certificate {

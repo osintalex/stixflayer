@@ -23,12 +23,12 @@ pub struct Bundle {
     #[serde(rename = "type")]
     pub object_type: String,
     /// An identifier for this Bundle
-    id: Identifier,
+    pub id: Identifier,
     /// Specifies a set of one or more STIX Objects.
     ///
     /// Objects in this list **MUST** be a STIX Object.
     #[serde(deserialize_with = "deserialize_bundle_objects")]
-    objects: Vec<StixObject>,
+    pub objects: Vec<StixObject>,
 }
 
 impl Bundle {

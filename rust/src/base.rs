@@ -202,30 +202,41 @@ impl Stix for CommonProperties {
                 // Check known SCO-specific predefined extensions
                 } else {
                     match self.id.get_type() {
-                    "file" => if FileExtensions::iter().any(|x| x.as_ref() == stix_case(key)) {
+                    "file" => if key.starts_with("extension-definition--") {
+                        // Custom extension - allow
+                    } else if FileExtensions::iter().any(|x| x.as_ref() == stix_case(key)) {
                         add_error(&mut errors, check_extension(key, value));
                     } else {
                         errors.push(Error::WrongExtension)
                     }
-                    "network-traffic" => if NetworkTrafficExtensions::iter().any(|x| x.as_ref() == stix_case(key)) {
+                    "network-traffic" => if key.starts_with("extension-definition--") {
+                        // Custom extension - allow
+                    } else if NetworkTrafficExtensions::iter().any(|x| x.as_ref() == stix_case(key)) {
                         add_error(&mut errors, check_extension(key, value));
                     } else {
                         errors.push(Error::WrongExtension)
                     }
-                    "process" => if ProcessExtensions::iter().any(|x| x.as_ref() == stix_case(key)) {
+                    "process" => if key.starts_with("extension-definition--") {
+                        // Custom extension - allow
+                    } else if ProcessExtensions::iter().any(|x| x.as_ref() == stix_case(key)) {
                         add_error(&mut errors, check_extension(key, value));
                     } else {
                        errors.push(Error::WrongExtension)
                     }
-                    "user-account" => if UserAccountExtensions::iter().any(|x| x.as_ref() == stix_case(key)) {
+                    "user-account" => if key.starts_with("extension-definition--") {
+                        // Custom extension - allow
+                    } else if UserAccountExtensions::iter().any(|x| x.as_ref() == stix_case(key)) {
                         add_error(&mut errors, check_extension(key, value));
                     } else {
                         errors.push(Error::WrongExtension)
                     }
-                    _ => warn!("`extensions` keys should be the id of an Extension Definition SMO, unless you are using a predefined object extension. Confirm that object {}'s extension key {} is a predefined object extension.",
-                        self.id,
-                        key
-                    )
+                    // For other object types, allow any extension key (warn if not extension-definition)
+                    _ => if !key.starts_with("extension-definition--") {
+                        warn!("`extensions` keys should be the id of an Extension Definition SMO, unless you are using a predefined object extension. Confirm that object {}'s extension key {} is a predefined object extension.",
+                            self.id,
+                            key
+                        )
+                    }
             }
 
                     add_error(&mut errors, value.stix_check());

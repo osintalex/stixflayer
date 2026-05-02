@@ -10,7 +10,7 @@
     "extensions": {
         "http-request-ext": {
             "request_method": "get",
-            "request_uri": "/api/data"
+            "request_value": "/api/data"
         }
     }
 }

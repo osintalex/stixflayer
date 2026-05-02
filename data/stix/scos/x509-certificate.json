@@ -7,15 +7,7 @@
     "issuer": "CN=Example CA, O=Example, C=US",
     "subject": "CN=example.com, O=Example, C=US",
     "subject_public_key_algorithm": "RSA",
-    "subject_public_key_modulus": "test",
-    "validity_not_before": "2021-01-01T00:00:00Z",
-    "validity_not_after": "2025-01-01T00:00:00Z",
-    "extensions": [
-        {
-            "ext_name": "basicConstraints",
-            "ext_id": 2,
-            "critical": true,
-            "ext_value": "CA:FALSE"
-        }
-    ]
+    "x509_v3_extensions": {
+        "basic_constraints": "CA:FALSE"
+    }
 }

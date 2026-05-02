@@ -625,15 +625,18 @@ impl Stix for Location {
         }
         if let Some(country) = &self.country {
             if rust_iso3166::from_alpha2(country).is_none() {
-                warn!("{:?} is NOT a valid country code. This property SHOULD contain a valid ISO 3166-1 ALPHA-2 Code [ISO3166-1].", country);
+                errors.push(Error::ValidationError(format!(
+                    "Location country '{}' is not a valid ISO 3166-1 ALPHA-2 code",
+                    country
+                )));
             }
         }
         if let Some(administrative_area) = &self.administrative_area {
             if rust_iso3166::iso3166_2::from_code(administrative_area).is_none() {
-                warn!(
-                    "{:?} is NOT a valid administrative_area code. This property SHOULD contain a valid ISO 3166-2 Code.",
+                errors.push(Error::ValidationError(format!(
+                    "Location administrative_area '{}' is not a valid ISO 3166-2 code",
                     administrative_area
-                );
+                )));
             }
         }
 
@@ -1474,5 +1477,104 @@ pub struct Vulnerability {
 impl Stix for Vulnerability {
     fn stix_check(&self) -> Result<(), Error> {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn location_valid_country_code() {
+        let location = Location {
+            country: Some("US".to_string()),
+            ..Default::default()
+        };
+        assert!(location.stix_check().is_ok());
+    }
+
+    #[test]
+    fn location_valid_country_codes() {
+        let valid_codes = vec!["US", "GB", "DE", "FR", "JP", "CN", "RU", "CA", "AU"];
+        for code in valid_codes {
+            let location = Location {
+                country: Some(code.to_string()),
+                ..Default::default()
+            };
+            assert!(location.stix_check().is_ok(), "Country code '{}' should be valid", code);
+        }
+    }
+
+    #[test]
+    fn location_invalid_country_code() {
+        let location = Location {
+            country: Some("XX".to_string()),
+            ..Default::default()
+        };
+        assert!(location.stix_check().is_err());
+    }
+
+    #[test]
+    fn location_invalid_country_codes() {
+        let invalid_codes = vec!["XX", "123", "USA", ""];
+        for code in invalid_codes {
+            let location = Location {
+                country: Some(code.to_string()),
+                ..Default::default()
+            };
+            assert!(location.stix_check().is_err(), "Country code '{}' should be invalid", code);
+        }
+    }
+
+    #[test]
+    fn location_lowercase_country_code() {
+        // ISO 3166-1 alpha-2 codes are uppercase
+        let location = Location {
+            country: Some("us".to_string()),
+            ..Default::default()
+        };
+        assert!(location.stix_check().is_err(), "Lowercase country code should be invalid");
+    }
+
+    #[test]
+    fn location_valid_administrative_area() {
+        let location = Location {
+            administrative_area: Some("US-CA".to_string()),
+            ..Default::default()
+        };
+        assert!(location.stix_check().is_ok());
+    }
+
+    #[test]
+    fn location_invalid_administrative_area() {
+        let location = Location {
+            administrative_area: Some("INVALID".to_string()),
+            ..Default::default()
+        };
+        assert!(location.stix_check().is_err());
+    }
+
+    #[test]
+    fn location_no_country_or_admin_area() {
+        let location = Location {
+            ..Default::default()
+        };
+        assert!(location.stix_check().is_ok());
+    }
+
+    #[test]
+    fn location_error_message_contains_country_code() {
+        let location = Location {
+            country: Some("XX".to_string()),
+            ..Default::default()
+        };
+        let result = location.stix_check();
+        assert!(result.is_err());
+        if let Err(crate::error::StixError::ValidationError(msg)) = result {
+            assert!(msg.contains("XX"), "Error message should contain the invalid country code");
+            assert!(msg.contains("ISO 3166-1"), "Error message should mention ISO 3166-1");
+        } else {
+            panic!("Expected ValidationError");
+        }
     }
 }

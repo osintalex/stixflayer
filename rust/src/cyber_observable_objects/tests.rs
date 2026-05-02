@@ -1091,6 +1091,22 @@ mod test {
     }
 
     #[test]
+    fn cyber_object_builder_from_cyber_object() {
+        let json = r#"{
+            "type": "ipv4-addr",
+            "spec_version": "2.1",
+            "id": "ipv4-addr--d5f9c7a3-5f4e-4a1b-9c8d-7e6f5a4b3c2d",
+            "value": "192.168.1.100"
+        }"#;
+
+        let cyber_object = CyberObject::from_json(json, false).unwrap();
+        let builder = CyberObjectBuilder::from(&cyber_object).unwrap();
+        let rebuilt = builder.build().unwrap();
+
+        assert_eq!(rebuilt.object_type.to_string(), "ipv4-addr");
+    }
+
+    #[test]
     fn ipv4_cidr() {
         let mac_addr1 = Identifier::new("mac-addr").unwrap();
         let mac_addr2 = Identifier::new("mac-addr").unwrap();
