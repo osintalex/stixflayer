@@ -1,0 +1,26 @@
+{
+    "type": "bundle",
+    "id": "bundle--44580eb5-a924-475f-970c-8b47ee07f641",
+    "objects": [
+        {
+            "type": "attack-pattern",
+            "spec_version": "2.1",
+            "id": "attack-pattern--089a0ad8-367a-4326-ba2e-35b506fa4c29",
+            "created": "2016-05-12T08:17:27.000Z",
+            "modified": "2016-05-12T08:17:27.000Z",
+            "name": "Spear Phishing"
+        },
+        {
+            "type": "indicator",
+            "spec_version": "2.1",
+            "id": "indicator--4bd68344-9327-4487-89b3-a52f1bd86e37",
+            "created": "2016-04-06T08:17:27.000Z",
+            "modified": "2016-04-06T08:17:27.000Z",
+            "name": "Poison Ivy Malware",
+            "pattern": "[file:hashes.'SHA-256' = '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08']",
+            "pattern_type": "stix",
+            "pattern_version": "2.1",
+            "valid_from": "2016-04-06T08:17:27.000Z"
+        }
+    ]
+}

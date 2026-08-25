@@ -1,0 +1,11 @@
+{
+    "//": "INVALID: report_types contains value not in report-type-ov vocabulary",
+    "type": "report",
+    "spec_version": "2.1",
+    "id": "report--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Bad Report",
+    "report_types": ["not-a-report-type"],
+    "published": "2016-04-06T08:17:27.000Z"
+}

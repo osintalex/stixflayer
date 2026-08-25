@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["CyberObjectType"],"fn":["check_sco_properties"],"struct":["CyberObject","CyberObjectBuilder"]};

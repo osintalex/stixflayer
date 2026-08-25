@@ -1,0 +1,19 @@
+{
+    "type": "threat-actor",
+    "spec_version": "2.1",
+    "id": "threat-actor--8c7cebdd-4132-4c16-8225-d27f4e4e6d49",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Threat Actor Group",
+    "description": "A sophisticated threat actor group",
+    "aliases": [
+        "TA400",
+        "APT-40"
+    ],
+    "roles": [
+        "agent"
+    ],
+    "sophistication": "expert",
+    "resource_level": "organization",
+    "primary_motivation": "organizational-gain"
+}

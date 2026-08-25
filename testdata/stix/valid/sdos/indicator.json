@@ -1,0 +1,23 @@
+{
+    "type": "indicator",
+    "spec_version": "2.1",
+    "id": "indicator--4bd68344-9327-4487-89b3-a52f1bd86e37",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Poison Ivy Malware",
+    "description": "This file is part of Poison Ivy",
+    "indicator_types": [
+        "malicious-activity"
+    ],
+            "pattern": "[file:hashes.'SHA-256' = '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08']",
+    "pattern_type": "stix",
+    "pattern_version": "2.1",
+    "valid_from": "2016-04-06T08:17:27.000Z",
+    "valid_until": "2017-04-06T08:17:27.000Z",
+    "kill_chain_phases": [
+        {
+            "kill_chain_name": "mandiant-attack",
+            "phase_name": "initial-access"
+        }
+    ]
+}

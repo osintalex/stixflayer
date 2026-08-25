@@ -1,0 +1,8 @@
+{
+    "type": "software",
+    "spec_version": "2.1",
+    "id": "software--83057d87-3ebe-570b-9099-47a5c32e533f",
+    "name": "Apache HTTP Server",
+    "vendor": "Apache",
+    "version": "2.4.41"
+}

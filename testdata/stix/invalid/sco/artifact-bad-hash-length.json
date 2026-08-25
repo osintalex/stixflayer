@@ -1,0 +1,10 @@
+{
+    "//": "INVALID: MD5 hash value has incorrect length (should be 32 hex chars)",
+    "type": "artifact",
+    "spec_version": "2.1",
+    "id": "artifact--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "hashes": {
+        "MD5": "too-short"
+    },
+    "mime_type": "application/octet-stream"
+}

@@ -1,0 +1,10 @@
+{
+    "//": "INVALID: infrastructure_types contains value not in infrastructure-type-ov vocabulary",
+    "type": "infrastructure",
+    "spec_version": "2.1",
+    "id": "infrastructure--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Bad Infrastructure",
+    "infrastructure_types": ["not-a-valid-type"]
+}

@@ -1,0 +1,26 @@
+# Pyrefly configuration — type checking for stixflayer
+
+# Files to include in type checking
+project-includes = [
+    "src/**/*.py",
+    "src/**/*.pyi",
+    "tests/**/*.py",
+]
+
+# Exclude build artifacts, cache, and vendored code
+project-excludes = [
+    "target/**/*",
+    "old-python/**/*",
+    "poc/**/*",
+    ".venv/**/*",
+    "__pycache__/**/*",
+]
+
+# Add repo root to search path so `tests.utils` resolves
+search-path = [
+    ".",
+    "src",
+]
+
+# Python version target
+python-version = "3.11"

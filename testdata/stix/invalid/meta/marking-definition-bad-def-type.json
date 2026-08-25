@@ -1,0 +1,9 @@
+{
+    "//": "INVALID: marking-definition definition_type is not 'statement' or 'tlp'",
+    "type": "marking-definition",
+    "spec_version": "2.1",
+    "id": "marking-definition--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "created": "2017-01-20T00:00:00.000Z",
+    "definition_type": "invalid-definition-type",
+    "definition": {"statement": "This is invalid"}
+}

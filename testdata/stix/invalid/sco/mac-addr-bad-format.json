@@ -1,0 +1,7 @@
+{
+    "//": "INVALID: MAC address value is not in valid EUI-48 format",
+    "type": "mac-addr",
+    "spec_version": "2.1",
+    "id": "mac-addr--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "value": "not-a-mac-address"
+}

@@ -1,0 +1,12 @@
+{
+    "type": "grouping",
+    "spec_version": "2.1",
+    "id": "grouping--b73a0333-04e3-42f7-a0ee-f46221b88f2a",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "context": "suspicious-activity",
+    "object_refs": [
+        "attack-pattern--089a0ad8-367a-4326-ba2e-35b506fa4c29",
+        "indicator--4bd68344-9327-4487-89b3-a52f1bd86e37"
+    ]
+}

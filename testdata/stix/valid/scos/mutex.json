@@ -1,0 +1,6 @@
+{
+    "type": "mutex",
+    "spec_version": "2.1",
+    "id": "mutex--576b5ea3-a885-485f-b3d6-1f71d8b86653",
+    "name": "Global\\Mutex"
+}

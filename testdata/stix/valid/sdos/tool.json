@@ -1,0 +1,21 @@
+{
+    "type": "tool",
+    "spec_version": "2.1",
+    "id": "tool--5d97ba13-e040-4969-9eb0-2d641102b154",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "pentesting-tool",
+    "description": "Penetration testing tool",
+    "tool_types": [
+        "exploitation"
+    ],
+    "aliases": [
+        "pentest"
+    ],
+    "kill_chain_phases": [
+        {
+            "kill_chain_name": "mandiant-attack",
+            "phase_name": "initial-access"
+        }
+    ]
+}

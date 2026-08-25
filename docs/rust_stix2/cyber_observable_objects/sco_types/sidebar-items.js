@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["Artifact","AutonomousSystem","Directory","DomainName","EmailAddress","EmailMessage","EmailMimeCompomentType","File","Ipv4Addr","Ipv6Addr","MacAddr","Mutex","NetworkTraffic","Process","Software","Url","UserAccount","WindowsRegistryKey","WindowsRegistryKeyType","X509Certificate","X509V3Extensions"]};

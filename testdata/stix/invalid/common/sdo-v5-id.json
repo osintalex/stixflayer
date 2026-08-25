@@ -1,0 +1,9 @@
+{
+    "//": "INVALID: SDOs must use UUIDv4, not UUIDv5",
+    "type": "campaign",
+    "spec_version": "2.1",
+    "id": "campaign--cc7fa653-c35f-53db-afdd-dce4c3a241d5",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Bad UUID Campaign"
+}

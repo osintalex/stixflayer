@@ -1,0 +1,8 @@
+{
+    "//": "INVALID: missing required spec_version field",
+    "type": "identity",
+    "id": "identity--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "ACME Corp"
+}

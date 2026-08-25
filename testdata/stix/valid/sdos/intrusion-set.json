@@ -1,0 +1,25 @@
+{
+    "type": "intrusion-set",
+    "spec_version": "2.1",
+    "id": "intrusion-set--7c3c3daa-dddc-462f-90be-2ce490b3e7b1",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Threat Actor Group",
+    "description": "A sophisticated threat actor",
+    "aliases": [
+        "TA400",
+        "APT-40"
+    ],
+    "first_seen": "2016-04-06T08:00:00.000Z",
+    "last_seen": "2016-04-09T23:00:00.000Z",
+    "goals": [
+        "Steal corporate secrets",
+        "Financial gain"
+    ],
+    "resource_level": "government",
+    "primary_motivation": "organizational-gain",
+    "secondary_motivations": [
+        "ideology",
+        "personal-gain"
+    ]
+}

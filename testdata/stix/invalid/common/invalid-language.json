@@ -1,0 +1,10 @@
+{
+    "//": "INVALID: lang must be a valid RFC 5646 language tag",
+    "type": "attack-pattern",
+    "spec_version": "2.1",
+    "id": "attack-pattern--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Spear Phishing",
+    "lang": " bogus-invalid-lang! "
+}

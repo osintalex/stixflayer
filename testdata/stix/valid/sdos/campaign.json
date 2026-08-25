@@ -1,0 +1,16 @@
+{
+    "type": "campaign",
+    "spec_version": "2.1",
+    "id": "campaign--8a314d92-f75e-40ee-a03a-9031a9bce984",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Campaign",
+    "description": "Campaign description",
+    "aliases": [
+        "Alias1",
+        "Alias2"
+    ],
+    "first_seen": "2016-04-06T08:00:00.000Z",
+    "last_seen": "2016-04-09T23:00:00.000Z",
+    "objective": "Steal corporate secrets"
+}

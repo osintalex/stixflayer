@@ -1,0 +1,19 @@
+{
+    "type": "language-content",
+    "spec_version": "2.1",
+    "id": "language-content--4f76a7ad-637d-45eb-845d-824bf14e0983",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "object_ref": "threat-actor--8c7cebdd-4132-4c16-8225-d27f4e4e6d49",
+    "object_modified": "2016-04-06T08:17:27.000Z",
+    "contents": {
+        "de": {
+            "name": "B\u00f6se Org",
+            "description": "Die Bedrohungsakteursgruppe 'B\u00f6se Org'"
+        },
+        "fr": {
+            "name": "Organisation mal\u00e9fique",
+            "description": "Le groupe d'acteurs de la menace Organisation mal\u00e9fique"
+        }
+    }
+}

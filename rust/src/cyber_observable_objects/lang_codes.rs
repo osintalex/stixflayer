@@ -1,0 +1,104 @@
+//! Embedded language code lists matching stix2validator.v21.enums.
+//!
+//! LANG_CODES: valid RFC 5646 language codes (as used by the validator).
+//! SOFTWARE_LANG_CODES: ISO 639-2 three-letter codes accepted for backward
+//! compatibility but flagged as errors in strict mode.
+
+// Auto-generated from stix2validator.v21.enums
+// 232 entries
+pub const LANG_CODES: &[&str] = &[
+    "af", "af-ZA", "ar", "ar-AE", "ar-BH", "ar-DZ", "ar-EG", "ar-IQ", "ar-JO", "ar-KW",
+    "ar-LB", "ar-LY", "ar-MA", "ar-OM", "ar-QA", "ar-SA", "ar-SY", "ar-TN", "ar-YE", "az",
+    "az-AZ", "az-Cyrl-AZ", "be", "be-BY", "bg", "bg-BG", "bs-BA", "ca", "ca-ES", "cs",
+    "cs-CZ", "cy", "cy-GB", "da", "da-DK", "de", "de-AT", "de-CH", "de-DE", "de-LI",
+    "de-LU", "dv", "dv-MV", "el", "el-GR", "en", "en-AU", "en-BZ", "en-CA", "en-CB",
+    "en-GB", "en-IE", "en-JM", "en-NZ", "en-PH", "en-TT", "en-US", "en-ZA", "en-ZW", "eo",
+    "es", "es-AR", "es-BO", "es-CL", "es-CO", "es-CR", "es-DO", "es-EC", "es-ES", "es-GT",
+    "es-HN", "es-MX", "es-NI", "es-PA", "es-PE", "es-PR", "es-PY", "es-SV", "es-UY", "es-VE",
+    "et", "et-EE", "eu", "eu-ES", "fa", "fa-IR", "fi", "fi-FI", "fo", "fo-FO",
+    "fr", "fr-BE", "fr-CA", "fr-CH", "fr-FR", "fr-LU", "fr-MC", "gl", "gl-ES", "gu",
+    "gu-IN", "he", "he-IL", "hi", "hi-IN", "hr", "hr-BA", "hr-HR", "hu", "hu-HU",
+    "hy", "hy-AM", "id", "id-ID", "is", "is-IS", "it", "it-CH", "it-IT", "ja",
+    "ja-JP", "ka", "ka-GE", "kk", "kk-KZ", "kn", "kn-IN", "ko", "ko-KR", "kok",
+    "kok-IN", "ky", "ky-KG", "lt", "lt-LT", "lv", "lv-LV", "mi", "mi-NZ", "mk",
+    "mk-MK", "mn", "mn-MN", "mr", "mr-IN", "ms", "ms-BN", "ms-MY", "mt", "mt-MT",
+    "nb", "nb-NO", "nl", "nl-BE", "nl-NL", "nn-NO", "ns", "ns-ZA", "pa", "pa-IN",
+    "pl", "pl-PL", "ps", "ps-AR", "pt", "pt-BR", "pt-PT", "qu", "qu-BO", "qu-EC",
+    "qu-PE", "ro", "ro-RO", "ru", "ru-RU", "sa", "sa-IN", "se", "se-FI", "se-NO",
+    "se-SE", "sk", "sk-SK", "sl", "sl-SI", "sq", "sq-AL", "sr-BA", "sr-Cyrl-BA", "sr-Cyrl-SP",
+    "sr-SP", "sv", "sv-FI", "sv-SE", "sw", "sw-KE", "syr", "syr-SY", "ta", "ta-IN",
+    "te", "te-IN", "th", "th-TH", "tl", "tl-PH", "tn", "tn-ZA", "tr", "tr-TR",
+    "ts", "tt", "tt-RU", "uk", "uk-UA", "ur", "ur-PK", "uz", "uz-Cyrl-UZ", "uz-UZ",
+    "vi", "vi-VN", "xh", "xh-ZA", "zh", "zh-CN", "zh-HK", "zh-MO", "zh-SG", "zh-TW",
+    "zu", "zu-ZA",
+];
+
+// Auto-generated from stix2validator.v21.enums
+// 540 entries (ISO 639-2 three-letter codes)
+pub const SOFTWARE_LANG_CODES: &[&str] = &[
+    "aar", "abk", "ace", "ach", "ada", "ady", "afa", "afh", "afr", "ain",
+    "aka", "akk", "alb", "alb", "ale", "alg", "alt", "amh", "ang", "anp",
+    "apa", "ara", "arc", "arg", "arm", "arm", "arn", "arp", "art", "arw",
+    "asm", "ast", "ath", "aus", "ava", "ave", "awa", "aym", "aze", "bad",
+    "bai", "bak", "bal", "bam", "ban", "baq", "baq", "bas", "bat", "bej",
+    "bel", "bem", "ben", "ber", "bho", "bih", "bik", "bin", "bis", "bla",
+    "bnt", "bod", "bod", "bos", "bra", "bre", "btk", "bua", "bug", "bul",
+    "bur", "bur", "byn", "cad", "cai", "car", "cat", "cau", "ceb", "cel",
+    "ces", "ces", "cha", "chb", "che", "chg", "chi", "chi", "chk", "chm",
+    "chn", "cho", "chp", "chr", "chu", "chv", "chy", "cmc", "cop", "cor",
+    "cos", "cpe", "cpf", "cpp", "cre", "crh", "crp", "csb", "cus", "cym",
+    "cym", "cze", "cze", "dak", "dan", "dar", "day", "del", "den", "deu",
+    "deu", "dgr", "din", "div", "doi", "dra", "dsb", "dua", "dum", "dut",
+    "dut", "dyu", "dzo", "efi", "egy", "eka", "ell", "ell", "elx", "eng",
+    "enm", "epo", "est", "eus", "eus", "ewe", "ewo", "fan", "fao", "fas",
+    "fas", "fat", "fij", "fil", "fin", "fiu", "fon", "fra", "fre", "frm",
+    "fro", "frr", "frs", "fry", "ful", "fur", "gaa", "gay", "gba", "gem",
+    "geo", "geo", "ger", "ger", "gez", "gil", "gla", "gle", "glg", "glv",
+    "gmh", "goh", "gon", "gor", "got", "grb", "grc", "gre", "gre", "grn",
+    "gsw", "guj", "gwi", "hai", "hat", "hau", "haw", "heb", "her", "hil",
+    "him", "hin", "hit", "hmn", "hmo", "hrv", "hsb", "hun", "hup", "hye",
+    "hye", "iba", "ibo", "ice", "ice", "ido", "iii", "ijo", "iku", "ile",
+    "ilo", "ina", "inc", "ind", "ine", "inh", "ipk", "ira", "iro", "isl",
+    "isl", "ita", "jav", "jbo", "jpn", "jpr", "jrb", "kaa", "kab", "kac",
+    "kal", "kam", "kan", "kar", "kas", "kat", "kat", "kau", "kaw", "kaz",
+    "kbd", "kha", "khi", "khm", "kho", "kik", "kin", "kir", "kmb", "kok",
+    "kom", "kon", "kor", "kos", "kpe", "krc", "krl", "kro", "kru", "kua",
+    "kum", "kur", "kut", "lad", "lah", "lam", "lao", "lat", "lav", "lez",
+    "lim", "lin", "lit", "lol", "loz", "ltz", "lua", "lub", "lug", "lui",
+    "lun", "luo", "lus", "mac", "mac", "mad", "mag", "mah", "mai", "mak",
+    "mal", "man", "mao", "mao", "map", "mar", "mas", "may", "may", "mdf",
+    "mdr", "men", "mga", "mic", "min", "mis", "mkd", "mkd", "mkh", "mlg",
+    "mlt", "mnc", "mni", "mno", "moh", "mon", "mos", "mri", "mri", "msa",
+    "msa", "mul", "mun", "mus", "mwl", "mwr", "mya", "mya", "myn", "myv",
+    "nah", "nai", "nap", "nau", "nav", "nbl", "nde", "ndo", "nds", "nep",
+    "new", "nia", "nic", "niu", "nld", "nld", "nno", "nob", "nog", "non",
+    "nor", "nqo", "nso", "nub", "nwc", "nya", "nym", "nyn", "nyo", "nzi",
+    "oci", "oji", "ori", "orm", "osa", "oss", "ota", "oto", "paa", "pag",
+    "pal", "pam", "pan", "pap", "pau", "peo", "per", "per", "phi", "phn",
+    "pli", "pol", "pon", "por", "pra", "pro", "pus", "qaa-qtz", "que", "raj",
+    "rap", "rar", "roa", "roh", "rom", "ron", "rum", "run", "rup", "rus",
+    "sad", "sag", "sah", "sai", "sal", "sam", "san", "sas", "sat", "scn",
+    "sco", "sel", "sem", "sga", "sgn", "shn", "sid", "sin", "sio", "sit",
+    "sla", "slk", "slo", "slv", "sma", "sme", "smi", "smj", "smn", "smo",
+    "sms", "sna", "snd", "snk", "sog", "som", "son", "sot", "spa", "sqi",
+    "sqi", "srd", "srn", "srp", "srr", "ssa", "ssw", "suk", "sun", "sus",
+    "sux", "swa", "swe", "syc", "syr", "tah", "tai", "tam", "tat", "tel",
+    "tem", "ter", "tet", "tgk", "tgl", "tha", "tib", "tib", "tig", "tir",
+    "tiv", "tkl", "tlh", "tli", "tmh", "tog", "ton", "tpi", "tsi", "tsn",
+    "tso", "tuk", "tum", "tup", "tur", "tut", "tvl", "twi", "tyv", "udm",
+    "uga", "uig", "ukr", "umb", "und", "urd", "uzb", "vai", "ven", "vie",
+    "vol", "vot", "wak", "wal", "war", "was", "wel", "wel", "wen", "wln",
+    "wol", "xal", "xho", "yao", "yap", "yid", "yor", "ypk", "zap", "zbl",
+    "zen", "zgh", "zha", "zho", "zho", "znd", "zul", "zun", "zxx", "zza",
+];
+
+/// Check whether a language code is a valid RFC 5646 code.
+pub fn is_valid_language_code(code: &str) -> bool {
+    LANG_CODES.contains(&code) || SOFTWARE_LANG_CODES.contains(&code)
+}
+
+/// Check whether a language code is an ISO 639-2 three-letter code
+/// (accepted for backward compatibility but not preferred).
+pub fn is_iso639_2_code(code: &str) -> bool {
+    SOFTWARE_LANG_CODES.contains(&code) && !LANG_CODES.contains(&code)
+}

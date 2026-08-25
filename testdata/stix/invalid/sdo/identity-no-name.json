@@ -1,0 +1,9 @@
+{
+    "//": "INVALID: identity object is missing required 'name' property",
+    "type": "identity",
+    "spec_version": "2.1",
+    "id": "identity--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "description": "Identity without a name"
+}

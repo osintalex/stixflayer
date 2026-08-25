@@ -1,0 +1,7 @@
+{
+    "//": "INVALID: URL value is not a valid URL format",
+    "type": "url",
+    "spec_version": "2.1",
+    "id": "url--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "value": "not a valid url"
+}

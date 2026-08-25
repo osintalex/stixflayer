@@ -1,0 +1,9 @@
+{
+    "type": "course-of-action",
+    "spec_version": "2.1",
+    "id": "course-of-action--0db348a4-a084-4d92-ab06-b1bb90e47814",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Block outbound traffic",
+    "description": "Block all outbound traffic to suspicious IP addresses"
+}

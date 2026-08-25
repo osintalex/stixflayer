@@ -1,0 +1,12 @@
+{
+    "//": "INVALID: created timestamp is not in RFC 3339 format",
+    "type": "indicator",
+    "spec_version": "2.1",
+    "id": "indicator--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "created": "not-a-timestamp",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Bad Timestamp",
+    "pattern": "[file:hashes.'SHA-256' = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855']",
+    "pattern_type": "stix",
+    "valid_from": "2016-04-06T08:17:27.000Z"
+}

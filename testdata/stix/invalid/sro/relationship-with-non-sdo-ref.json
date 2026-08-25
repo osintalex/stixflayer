@@ -1,0 +1,11 @@
+{
+    "//": "INVALID: relationship between an SCO and a non-STIX-object ref (malformed type prefix)",
+    "type": "relationship",
+    "spec_version": "2.1",
+    "id": "relationship--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "relationship_type": "uses",
+    "source_ref": "attack-pattern--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "target_ref": "sco-only--cc7fa653-c35f-43db-afdd-dce4c3a241d5"
+}

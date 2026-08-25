@@ -1,0 +1,7 @@
+{
+    "//": "INVALID: protocols array contains non-IANA registered protocol name",
+    "type": "network-traffic",
+    "spec_version": "2.1",
+    "id": "network-traffic--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "protocols": ["not-a-real-protocol"]
+}

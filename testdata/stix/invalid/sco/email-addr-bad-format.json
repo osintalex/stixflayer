@@ -1,0 +1,8 @@
+{
+    "//": "INVALID: email address value is not in valid RFC 5322 format",
+    "type": 
+"email-addr",
+    "spec_version": "2.1",
+    "id": "email-addr--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "value": "not-an-email"
+}

@@ -1,0 +1,12 @@
+{
+    "//": "INVALID: extension_types contains value not in extension-types-ov vocabulary",
+    "type": "extension-definition",
+    "spec_version": "2.1",
+    "id": "extension-definition--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Bad Extension Definition",
+    "schema": "https://example.com/schema",
+    "version": "1.0.0",
+    "extension_types": ["not-a-valid-extension-type"]
+}

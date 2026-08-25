@@ -1,0 +1,12 @@
+{
+    "type": "opinion",
+    "spec_version": "2.1",
+    "id": "opinion--8e12873d-8eb0-4813-b5a2-4a030c3f7f46",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "opinion": "neutral",
+    "explanation": "Neutral opinion about the analysis",
+    "object_refs": [
+        "indicator--4bd68344-9327-4487-89b3-a52f1bd86e37"
+    ]
+}

@@ -1,2 +1,25 @@
-/target
-.DS_Store
+# Python
+__pycache__/
+.venv/
+.python-version
+.pytest_cache/
+.ruff_cache/
+
+# Rust build artifacts
+target/
+*.so
+*.pyd
+*.dylib
+*.dll
+
+# Dev tooling / agent config
+.cargo/
+.grit/
+.opencode/
+opencode.json
+
+# Uncommitted docs and notes
+AGENTS.md
+ARCHITECTURE.md
+stix-2.1-spec.html
+

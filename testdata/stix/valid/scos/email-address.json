@@ -1,0 +1,8 @@
+{
+    "type": "email-address",
+    "spec_version": "2.1",
+    "id": "email-address--ef33cb30-2fa3-44db-b618-ca65ed89718a",
+    "value": "user@example.com",
+    "display_name": "John Doe",
+    "belongs_to_ref": "user-account--8378a251-b891-5e72-8245-0c45fb3a28c2"
+}

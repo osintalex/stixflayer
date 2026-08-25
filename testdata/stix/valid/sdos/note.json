@@ -1,0 +1,12 @@
+{
+    "type": "note",
+    "spec_version": "2.1",
+    "id": "note--ca24f125-cda8-4ded-954b-ef3d64a60a5b",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "abstract": "Note abstract",
+    "content": "This is detailed analysis notes about the threat actor.",
+    "object_refs": [
+        "threat-actor--8c7cebdd-4132-4c16-8225-d27f4e4e6d49"
+    ]
+}

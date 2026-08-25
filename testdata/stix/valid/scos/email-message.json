@@ -1,0 +1,12 @@
+{
+    "type": "email-message",
+    "spec_version": "2.1",
+    "id": "email-message--c84c4679-2bd7-55d0-b0a7-79075a76d58f",
+    "is_multipart": false,
+    "subject": "Test Email",
+    "body": "This is the email body",
+    "from_ref": "email-addr--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+    "to_refs": [
+        "email-addr--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f"
+    ]
+}

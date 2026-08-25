@@ -1,0 +1,11 @@
+{
+    "type": "sighting",
+    "spec_version": "2.1",
+    "id": "sighting--016ef687-ff37-4d4d-9f73-8c563fc40e69",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "sighting_of_ref": "indicator--4bd68344-9327-4487-89b3-a52f1bd86e37",
+    "first_seen": "2016-04-06T08:00:00.000Z",
+    "last_seen": "2016-04-09T23:00:00.000Z",
+    "count": 42
+}

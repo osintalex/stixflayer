@@ -1,0 +1,12 @@
+{
+    "//": "INVALID: NTFS extension is only valid on file objects, not on directory",
+    "type": "directory",
+    "spec_version": "2.1",
+    "id": "directory--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "path": "/tmp",
+    "extensions": {
+        "ntfs-ext": {
+            "sid": "S-1-5-21-..."
+        }
+    }
+}

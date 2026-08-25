@@ -1,0 +1,12 @@
+{
+    "//": "INVALID: id must be in type--UUID format",
+    "type": "indicator",
+    "spec_version": "2.1",
+    "id": "just-a-plain-string-id",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Bad ID",
+    "pattern": "[file:hashes.'SHA-256' = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855']",
+    "pattern_type": "stix",
+    "valid_from": "2016-04-06T08:17:27.000Z"
+}

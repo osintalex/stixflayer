@@ -1,0 +1,17 @@
+{
+    "type": "infrastructure",
+    "spec_version": "2.1",
+    "id": "infrastructure--cb65b03e-bc1d-48cf-8be7-48396911eae7",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "C2 Server",
+    "description": "Command and control server",
+    "infrastructure_types": [
+        "command-and-control"
+    ],
+    "aliases": [
+        "C2"
+    ],
+    "first_seen": "2016-04-06T08:00:00.000Z",
+    "last_seen": "2016-04-09T23:00:00.000Z"
+}

@@ -1,0 +1,7 @@
+{
+    "//": "INVALID: serial_number contains invalid characters for an integer string",
+    "type": "x509-certificate",
+    "spec_version": "2.1",
+    "id": "x509-certificate--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "serial_number": "abc-xyz-not-hex"
+}

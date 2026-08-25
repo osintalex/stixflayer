@@ -1,0 +1,9 @@
+{
+    "type": "process",
+    "spec_version": "2.1",
+    "id": "process--6c3e811c-9395-4d94-8e71-c1df9dbd9ca1",
+    "name": "explorer.exe",
+    "pid": 1234,
+    "parent_ref": "process--6c3e811c-9395-4d94-8e71-c1df9dbd9ca1",
+    "creator_user_ref": "user-account--8378a251-b891-5e72-8245-0c45fb3a28c2"
+}

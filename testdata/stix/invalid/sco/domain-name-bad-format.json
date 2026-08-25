@@ -1,0 +1,7 @@
+{
+    "//": "INVALID: domain name value is not in valid format (contains spaces)",
+    "type": "domain-name",
+    "spec_version": "2.1",
+    "id": "domain-name--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "value": "not a valid domain"
+}

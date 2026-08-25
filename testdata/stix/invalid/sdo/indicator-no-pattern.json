@@ -1,0 +1,12 @@
+{
+    "//": "INVALID: indicator object is missing required 'pattern' property",
+    "type": "indicator",
+    "spec_version": "2.1",
+    "id": "indicator--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Missing Pattern",
+    "indicator_types": ["malicious-activity"],
+    "pattern_type": "stix",
+    "valid_from": "2016-04-06T08:17:27.000Z"
+}

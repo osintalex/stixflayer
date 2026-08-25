@@ -1,0 +1,10 @@
+{
+    "//": "INVALID: hashes contains an unsupported hash algorithm name",
+    "type": "file",
+    "spec_version": "2.1",
+    "id": "file--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "name": "test.txt",
+    "hashes": {
+        "UNSUPPORTED-HASH": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+}

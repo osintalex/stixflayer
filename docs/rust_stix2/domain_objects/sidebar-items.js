@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["sdo","sdo_types","vocab"]};

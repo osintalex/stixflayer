@@ -1,0 +1,15 @@
+{
+    "type": "extension-definition",
+    "spec_version": "2.1",
+    "id": "extension-definition--6958a4c4-b3c7-402c-913b-ddce75a92a24",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "ACME Threat Intel Extension",
+    "description": "Custom extension for ACME threat intelligence",
+    "schema": "https://example.com/schema/threat-intel.json",
+    "version": "1.0",
+    "extension_types": [
+        "property-extension"
+    ],
+    "created_by_ref": "identity--3031ae93-5c0f-45bc-b257-2f0c1f9448f7"
+}

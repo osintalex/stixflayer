@@ -1,0 +1,54 @@
+{
+  "validation_rules": {
+    "indicator-name-required": {
+      "category": "sdo",
+      "object_type": "indicator",
+      "rule": "name property MUST be present and non-empty",
+      "fixture": "invalid/sdo/indicator-no-name.json",
+      "expected_error_substring": "missing required property 'name'"
+    },
+    "indicator-pattern-type-enum": {
+      "category": "sdo",
+      "object_type": "indicator",
+      "rule": "pattern_type MUST come from indicator-pattern-type-ov",
+      "fixture": "invalid/sdo/indicator-bad-pattern-type.json",
+      "expected_error_substring": "pattern type should come from the STIX pattern type open vocabulary"
+    },
+    "indicator-spec-version-not-2.1": {
+      "category": "sdo",
+      "object_type": "indicator",
+      "rule": "spec_version MUST be 2.1",
+      "fixture": "invalid/sdo/indicator-spec-version-2.0.json",
+      "expected_error_substring": "must be 2.1"
+    },
+    "indicator-no-name-non-strict": {
+      "category": "sdo",
+      "object_type": "indicator",
+      "rule": "Non-strict parsing accepts invalid objects",
+      "fixture": "invalid/sdo/indicator-no-name.json",
+      "strict": false,
+      "expected_behavior": "parses_successfully"
+    },
+    "malware-types-enum": {
+      "category": "sdo",
+      "object_type": "malware",
+      "rule": "malware_types values MUST come from malware-type-ov",
+      "fixture": "invalid/sdo/malware-bad-malware-types.json",
+      "expected_error_substring": "malware_types"
+    },
+    "ipv4-address-format": {
+      "category": "sco",
+      "object_type": "ipv4-addr",
+      "rule": "value MUST be a valid IPv4 address or CIDR block",
+      "fixture": "invalid/sco/ipv4-bad-format.json",
+      "expected_error_substring": "IPv4 address must be a valid dotted-decimal format"
+    },
+    "bundle-not-empty": {
+      "category": "meta",
+      "object_type": "bundle",
+      "rule": "Bundle MUST contain at least one object",
+      "fixture": "invalid/bundle/bundle-empty.json",
+      "expected_error_substring": "Bundle must contain at least one object"
+    }
+  }
+}

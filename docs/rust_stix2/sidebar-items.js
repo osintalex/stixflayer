@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["base","bundles","custom_objects","cyber_observable_objects","datastore","domain_objects","error","extensions","json","meta_objects","object","pattern","relationship_objects","types"]};

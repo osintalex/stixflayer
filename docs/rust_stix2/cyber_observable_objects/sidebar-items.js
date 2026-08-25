@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["sco","sco_types","vocab"]};

@@ -1,0 +1,13 @@
+{
+    "type": "windows-registry-key",
+    "spec_version": "2.1",
+    "id": "windows-registry-key--ffa353d6-8ee4-48a0-a17c-c394d0fc56ac",
+    "key": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion",
+    "values": [
+        {
+            "name": "ProgramFilesDir",
+            "data": "C:\\Program Files",
+            "data_type": "REG_SZ"
+        }
+    ]
+}

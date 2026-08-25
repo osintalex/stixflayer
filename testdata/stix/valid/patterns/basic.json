@@ -1,0 +1,18 @@
+[
+    {
+        "description": "Simple equality comparison",
+        "pattern": "[file:hashes.'SHA-256' = 'd7a9f2b24e57209a18e7cfb2439c0b6f3c0d9a4b5c8e6f1a2b3c4d5e6f7a8b9']"
+    },
+    {
+        "description": "IPv4 address comparison",
+        "pattern": "[ipv4-addr:value = '192.0.2.1']"
+    },
+    {
+        "description": "Domain name comparison",
+        "pattern": "[domain-name:value = 'example.com']"
+    },
+    {
+        "description": "EXISTS comparison",
+        "pattern": "EXISTS [file:name]"
+    }
+]

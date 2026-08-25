@@ -1,0 +1,14 @@
+{
+    "type": "location",
+    "spec_version": "2.1",
+    "id": "location--6d77fd5f-db0d-4253-ab54-de9ff962fe0b",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "name": "Beijing",
+    "description": "Beijing, China",
+    "latitude": 39.9042,
+    "longitude": 116.4074,
+    "precision": 1000.0,
+    "region": "asia",
+    "country": "CN"
+}

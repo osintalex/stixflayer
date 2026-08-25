@@ -1,0 +1,8 @@
+{
+    "type": "autonomous-system",
+    "spec_version": "2.1",
+    "id": "autonomous-system--40239f88-dcec-5cbe-b34f-ec342f12e359",
+    "number": 15169,
+    "name": "AS15169",
+    "rir": "ARIN"
+}

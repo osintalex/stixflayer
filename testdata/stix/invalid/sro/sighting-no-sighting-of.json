@@ -1,0 +1,11 @@
+{
+    "//": "INVALID: sighting object is missing required 'sighting_of_ref' property",
+    "type": "sighting",
+    "spec_version": "2.1",
+    "id": "sighting--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "count": 1,
+    "first_seen": "2016-04-06T08:17:27.000Z",
+    "last_seen": "2016-04-06T08:17:27.000Z"
+}

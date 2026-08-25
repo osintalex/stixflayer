@@ -1,0 +1,11 @@
+{
+    "//": "INVALID: source_ref and target_ref must not point to the same object",
+    "type": "relationship",
+    "spec_version": "2.1",
+    "id": "relationship--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "created": "2016-04-06T08:17:27.000Z",
+    "modified": "2016-04-06T08:17:27.000Z",
+    "relationship_type": "indicates",
+    "source_ref": "malware--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "target_ref": "malware--cc7fa653-c35f-43db-afdd-dce4c3a241d5"
+}

@@ -1,0 +1,7 @@
+{
+    "//": "INVALID: number must be a positive integer",
+    "type": "autonomous-system",
+    "spec_version": "2.1",
+    "id": "autonomous-system--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "number": -1
+}

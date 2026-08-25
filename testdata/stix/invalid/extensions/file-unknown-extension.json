@@ -1,0 +1,12 @@
+{
+    "//": "INVALID: file object references an undefined extension type 'x-unknown-extension'",
+    "type": "file",
+    "spec_version": "2.1",
+    "id": "file--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "name": "test.exe",
+    "extensions": {
+        "x-unknown-extension": {
+            "magic_number": "MZ"
+        }
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "type": "x509-certificate",
+    "spec_version": "2.1",
+    "id": "x509-certificate--e8b078d5-81d0-489e-9a5d-f5fbe5c4f9d5",
+    "serial_number": "04:f3:e2:69:c8:1f:e3:2c:b5:27:8f:3a:7c:92:17:c8:52",
+    "signature_algorithm": "RSA-SHA256",
+    "issuer": "CN=Example CA, O=Example, C=US",
+    "subject": "CN=example.com, O=Example, C=US",
+    "subject_public_key_algorithm": "RSA",
+    "x509_v3_extensions": {
+        "basic_constraints": "CA:FALSE"
+    }
+}

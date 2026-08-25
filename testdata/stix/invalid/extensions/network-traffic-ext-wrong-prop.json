@@ -1,0 +1,12 @@
+{
+    "//": "INVALID: tcp-ext uses wrong property name (send_bytes instead of src_byte_count)",
+    "type": "network-traffic",
+    "spec_version": "2.1",
+    "id": "network-traffic--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+    "protocols": ["tcp"],
+    "extensions": {
+        "tcp-ext": {
+            "send_bytes": 1000
+        }
+    }
+}

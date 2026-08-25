@@ -1,0 +1,9 @@
+{
+    "type": "file",
+    "spec_version": "2.1",
+    "id": "file--2dccfecd-a6a3-58b6-b84c-c7f9fdd26c9a",
+    "name": "malware.exe",
+    "size": 123456,
+    "magic_number_hex": "4d5a",
+    "mime_type": "application/x-dosexec"
+}
