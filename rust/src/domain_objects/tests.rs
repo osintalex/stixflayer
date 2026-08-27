@@ -149,6 +149,71 @@ mod test {
     }
 
     #[test]
+    fn from_parsed_preserves_versioning_properties() {
+        // Parsing a STIX object is not versioning it: id/created/modified must survive exactly.
+        let json = r#"{
+            "type": "attack-pattern",
+            "spec_version": "2.1",
+            "id": "attack-pattern--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+            "created": "2016-05-12T08:17:27.000Z",
+            "modified": "2016-05-13T09:22:01.000Z",
+            "name": "Spear Phishing"
+        }"#;
+        let parsed = DomainObject::from_json(json, false).unwrap();
+        let rebuilt = DomainObjectBuilder::from_parsed(&parsed)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        assert_eq!(parsed.common_properties.id, rebuilt.common_properties.id);
+        assert_eq!(parsed.common_properties.created, rebuilt.common_properties.created);
+        assert_eq!(parsed.common_properties.modified, rebuilt.common_properties.modified);
+    }
+
+    #[test]
+    fn version_rejects_revoked_object() {
+        // STIX 2.1 3.3: once an object is revoked, later versions MUST NOT be created.
+        let json = r#"{
+            "type": "attack-pattern",
+            "spec_version": "2.1",
+            "id": "attack-pattern--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+            "created": "2016-05-12T08:17:27.000Z",
+            "modified": "2016-05-13T09:22:01.000Z",
+            "revoked": true,
+            "name": "Spear Phishing"
+        }"#;
+        let parsed = DomainObject::from_json(json, false).unwrap();
+        assert!(matches!(
+            DomainObjectBuilder::version(&parsed),
+            Err(Error::UnableToVersion(_))
+        ));
+    }
+
+    #[test]
+    fn from_parsed_accepts_revoked_object_and_preserves_state() {
+        // Revoked objects are valid STIX objects; reconstructing one must keep its state.
+        let json = r#"{
+            "type": "attack-pattern",
+            "spec_version": "2.1",
+            "id": "attack-pattern--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+            "created": "2016-05-12T08:17:27.000Z",
+            "modified": "2016-05-13T09:22:01.000Z",
+            "revoked": true,
+            "name": "Spear Phishing"
+        }"#;
+        let parsed = DomainObject::from_json(json, false).unwrap();
+        let rebuilt = DomainObjectBuilder::from_parsed(&parsed)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        assert_eq!(rebuilt.common_properties.revoked, Some(true));
+        assert_eq!(parsed.common_properties.id, rebuilt.common_properties.id);
+        assert_eq!(parsed.common_properties.created, rebuilt.common_properties.created);
+        assert_eq!(parsed.common_properties.modified, rebuilt.common_properties.modified);
+    }
+
+    #[test]
     fn deserialize_with_excluded_common_property() {
         let json = r#"{
             "type": "attack-pattern",

@@ -375,14 +375,31 @@ impl CommonPropertiesBuilder {
         })
     }
 
+    /// Construct a `CommonPropertiesBuilder` by cloning an existing set of properties verbatim,
+    /// including `created` and `modified`. Used when reconstructing an already-parsed STIX
+    /// Object (as opposed to `version()`, which treats the object as the basis for a new version).
+    pub fn from_existing(
+        object_name: &str,
+        old: &CommonProperties,
+    ) -> Result<CommonPropertiesBuilder, Error> {
+        let stix_object =
+            StixObject::from_str(&stix_case(object_name)).map_err(Error::UnrecognizedObject)?;
+        Ok(CommonPropertiesBuilder {
+            stix_object,
+            builder_type: BuilderType::FromExisting,
+            properties: old.clone(),
+        })
+    }
+
     // Setter functions for common properties
 
     /// Set the `created_by_ref` field for an object under construction
-    /// This is only allowed when creating a new object, not when versioning an existing one,
+    /// This is only allowed when creating a new object or reconstructing a parsed one,
+    /// not when versioning an existing one,
     /// as only the original creator of an object can version it.
     pub fn created_by_ref(mut self, id: Identifier) -> Result<Self, Error> {
         match self.builder_type {
-            BuilderType::Creation => {
+            BuilderType::Creation | BuilderType::FromExisting => {
                 self.properties.created_by_ref = Some(id);
                 Ok(self)
             }
@@ -460,27 +477,39 @@ impl CommonPropertiesBuilder {
         let (created, modified) = match self.stix_object {
             StixObject::Sco => (None, None),
             StixObject::MarkingDefinition => {
-                // Get the current datetime, for setting `modified` and conditionally `created`
-                let now = Timestamp::now();
-                // If we are creating a new object, `created` is set to the time of creation
-                // If we are versioning an existing object, `created` stays the same as before
-                let created = match self.builder_type {
-                    BuilderType::Creation => Some(now.clone()),
-                    BuilderType::Version => properties.created,
-                };
-                (created, None)
+                // If we are reconstructing a parsed object, keep its timestamps as-is
+                if self.builder_type == BuilderType::FromExisting {
+                    (properties.created, None)
+                } else {
+                    // Get the current datetime, for setting `modified` and conditionally `created`
+                    let now = Timestamp::now();
+                    // If we are creating a new object, `created` is set to the time of creation
+                    // If we are versioning an existing object, `created` stays the same as before
+                    let created = match self.builder_type {
+                        BuilderType::Creation => Some(now.clone()),
+                        BuilderType::Version => properties.created,
+                        BuilderType::FromExisting => unreachable!(),
+                    };
+                    (created, None)
+                }
             }
             _ => {
-                // Get the current datetime, for setting `modified` and conditionally `created`
-                let now = Timestamp::now();
-                // If we are creating a new object, `created` is set to the time of creation
-                // If we are versioning an existing object, `created` stays the same as before
-                let created = match self.builder_type {
-                    BuilderType::Creation => Some(now.clone()),
-                    BuilderType::Version => properties.created,
-                };
-                let modified = Some(now);
-                (created, modified)
+                // If we are reconstructing a parsed object, keep its timestamps as-is
+                if self.builder_type == BuilderType::FromExisting {
+                    (properties.created, properties.modified)
+                } else {
+                    // Get the current datetime, for setting `modified` and conditionally `created`
+                    let now = Timestamp::now();
+                    // If we are creating a new object, `created` is set to the time of creation
+                    // If we are versioning an existing object, `created` stays the same as before
+                    let created = match self.builder_type {
+                        BuilderType::Creation => Some(now.clone()),
+                        BuilderType::Version => properties.created,
+                        BuilderType::FromExisting => unreachable!(),
+                    };
+                    let modified = Some(now);
+                    (created, modified)
+                }
             }
         };
 
@@ -491,8 +520,13 @@ impl CommonPropertiesBuilder {
             created,
             granular_markings: properties.granular_markings,
             modified,
-            // Since we are making a new object or new version of an object, we cannot create it already revoked
-            revoked: None,
+            // Since we are making a new object or new version of an object, we cannot create it already revoked.
+            // When reconstructing a parsed object, its revoked state is preserved as-is.
+            revoked: if self.builder_type == BuilderType::FromExisting {
+                properties.revoked
+            } else {
+                None
+            },
             labels: properties.labels,
             confidence: properties.confidence,
             lang: properties.lang,
@@ -517,9 +551,11 @@ pub enum StixObject {
     Custom,
 }
 
-/// Whether the object under construction is a new object or a version of an existing one.
+/// Whether the object under construction is a new object, a version of an existing one,
+/// or a faithful reconstruction of an already-parsed one.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub enum BuilderType {
     Creation,
     Version,
+    FromExisting,
 }

@@ -1,4 +1,5 @@
 use pyo3::exceptions::PyValueError as PyO3ValueError;
+use pyo3::exceptions::PyAttributeError as PyO3AttributeError;
 use pyo3::prelude::*;
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -59,13 +60,10 @@ fn build_sdo_envelope(
 ) -> Result<DomainObjectBuilder, PyErr> {
     let id = Identifier::new(type_name)
         .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-    let now = Timestamp::now();
     let mut json_obj = serde_json::json!({
         "type": type_name,
         "spec_version": "2.1",
-        "id": id.to_string(),
-        "created": now.to_string(),
-        "modified": now.to_string()
+        "id": id.to_string()
     });
     if let Some(kwargs) = kwargs {
         for (k, v) in kwargs.iter() {
@@ -74,9 +72,20 @@ fn build_sdo_envelope(
             json_obj[key] = py_to_json(&v)?;
         }
     }
+    // Timestamps default to now, but caller-supplied values are preserved.
+    // When neither is supplied, both share the same stamp so created == modified.
+    if json_obj.get("created").is_none() || json_obj.get("modified").is_none() {
+        let now = Timestamp::now().to_string();
+        if json_obj.get("created").is_none() {
+            json_obj["created"] = serde_json::Value::String(now.clone());
+        }
+        if json_obj.get("modified").is_none() {
+            json_obj["modified"] = serde_json::Value::String(now);
+        }
+    }
     let domain_obj = crate::domain_objects::sdo::DomainObject::from_json(&json_obj.to_string(), false)
         .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-    let builder = DomainObjectBuilder::version(&domain_obj)
+    let builder = DomainObjectBuilder::from_parsed(&domain_obj)
         .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
     validate_sdo_builder(builder)
 }
@@ -314,6 +323,39 @@ fn py_to_json(obj: &Bound<'_, PyAny>) -> Result<serde_json::Value, PyErr> {
     )))
 }
 
+fn json_to_py(py: Python<'_>, value: &serde_json::Value) -> PyResult<Py<PyAny>> {
+    Ok(match value {
+        serde_json::Value::Null => py.None(),
+        serde_json::Value::Bool(b) => b.to_object(py),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                i.to_object(py)
+            } else if let Some(u) = n.as_u64() {
+                u.to_object(py)
+            } else {
+                n.as_f64()
+                    .expect("JSON number is neither integer nor float")
+                    .to_object(py)
+            }
+        }
+        serde_json::Value::String(s) => s.to_object(py),
+        serde_json::Value::Array(items) => {
+            let list = PyList::empty_bound(py);
+            for item in items {
+                list.append(json_to_py(py, item)?)?;
+            }
+            list.into_any().unbind()
+        }
+        serde_json::Value::Object(map) => {
+            let dict = PyDict::new_bound(py);
+            for (key, item) in map {
+                dict.set_item(key, json_to_py(py, item)?)?;
+            }
+            dict.into_any().unbind()
+        }
+    })
+}
+
 
 #[pyclass]
 pub struct Campaign(DomainObjectBuilder);
@@ -332,7 +374,7 @@ impl Campaign {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Campaign(builder))
     }
@@ -367,7 +409,7 @@ impl CourseOfAction {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(CourseOfAction(builder))
     }
@@ -402,7 +444,7 @@ impl Grouping {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Grouping(builder))
     }
@@ -437,7 +479,7 @@ impl Identity {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Identity(builder))
     }
@@ -472,7 +514,7 @@ impl Incident {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Incident(builder))
     }
@@ -507,7 +549,7 @@ impl Infrastructure {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Infrastructure(builder))
     }
@@ -542,7 +584,7 @@ impl IntrusionSet {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(IntrusionSet(builder))
     }
@@ -577,7 +619,7 @@ impl Location {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Location(builder))
     }
@@ -612,7 +654,7 @@ impl MalwareAnalysis {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(MalwareAnalysis(builder))
     }
@@ -647,7 +689,7 @@ impl Note {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Note(builder))
     }
@@ -682,7 +724,7 @@ impl ObservedData {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(ObservedData(builder))
     }
@@ -717,7 +759,7 @@ impl Opinion {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Opinion(builder))
     }
@@ -752,7 +794,7 @@ impl Report {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Report(builder))
     }
@@ -787,7 +829,7 @@ impl ThreatActor {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(ThreatActor(builder))
     }
@@ -822,7 +864,7 @@ impl Tool {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Tool(builder))
     }
@@ -857,7 +899,7 @@ impl Vulnerability {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Vulnerability(builder))
     }
@@ -897,7 +939,7 @@ impl Malware {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Malware(builder))
     }
@@ -936,7 +978,7 @@ impl AttackPattern {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(AttackPattern(builder))
     }
@@ -951,6 +993,20 @@ impl AttackPattern {
     #[getter]
     fn r#type(&self) -> String {
         "attack-pattern".to_string()
+    }
+
+    fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+        let obj = self.0.clone().build()
+            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let value = serde_json::to_value(&obj)
+            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        match value.get(name) {
+            Some(v) => json_to_py(py, v),
+            None => Err(PyErr::new::<PyO3AttributeError, _>(format!(
+                "'AttackPattern' object has no attribute '{}'",
+                name
+            ))),
+        }
     }
 }
 
@@ -975,7 +1031,7 @@ impl Indicator {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::version(&sdo)
+        let builder = DomainObjectBuilder::from_parsed(&sdo)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Indicator(builder))
     }

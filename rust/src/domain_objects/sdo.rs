@@ -278,6 +278,21 @@ impl DomainObjectBuilder {
         })
     }
 
+    /// Create a new STIX 2.1 `DomainObjectBuilder` by cloning the fields from an already-parsed
+    /// `DomainObject`, preserving its `id`, `created`, `modified`, and `revoked` properties
+    /// exactly. Unlike `version()`, this does not treat the object as the basis for a new
+    /// version and therefore does not reject revoked objects.
+    pub fn from_parsed(old: &DomainObject) -> Result<DomainObjectBuilder, Error> {
+        let object_type = old.object_type.clone();
+        let old_properties = old.common_properties.clone();
+        let common_properties = CommonPropertiesBuilder::from_existing("sdo", &old_properties)?;
+
+        Ok(DomainObjectBuilder {
+            object_type,
+            common_properties,
+        })
+    }
+
     // Setter functions for optional properties common to all SDOs
 
     /// Set the optional `created_by_ref` field for an SDO under construction.
