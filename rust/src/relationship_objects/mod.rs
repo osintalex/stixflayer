@@ -431,6 +431,23 @@ impl RelationshipObjectBuilder {
         })
     }
 
+    /// Create a builder from an already-parsed SRO, preserving its `id`, `created`,
+    /// `modified`, and `revoked` properties exactly. Unlike `version()`, this does
+    /// not treat the object as the basis for a new version and does not reject
+    /// revoked objects.
+    pub fn from_parsed(old: &RelationshipObject) -> Result<RelationshipObjectBuilder, Error> {
+        let object_type = old.object_type.clone();
+        let description = old.description.clone();
+        let old_properties = old.common_properties.clone();
+        let common_properties = CommonPropertiesBuilder::from_existing("sro", &old_properties)?;
+
+        Ok(RelationshipObjectBuilder {
+            object_type,
+            common_properties,
+            description,
+        })
+    }
+
     // Setter functions for optional properties common to both SRO types
 
     /// Set the optional `created_by_ref` field for an SRO under construction.

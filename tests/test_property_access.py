@@ -35,7 +35,7 @@ CLASS_OVERRIDES = {
 # Types whose __getattr__ rollout has not landed yet (strict xfail).
 # Shrink this set as each batch lands; it must be empty when done.
 UNROLLED_SDO_TYPES: set[str] = set()
-UNROLLED_FAMILIES = {"sros", "meta"}
+UNROLLED_FAMILIES: set[str] = set()
 
 
 def _class_for(stix_type: str):

@@ -284,6 +284,26 @@ impl LanguageContentBuilder {
         })
     }
 
+    /// Create a builder from an already-parsed LanguageContent, preserving its
+    /// `id`, `created`, `modified`, and `revoked` properties exactly. Unlike
+    /// `version()`, this does not treat the object as the basis for a new version.
+    pub fn from_parsed(old: &LanguageContent) -> Result<Self, Error> {
+        let object_ref = old.object_ref.clone();
+        let object_modified = old.object_modified.clone();
+        let contents = old.contents.clone();
+
+        let old_properties = old.common_properties.clone();
+        let common_properties =
+            CommonPropertiesBuilder::from_existing("language-content", &old_properties)?;
+
+        Ok(Self {
+            common_properties,
+            object_ref,
+            object_modified,
+            contents,
+        })
+    }
+
     // Setter functions for common properties
 
     /// Set the `created_by_ref` field for a Language Content SMO under construction

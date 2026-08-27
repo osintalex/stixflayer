@@ -290,6 +290,21 @@ impl MarkingDefinitionBuilder {
             definition: old.definition.clone(),
         })
     }
+
+    /// Create a builder from an already-parsed MarkingDefinition, preserving its
+    /// `id`, `created`, `modified`, and `revoked` properties exactly. Unlike
+    /// `version()`, this does not treat the object as the basis for a new version.
+    pub fn from_parsed(old: &MarkingDefinition) -> Result<Self, Error> {
+        let old_properties = old.common_properties.clone();
+        let common_properties =
+            CommonPropertiesBuilder::from_existing("marking-definition", &old_properties)?;
+        Ok(Self {
+            common_properties,
+            name: old.name.clone(),
+            definition_type: old.definition_type.clone(),
+            definition: old.definition.clone(),
+        })
+    }
 }
 
 /// enum to for the different types in defintinition

@@ -275,6 +275,31 @@ impl ExtensionDefinitionBuilder {
         })
     }
 
+    /// Create a builder from an already-parsed ExtensionDefinition, preserving its
+    /// `id`, `created`, `modified`, and `revoked` properties exactly. Unlike
+    /// `version()`, this does not treat the object as the basis for a new version.
+    pub fn from_parsed(old: &ExtensionDefinition) -> Result<Self, Error> {
+        let old_properties = old.common_properties.clone();
+        let common_properties =
+            CommonPropertiesBuilder::from_existing("extension-definition", &old_properties)?;
+        let name = old.name.clone();
+        let description = old.description.clone();
+        let schema = Some(old.schema.clone());
+        let version = Some(old.version.clone());
+        let extension_types = Some(old.extension_types.clone());
+        let extension_properties = old.extension_properties.clone();
+
+        Ok(ExtensionDefinitionBuilder {
+            common_properties,
+            name,
+            description,
+            schema,
+            version,
+            extension_types,
+            extension_properties,
+        })
+    }
+
     // Setter functions for common properties
 
     /// Set the optional `created_by_ref` field for a Extension Definition SMO under construction

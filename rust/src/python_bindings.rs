@@ -139,7 +139,7 @@ fn build_sro_envelope(
     }
     let sro_obj = crate::relationship_objects::RelationshipObject::from_json(&json_obj.to_string(), false)
         .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-    let builder = RelationshipObjectBuilder::version(&sro_obj)
+    let builder = RelationshipObjectBuilder::from_parsed(&sro_obj)
         .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
     validate_sro_builder(builder)
 }
@@ -2197,7 +2197,7 @@ fn build_sro_from_kwargs(
     }
     let sro = StixRelationshipObject::from_json(&json_obj.to_string(), false)
         .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-    let builder = RelationshipObjectBuilder::version(&sro)
+    let builder = RelationshipObjectBuilder::from_parsed(&sro)
         .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
     validate_sro_builder(builder)
 }
@@ -2219,7 +2219,7 @@ impl Relationship {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sro = crate::object::parse_sro(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = RelationshipObjectBuilder::version(&sro)
+        let builder = RelationshipObjectBuilder::from_parsed(&sro)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Relationship(builder))
     }
@@ -2233,8 +2233,16 @@ impl Relationship {
 
     #[getter]
     fn r#type(&self) -> String {
-        "relationship".to_string()
-    }
+    "relationship".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -2254,7 +2262,7 @@ impl Sighting {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sro = crate::object::parse_sro(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = RelationshipObjectBuilder::version(&sro)
+        let builder = RelationshipObjectBuilder::from_parsed(&sro)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Sighting(builder))
     }
@@ -2268,8 +2276,16 @@ impl Sighting {
 
     #[getter]
     fn r#type(&self) -> String {
-        "sighting".to_string()
-    }
+    "sighting".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -2318,7 +2334,7 @@ impl MarkingDefinition {
     fn from_json(json_str: String) -> Result<Self, PyErr> {
         let md = crate::meta_objects::marking_definition::MarkingDefinition::from_json(&json_str, false)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = MarkingDefinitionBuilder::version(&md)
+        let builder = MarkingDefinitionBuilder::from_parsed(&md)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(MarkingDefinition(builder))
     }
@@ -2336,8 +2352,16 @@ impl MarkingDefinition {
 
     #[getter]
     fn r#type(&self) -> String {
-        "marking-definition".to_string()
-    }
+    "marking-definition".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -2532,7 +2556,7 @@ impl ExtensionDefinition {
     fn from_json(json_str: String) -> Result<Self, PyErr> {
         let ext_def = StixExtensionDefinition::from_json(&json_str, false)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = ExtensionDefinitionBuilder::version(&ext_def)
+        let builder = ExtensionDefinitionBuilder::from_parsed(&ext_def)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(ExtensionDefinition(builder))
     }
@@ -2550,8 +2574,16 @@ impl ExtensionDefinition {
 
     #[getter]
     fn r#type(&self) -> String {
-        "extension-definition".to_string()
-    }
+    "extension-definition".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -2593,7 +2625,7 @@ impl LanguageContent {
         // Deserialize WITHOUT running stix_check (validation happens at to_json time)
         let lc: StixLanguageContent = serde_json::from_str(&json_obj.to_string())
             .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = LanguageContentBuilder::version(&lc)
+        let builder = LanguageContentBuilder::from_parsed(&lc)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(LanguageContent(builder))
     }
@@ -2602,7 +2634,7 @@ impl LanguageContent {
     fn from_json(json_str: String) -> Result<Self, PyErr> {
         let lc = StixLanguageContent::from_json(&json_str, false)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = LanguageContentBuilder::version(&lc)
+        let builder = LanguageContentBuilder::from_parsed(&lc)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(LanguageContent(builder))
     }
@@ -2620,8 +2652,16 @@ impl LanguageContent {
 
     #[getter]
     fn r#type(&self) -> String {
-        "language-content".to_string()
-    }
+    "language-content".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 
     fn insert_content_strings(
         &mut self,
