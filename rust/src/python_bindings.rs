@@ -356,6 +356,24 @@ fn json_to_py(py: Python<'_>, value: &serde_json::Value) -> PyResult<Py<PyAny>> 
     })
 }
 
+/// Resolve a dynamically-requested property from an object's serialized form.
+/// Missing properties raise AttributeError (typos are never silently None).
+fn dynamic_getattr(
+    py: Python<'_>,
+    type_path: &str,
+    value: &serde_json::Value,
+    name: &str,
+) -> PyResult<Py<PyAny>> {
+    let class_name = type_path.rsplit("::").next().unwrap_or(type_path);
+    match value.get(name) {
+        Some(v) => json_to_py(py, v),
+        None => Err(PyErr::new::<PyO3AttributeError, _>(format!(
+            "'{}' object has no attribute '{}'",
+            class_name, name
+        ))),
+    }
+}
+
 
 #[pyclass]
 pub struct Campaign(DomainObjectBuilder);
@@ -388,8 +406,16 @@ impl Campaign {
 
     #[getter]
     fn r#type(&self) -> String {
-        "campaign".to_string()
-    }
+    "campaign".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -423,8 +449,16 @@ impl CourseOfAction {
 
     #[getter]
     fn r#type(&self) -> String {
-        "course-of-action".to_string()
-    }
+    "course-of-action".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -458,8 +492,16 @@ impl Grouping {
 
     #[getter]
     fn r#type(&self) -> String {
-        "grouping".to_string()
-    }
+    "grouping".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -493,8 +535,16 @@ impl Identity {
 
     #[getter]
     fn r#type(&self) -> String {
-        "identity".to_string()
-    }
+    "identity".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -528,8 +578,16 @@ impl Incident {
 
     #[getter]
     fn r#type(&self) -> String {
-        "incident".to_string()
-    }
+    "incident".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -563,8 +621,16 @@ impl Infrastructure {
 
     #[getter]
     fn r#type(&self) -> String {
-        "infrastructure".to_string()
-    }
+    "infrastructure".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -598,8 +664,16 @@ impl IntrusionSet {
 
     #[getter]
     fn r#type(&self) -> String {
-        "intrusion-set".to_string()
-    }
+    "intrusion-set".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -633,8 +707,16 @@ impl Location {
 
     #[getter]
     fn r#type(&self) -> String {
-        "location".to_string()
-    }
+    "location".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -668,8 +750,16 @@ impl MalwareAnalysis {
 
     #[getter]
     fn r#type(&self) -> String {
-        "malware-analysis".to_string()
-    }
+    "malware-analysis".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -703,8 +793,16 @@ impl Note {
 
     #[getter]
     fn r#type(&self) -> String {
-        "note".to_string()
-    }
+    "note".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -738,8 +836,16 @@ impl ObservedData {
 
     #[getter]
     fn r#type(&self) -> String {
-        "observed-data".to_string()
-    }
+    "observed-data".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -773,8 +879,16 @@ impl Opinion {
 
     #[getter]
     fn r#type(&self) -> String {
-        "opinion".to_string()
-    }
+    "opinion".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -808,8 +922,16 @@ impl Report {
 
     #[getter]
     fn r#type(&self) -> String {
-        "report".to_string()
-    }
+    "report".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -843,8 +965,16 @@ impl ThreatActor {
 
     #[getter]
     fn r#type(&self) -> String {
-        "threat-actor".to_string()
-    }
+    "threat-actor".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -878,8 +1008,16 @@ impl Tool {
 
     #[getter]
     fn r#type(&self) -> String {
-        "tool".to_string()
-    }
+    "tool".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
@@ -913,8 +1051,16 @@ impl Vulnerability {
 
     #[getter]
     fn r#type(&self) -> String {
-        "vulnerability".to_string()
-    }
+    "vulnerability".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 
@@ -953,8 +1099,16 @@ impl Malware {
 
     #[getter]
     fn r#type(&self) -> String {
-        "malware".to_string()
-    }
+    "malware".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 // ============================================================================
@@ -1000,13 +1154,7 @@ impl AttackPattern {
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         let value = serde_json::to_value(&obj)
             .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        match value.get(name) {
-            Some(v) => json_to_py(py, v),
-            None => Err(PyErr::new::<PyO3AttributeError, _>(format!(
-                "'AttackPattern' object has no attribute '{}'",
-                name
-            ))),
-        }
+        dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
     }
 }
 
@@ -1045,8 +1193,16 @@ impl Indicator {
 
     #[getter]
     fn r#type(&self) -> String {
-        "indicator".to_string()
-    }
+    "indicator".to_string()
+}
+
+fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+    let obj = self.0.clone().build()
+        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let value = serde_json::to_value(&obj)
+        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
+}
 }
 
 #[pyclass]
