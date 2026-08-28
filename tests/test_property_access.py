@@ -78,14 +78,6 @@ def test_every_wire_property_is_accessible(fixture_path):
 
     for key, expected in wire.items():
         actual = getattr(obj, key)
-        if key == "id" and fixture_path.parent.name == "scos":
-            # KNOWN ENGINE BUG (pre-existing, flagged for follow-up):
-            # CyberObjectBuilder::build() regenerates SCO ids on every call;
-            # for types whose v5 contributing properties are missing from the
-            # lookup tables it falls back to random UUIDv4, so ids are not
-            # stable across builds. Compare the type prefix only.
-            assert actual.startswith(fixture["type"] + "--"), key
-            continue
         assert _norm(key, actual) == _norm(key, expected), key
 
 

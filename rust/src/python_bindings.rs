@@ -1256,7 +1256,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
                 return ip.value.clone();
             }
         }
-        "ipv4-addr".to_string()
+        "".to_string()
     }
 }
 
@@ -1311,7 +1311,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
                 return ip.value.clone();
             }
         }
-        "ipv6-addr".to_string()
+        "".to_string()
     }
 }
 
@@ -1366,7 +1366,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
                 return d.value.clone();
             }
         }
-        "domain-name".to_string()
+        "".to_string()
     }
 }
 
@@ -1421,7 +1421,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
                 return u.value.to_string();
             }
         }
-        "url".to_string()
+        "".to_string()
     }
 }
 
@@ -1476,7 +1476,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
                 return e.value.clone();
             }
         }
-        "email-addr".to_string()
+        "".to_string()
     }
 }
 
@@ -1531,7 +1531,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
                 return em.from_ref.clone().map(|i| i.to_string()).unwrap_or_default();
             }
         }
-        "email-message".to_string()
+        "".to_string()
     }
 }
 
@@ -1586,7 +1586,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
                 return m.value.clone();
             }
         }
-        "mac-addr".to_string()
+        "".to_string()
     }
 }
 
@@ -1697,7 +1697,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
                 return f.name.clone().unwrap_or_default();
             }
         }
-        "file".to_string()
+        "".to_string()
     }
 }
 
@@ -1752,7 +1752,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
                 return s.name.clone();
             }
         }
-        "software".to_string()
+        "".to_string()
     }
 }
 
@@ -1807,7 +1807,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
                 return d.path.clone();
             }
         }
-        "directory".to_string()
+        "".to_string()
     }
 }
 
@@ -1862,7 +1862,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
                 return m.name.clone();
             }
         }
-        "mutex".to_string()
+        "".to_string()
     }
 }
 
@@ -2003,7 +2003,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
                 return u.account_login.clone().unwrap_or_default();
             }
         }
-        "user-account".to_string()
+        "".to_string()
     }
 }
 
@@ -2059,7 +2059,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
                 return w.key.clone().unwrap_or_default();
             }
         }
-        "windows-registry-key".to_string()
+        "".to_string()
     }
 }
 
@@ -2114,7 +2114,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
                 return x.serial_number.clone().unwrap_or_default();
             }
         }
-        "x509-certificate".to_string()
+        "".to_string()
     }
 }
 
@@ -2169,7 +2169,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
                 return a.mime_type.clone().unwrap_or_default();
             }
         }
-        "artifact".to_string()
+        "".to_string()
     }
 }
 
