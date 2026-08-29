@@ -41,6 +41,7 @@ static REQUIRED_ID_PROPERTIES: LazyLock<HashMap<&'static str, Vec<&'static str>>
         m.insert("ipv4-addr", vec!["value"]);
         m.insert("ipv6-addr", vec!["value"]);
         m.insert("mac-addr", vec!["value"]);
+        m.insert("mutex", vec!["name"]);
         m.insert("network-traffic", vec!["protocols"]);
         m.insert("process", Vec::new());
         m.insert("software", vec!["name"]);
@@ -76,7 +77,7 @@ static OPTIONAL_ID_PROPERTIES: LazyLock<HashMap<&'static str, Vec<&'static str>>
                 "src_ref",
                 "dst_ref",
                 "src_port",
-                "dst_poart",
+                "dst_port",
                 "extensions",
             ],
         );
@@ -86,8 +87,14 @@ static OPTIONAL_ID_PROPERTIES: LazyLock<HashMap<&'static str, Vec<&'static str>>
             "user-account",
             vec!["account_type", "user_id", "account_login"],
         );
-        m.insert("windows-registry-key", vec!["key, values"]);
-        m.insert("x509-certificate", vec!["hashes, serial_number"]);
+        m.insert(
+            "windows-registry-key",
+            vec!["key", "values"],
+        );
+        m.insert(
+            "x509-certificate",
+            vec!["hashes", "serial_number"],
+        );
         m
     });
 
@@ -2402,22 +2409,23 @@ impl CyberObjectBuilder {
                             IdPropertyValue::String(value.to_string()),
                         );
                     }
-                } else if object_type == "windows-registry-key" {
-                    // WindowsRegistryKey.values is a Vec of a custom struct
+                } else if *field == "values" {
+                    // WindowsRegistryKey.values is a Vec of a custom struct;
+                    // all items are included per the spec's ID contributing
+                    // properties rule for windows-registry-key
                     if let Some(Some(values)) = get_field_by_name::<
                         &CyberObjectBuilder,
                         Option<Vec<WindowsRegistryKeyType>>,
                     >(self, field)?
                     {
+                        let mut canonical = Vec::new();
                         for value in values {
-                            properties.insert(
-                                field.to_string(),
-                                IdPropertyValue::String(
-                                    json_canon::to_string(&value)
-                                        .map_err(|e| Error::DeserializationError(e.to_string()))?,
-                                ),
+                            canonical.push(
+                                json_canon::to_string(&value)
+                                    .map_err(|e| Error::DeserializationError(e.to_string()))?,
                             );
                         }
+                        properties.insert(field.to_string(), IdPropertyValue::List(canonical));
                     }
                 } else if *field == "src_port" || *field == "dst_port" {
                     // NetworkTraffic.src_port and NetworkTraffic.dst_port are Integers
