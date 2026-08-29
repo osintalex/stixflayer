@@ -33,8 +33,8 @@ class TestIndicatorErgonomics:
         assert '"type":"indicator"' in json_str
 
     def test_indicator_missing_required_raises(self):
-        """Missing required field raises ValueError at construction."""
-        with pytest.raises(ValueError):
+        """Missing required field raises ValidationError at construction."""
+        with pytest.raises(stixflayer.ValidationError):
             stixflayer.Indicator(name="Missing pattern")  # pattern is required
 
     def test_indicator_roundtrip(self):
@@ -63,8 +63,8 @@ class TestBundleErgonomics:
         assert bundle.type == "bundle"
 
     def test_bundle_empty_raises(self):
-        """Bundle with no objects raises ValueError."""
-        with pytest.raises(ValueError):
+        """Bundle with no objects raises ValidationError."""
+        with pytest.raises(stixflayer.ValidationError):
             stixflayer.Bundle(objects=[])
 
 

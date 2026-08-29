@@ -1,20 +1,19 @@
-use pyo3::exceptions::PyValueError as PyO3ValueError;
 use pyo3::exceptions::PyAttributeError as PyO3AttributeError;
 use pyo3::prelude::*;
+use pyo3::{create_exception, PyErr};
 use std::collections::BTreeMap;
 use std::str::FromStr;
 use ordered_float::OrderedFloat;
 use crate::cyber_observable_objects::sco::CyberObjectBuilder;
 use crate::custom_objects::CustomObjectBuilder;
 use crate::domain_objects::sdo::DomainObjectBuilder;
-use crate::error::StixError;
+use crate::error::StixError as RustStixError;
 use crate::meta_objects::extension_definition::{ExtensionDefinition as StixExtensionDefinition, ExtensionDefinitionBuilder};
 use crate::meta_objects::language_content::LanguageContentBuilder;
 use crate::meta_objects::language_content::LanguageContent as StixLanguageContent;
 use crate::meta_objects::marking_definition::MarkingDefinitionBuilder;
 use crate::relationship_objects::RelationshipObjectBuilder;
 use crate::relationship_objects::RelationshipObject as StixRelationshipObject;
-use crate::base::Stix;
 use crate::bundles::Bundle as StixBundle;
 use crate::pattern::validate_pattern as rust_validate_pattern;
 use strum::IntoEnumIterator;
@@ -25,31 +24,167 @@ use crate::types::{DictionaryValue, StixDictionary};
 use pyo3::types::PyDict;
 use pyo3::types::PyList;
 
+// Python-facing exception hierarchy.
+//
+// These are raised by the central `stix_to_pyerr` mapper from the typed Rust
+// error envelope. They subclass Exception directly (not ValueError) so callers
+// can opt-in to handling structured validation failures.
+create_exception!(stixflayer, StixError, pyo3::exceptions::PyException);
+create_exception!(stixflayer, ValidationError, StixError);
+create_exception!(stixflayer, DeserializationError, StixError);
+
+/// Recursively convert a [`serde_json::Value`] into a Python object.
+///
+/// This is used so that structured Rust error details can be surfaced to Python
+/// consumers without pulling in an extra serialization dependency.
+fn json_value_to_py(py: Python<'_>, value: &serde_json::Value) -> PyObject {
+    match value {
+        serde_json::Value::Null => py.None(),
+        serde_json::Value::Bool(b) => b.into_py(py),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                i.into_py(py)
+            } else if let Some(u) = n.as_u64() {
+                u.into_py(py)
+            } else {
+                n.as_f64().into_py(py)
+            }
+        }
+        serde_json::Value::String(s) => s.clone().into_py(py),
+        serde_json::Value::Array(arr) => {
+            let py_list = PyList::empty_bound(py);
+            for item in arr {
+                py_list.append(json_value_to_py(py, item)).unwrap();
+            }
+            py_list.into_py(py)
+        }
+        serde_json::Value::Object(map) => {
+            let dict = PyDict::new_bound(py);
+            for (k, v) in map {
+                dict.set_item(k, json_value_to_py(py, v)).unwrap();
+            }
+            dict.into_py(py)
+        }
+    }
+}
+
+/// Builds the Python `list[dict]` for the structured validation entries
+/// associated with `error`.
+fn errors_to_py(py: Python<'_>, error: &RustStixError) -> PyObject {
+    let entries = error.errors();
+    let value = serde_json::to_value(entries).expect("ErrorEntry serializes to JSON");
+    json_value_to_py(py, &value)
+}
+
+/// Converts a Rust STIX error into the appropriate Python exception.
+///
+/// The exception instance carries a human-readable message in `args[0]` and a
+/// sparse `.errors` list for callers that want structured field-level details.
+/// The full JSON envelope remains an internal Rust concern.
+fn stix_to_pyerr(error: RustStixError) -> PyErr {
+    Python::with_gil(|py| {
+        let message = error.display_message();
+        let py_errors = errors_to_py(py, &error);
+
+        let err = match error.envelope_category() {
+            "validation" => PyErr::new::<ValidationError, _>((message,)),
+            "deserialization" => PyErr::new::<DeserializationError, _>((message,)),
+            _ => PyErr::new::<StixError, _>((message,)),
+        };
+
+        // Attach structured entries as a normal attribute, silencing the rare
+        // case where an exception subclass forbids attribute assignment.
+        err.value_bound(py).setattr("errors", py_errors).ok();
+
+        err
+    })
+}
+
+/// Reclassifies a top-level serde type error from a kwargs constructor into a
+/// structured `InvalidPropertyType` validation error.
+///
+/// Because the SDO/SCO/SRO structs flatten their fields at the root, serde
+/// reports the path as `.`, losing the offending property name. We recover it
+/// by scanning the synthesized kwargs JSON for a value matching the `got` JSON
+/// kind in the error message.
+fn classify_top_level_type_error(
+    error: RustStixError,
+    object_type: &str,
+    json_obj: &serde_json::Value,
+) -> RustStixError {
+    let RustStixError::DeserializationError(message) = &error else {
+        return error;
+    };
+
+    // Strip serde's " at line N column M" suffix.
+    let position = message.find(" at line ").unwrap_or(message.len());
+    let message = &message[..position];
+
+    let Some(rest) = message.strip_prefix("invalid type: ") else {
+        return error;
+    };
+    let Some((got, expected)) = rest.split_once(", expected ") else {
+        return error;
+    };
+
+    let value_matches = |value: &serde_json::Value| -> bool {
+        if got.starts_with("integer") || got.starts_with("floating point") {
+            value.is_number()
+        } else if got.starts_with("string") {
+            value.is_string()
+        } else if got.starts_with("boolean") {
+            value.is_boolean()
+        } else if got.starts_with("map") || got.starts_with("struct") {
+            value.is_object()
+        } else if got.starts_with("sequence") || got.starts_with("array") {
+            value.is_array()
+        } else {
+            false
+        }
+    };
+
+    let Some(obj) = json_obj.as_object() else {
+        return error;
+    };
+
+    for (property, value) in obj {
+        if value_matches(value) {
+            return RustStixError::InvalidPropertyType {
+                object_type: object_type.to_string(),
+                property: property.clone(),
+                expected: expected.to_string(),
+                got: got.to_string(),
+            };
+        }
+    }
+
+    error
+}
+
 /// Helper function to validate that required fields are present in a DomainObjectBuilder
 fn validate_sdo_builder(builder: DomainObjectBuilder) -> Result<DomainObjectBuilder, PyErr> {
-    builder.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    builder
+        .clone()
+        .build()
+        .map_err(stix_to_pyerr)?;
     Ok(builder)
 }
 
 /// Helper function to validate that required fields are present in a CyberObjectBuilder
 fn validate_sco_builder(builder: CyberObjectBuilder) -> Result<CyberObjectBuilder, PyErr> {
-    builder.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    builder.clone().build().map_err(stix_to_pyerr)?;
     Ok(builder)
 }
 
 /// Helper function to validate that required fields are present in a RelationshipObjectBuilder
 fn validate_sro_builder(builder: RelationshipObjectBuilder) -> Result<RelationshipObjectBuilder, PyErr> {
-    builder.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    builder.clone().build().map_err(stix_to_pyerr)?;
     Ok(builder)
 }
 
 /// Helper function to validate that required fields are present in a MarkingDefinitionBuilder
 fn validate_marking_builder(builder: MarkingDefinitionBuilder) -> Result<MarkingDefinitionBuilder, PyErr> {
-    builder.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    builder.clone().build().map_err(stix_to_pyerr)?;
     Ok(builder)
 }
 
@@ -59,7 +194,7 @@ fn build_sdo_envelope(
     kwargs: Option<Bound<'_, PyDict>>,
 ) -> Result<DomainObjectBuilder, PyErr> {
     let id = Identifier::new(type_name)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     let mut json_obj = serde_json::json!({
         "type": type_name,
         "spec_version": "2.1",
@@ -68,7 +203,7 @@ fn build_sdo_envelope(
     if let Some(kwargs) = kwargs {
         for (k, v) in kwargs.iter() {
             let key: String = k.extract()
-                .map_err(|e| PyErr::new::<PyO3ValueError, _>(format!("STIX field name must be a string: {}", e)))?;
+                .map_err(|e| PyErr::new::<StixError, _>(format!("STIX field name must be a string: {}", e)))?;
             json_obj[key] = py_to_json(&v)?;
         }
     }
@@ -84,9 +219,9 @@ fn build_sdo_envelope(
         }
     }
     let domain_obj = crate::domain_objects::sdo::DomainObject::from_json(&json_obj.to_string(), false)
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-    let builder = DomainObjectBuilder::from_parsed(&domain_obj)
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| classify_top_level_type_error(e, type_name, &json_obj))
+        .map_err(stix_to_pyerr)?;
+    let builder = DomainObjectBuilder::from_parsed(&domain_obj).map_err(stix_to_pyerr)?;
     validate_sdo_builder(builder)
 }
 
@@ -99,19 +234,19 @@ fn build_sco_envelope(
     if let Some(kwargs) = kwargs {
         for (k, v) in kwargs.iter() {
             let key: String = k.extract()
-                .map_err(|e| PyErr::new::<PyO3ValueError, _>(format!("STIX field name must be a string: {}", e)))?;
+                .map_err(|e| PyErr::new::<StixError, _>(format!("STIX field name must be a string: {}", e)))?;
             json_obj[key] = py_to_json(&v)?;
         }
     }
     if json_obj.get("id").is_none() {
         let id = Identifier::new(type_name)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         json_obj["id"] = serde_json::Value::String(id.to_string());
     }
     let cyber_obj = crate::cyber_observable_objects::sco::CyberObject::from_json(&json_obj.to_string(), false)
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-    let builder = CyberObjectBuilder::from(&cyber_obj)
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| classify_top_level_type_error(e, type_name, &json_obj))
+        .map_err(stix_to_pyerr)?;
+    let builder = CyberObjectBuilder::from(&cyber_obj).map_err(stix_to_pyerr)?;
     validate_sco_builder(builder)
 }
 
@@ -121,7 +256,7 @@ fn build_sro_envelope(
     kwargs: Option<Bound<'_, PyDict>>,
 ) -> Result<RelationshipObjectBuilder, PyErr> {
     let id = Identifier::new(type_name)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     let now = Timestamp::now();
     let mut json_obj = serde_json::json!({
         "type": type_name,
@@ -133,14 +268,14 @@ fn build_sro_envelope(
     if let Some(kwargs) = kwargs {
         for (k, v) in kwargs.iter() {
             let key: String = k.extract()
-                .map_err(|e| PyErr::new::<PyO3ValueError, _>(format!("STIX field name must be a string: {}", e)))?;
+                .map_err(|e| PyErr::new::<StixError, _>(format!("STIX field name must be a string: {}", e)))?;
             json_obj[key] = py_to_json(&v)?;
         }
     }
     let sro_obj = crate::relationship_objects::RelationshipObject::from_json(&json_obj.to_string(), false)
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-    let builder = RelationshipObjectBuilder::from_parsed(&sro_obj)
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| classify_top_level_type_error(e, type_name, &json_obj))
+        .map_err(stix_to_pyerr)?;
+    let builder = RelationshipObjectBuilder::from_parsed(&sro_obj).map_err(stix_to_pyerr)?;
     validate_sro_builder(builder)
 }
 
@@ -164,8 +299,8 @@ macro_rules! make_vocab_enum {
                     let valid_values: Vec<String> = <$enum_type>::iter()
                         .map(|v| v.as_ref().to_string())
                         .collect();
-                    Err(PyErr::new::<PyO3ValueError, _>(
-                        format!("Invalid {} value: '{}'. Valid values: {:?}", 
+                    Err(PyErr::new::<StixError, _>(
+                        format!("Invalid {} value: '{}'. Valid values: {:?}",
                             stringify!($enum_type), value, valid_values)
                     ))
                 }
@@ -225,8 +360,7 @@ pub fn create_timestamp(value: &str) -> String {
 /// Validate a STIX Pattern string against the STIX 2.1 pattern grammar
 #[pyfunction]
 pub fn validate_pattern(pattern: &str) -> Result<(), PyErr> {
-    rust_validate_pattern(pattern)
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+    rust_validate_pattern(pattern).map_err(stix_to_pyerr)
 }
 
 // PyO3 limitation: #[pyclass] and #[pymethods] cannot be generated via macros.
@@ -236,7 +370,7 @@ fn pydict_to_stix_dict(dict: &Bound<'_, PyDict>) -> Result<StixDictionary<Dictio
     let mut output = StixDictionary::new();
     for (key, value) in dict.iter() {
         let k: String = key.extract()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(format!("Extension key must be a string: {}", e)))?;
+            .map_err(|e| PyErr::new::<StixError, _>(format!("Extension key must be a string: {}", e)))?;
         let v = pyobj_to_dict_value(value)?;
         let _ = output.insert(&k, v);
     }
@@ -312,12 +446,12 @@ fn py_to_json(obj: &Bound<'_, PyAny>) -> Result<serde_json::Value, PyErr> {
         let mut map = serde_json::Map::new();
         for (k, v) in dict.iter() {
             let key: String = k.extract()
-                .map_err(|e| PyErr::new::<PyO3ValueError, _>(format!("Dict key must be a string: {}", e)))?;
+                .map_err(|e| PyErr::new::<StixError, _>(format!("Dict key must be a string: {}", e)))?;
             map.insert(key, py_to_json(&v)?);
         }
         return Ok(serde_json::Value::Object(map));
     }
-    Err(PyErr::new::<PyO3ValueError, _>(format!(
+    Err(PyErr::new::<StixError, _>(format!(
         "Unsupported Python type for STIX field: {}",
         obj.get_type().name()?.to_string()
     )))
@@ -390,18 +524,15 @@ impl Campaign {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(Campaign(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -410,10 +541,9 @@ impl Campaign {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -433,18 +563,15 @@ impl CourseOfAction {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(CourseOfAction(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -453,10 +580,9 @@ impl CourseOfAction {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -476,18 +602,15 @@ impl Grouping {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(Grouping(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -496,10 +619,9 @@ impl Grouping {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -519,18 +641,15 @@ impl Identity {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(Identity(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -539,10 +658,9 @@ impl Identity {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -562,18 +680,15 @@ impl Incident {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(Incident(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -582,10 +697,9 @@ impl Incident {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -605,18 +719,15 @@ impl Infrastructure {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(Infrastructure(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -625,10 +736,9 @@ impl Infrastructure {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -648,18 +758,15 @@ impl IntrusionSet {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(IntrusionSet(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -668,10 +775,9 @@ impl IntrusionSet {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -691,18 +797,15 @@ impl Location {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(Location(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -711,10 +814,9 @@ impl Location {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -734,18 +836,15 @@ impl MalwareAnalysis {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(MalwareAnalysis(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -754,10 +853,9 @@ impl MalwareAnalysis {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -777,18 +875,15 @@ impl Note {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(Note(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -797,10 +892,9 @@ impl Note {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -820,18 +914,15 @@ impl ObservedData {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(ObservedData(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -840,10 +931,9 @@ impl ObservedData {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -863,18 +953,15 @@ impl Opinion {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(Opinion(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -883,10 +970,9 @@ impl Opinion {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -906,18 +992,15 @@ impl Report {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(Report(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -926,10 +1009,9 @@ impl Report {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -949,18 +1031,15 @@ impl ThreatActor {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(ThreatActor(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -969,10 +1048,9 @@ impl ThreatActor {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -992,18 +1070,15 @@ impl Tool {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(Tool(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1012,10 +1087,9 @@ impl Tool {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -1035,18 +1109,15 @@ impl Vulnerability {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(Vulnerability(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1055,10 +1126,9 @@ impl Vulnerability {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -1083,18 +1153,15 @@ impl Malware {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(Malware(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1103,10 +1170,9 @@ impl Malware {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -1130,18 +1196,15 @@ impl AttackPattern {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(AttackPattern(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1150,10 +1213,9 @@ impl AttackPattern {
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         let value = serde_json::to_value(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
     }
 }
@@ -1177,18 +1239,15 @@ impl Indicator {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
         Ok(Indicator(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let obj = self.0.clone().build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1197,10 +1256,9 @@ impl Indicator {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -1219,18 +1277,16 @@ impl IPv4Address {
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(IPv4Address(builder))
     }
 
@@ -1240,10 +1296,9 @@ impl IPv4Address {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -1275,18 +1330,16 @@ impl IPv6Address {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(IPv6Address(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1295,10 +1348,9 @@ impl IPv6Address {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -1330,18 +1382,16 @@ impl DomainName {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(DomainName(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1350,10 +1400,9 @@ impl DomainName {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -1385,18 +1434,16 @@ impl URL {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(URL(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1405,10 +1452,9 @@ impl URL {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -1440,18 +1486,16 @@ impl EmailAddress {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(EmailAddress(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1460,10 +1504,9 @@ impl EmailAddress {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -1495,18 +1538,16 @@ impl EmailMessage {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(EmailMessage(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1515,10 +1556,9 @@ impl EmailMessage {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -1550,18 +1590,16 @@ impl MacAddr {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(MacAddr(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1570,10 +1608,9 @@ impl MacAddr {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -1604,18 +1641,16 @@ impl AutonomousSystem {
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(AutonomousSystem(builder))
     }
 
@@ -1625,10 +1660,9 @@ impl AutonomousSystem {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -1661,18 +1695,16 @@ impl File {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(File(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1681,10 +1713,9 @@ impl File {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -1716,18 +1747,16 @@ impl Software {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(Software(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1736,10 +1765,9 @@ impl Software {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -1771,18 +1799,16 @@ impl Directory {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(Directory(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1791,10 +1817,9 @@ impl Directory {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -1826,18 +1851,16 @@ impl Mutex {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(Mutex(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1846,10 +1869,9 @@ impl Mutex {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -1881,18 +1903,16 @@ impl Process {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(Process(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1901,10 +1921,9 @@ impl Process {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -1924,18 +1943,16 @@ impl NetworkTraffic {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(NetworkTraffic(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1944,10 +1961,9 @@ impl NetworkTraffic {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -1967,18 +1983,16 @@ impl UserAccount {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(UserAccount(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -1987,10 +2001,9 @@ impl UserAccount {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -2022,18 +2035,16 @@ impl WindowsRegistryKey {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(WindowsRegistryKey(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -2042,10 +2053,9 @@ impl WindowsRegistryKey {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -2078,18 +2088,16 @@ impl X509Certificate {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(X509Certificate(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -2098,10 +2106,9 @@ impl X509Certificate {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -2133,18 +2140,16 @@ impl Artifact {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from_parsed(&sco)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
         Ok(Artifact(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let sco = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&sco)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -2153,10 +2158,9 @@ impl Artifact {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -2179,7 +2183,7 @@ fn build_sro_from_kwargs(
     kwargs: Option<Bound<'_, PyDict>>,
 ) -> Result<RelationshipObjectBuilder, PyErr> {
     let id = Identifier::new(sro_type)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     let now = Timestamp::now();
     let mut json_obj = serde_json::json!({
         "type": sro_type,
@@ -2191,14 +2195,14 @@ fn build_sro_from_kwargs(
     if let Some(kwargs) = kwargs {
         for (k, v) in kwargs.iter() {
             let key: String = k.extract()
-                .map_err(|e| PyErr::new::<PyO3ValueError, _>(format!("STIX field name must be a string: {}", e)))?;
+                .map_err(|e| PyErr::new::<StixError, _>(format!("STIX field name must be a string: {}", e)))?;
             json_obj[key] = py_to_json(&v)?;
         }
     }
     let sro = StixRelationshipObject::from_json(&json_obj.to_string(), false)
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-    let builder = RelationshipObjectBuilder::from_parsed(&sro)
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| classify_top_level_type_error(e, sro_type, &json_obj))
+        .map_err(stix_to_pyerr)?;
+    let builder = RelationshipObjectBuilder::from_parsed(&sro).map_err(stix_to_pyerr)?;
     validate_sro_builder(builder)
 }
 
@@ -2217,18 +2221,16 @@ impl Relationship {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sro = crate::object::parse_sro(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = RelationshipObjectBuilder::from_parsed(&sro)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sro = crate::object::parse_sro(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = RelationshipObjectBuilder::from_parsed(&sro).map_err(stix_to_pyerr)?;
         Ok(Relationship(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let obj = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -2237,10 +2239,9 @@ impl Relationship {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -2260,18 +2261,16 @@ impl Sighting {
     #[staticmethod]
     #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
-        let sro = crate::object::parse_sro(&json_str, strict, version, allow_custom)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = RelationshipObjectBuilder::from_parsed(&sro)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let sro = crate::object::parse_sro(&json_str, strict, version, allow_custom).map_err(stix_to_pyerr)?;
+        let builder = RelationshipObjectBuilder::from_parsed(&sro).map_err(stix_to_pyerr)?;
         Ok(Sighting(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         let obj = self.0.clone().build()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         serde_json::to_string(&obj)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -2280,10 +2279,9 @@ impl Sighting {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -2296,13 +2294,12 @@ impl MarkingDefinition {
     #[new]
     #[pyo3(signature = (**kwargs))]
     fn new(kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let mut builder = MarkingDefinitionBuilder::new()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let mut builder = MarkingDefinitionBuilder::new().map_err(stix_to_pyerr)?;
         
         if let Some(kwargs) = kwargs {
             for (k, v) in kwargs.iter() {
                 let key: String = k.extract()
-                    .map_err(|e| PyErr::new::<PyO3ValueError, _>(format!("STIX field name must be a string: {}", e)))?;
+                    .map_err(|e| PyErr::new::<StixError, _>(format!("STIX field name must be a string: {}", e)))?;
                 match key.as_str() {
                     "definition_type" => {
                         let val: String = v.extract()?;
@@ -2316,7 +2313,7 @@ impl MarkingDefinition {
                         let val = py_to_json(&v)?;
                         let marking_type: crate::meta_objects::marking_definition::MarkingTypes = 
                             serde_json::from_value(val)
-                                .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+                                .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
                         builder = builder.definition(marking_type);
                     }
                     _ => {
@@ -2332,21 +2329,18 @@ impl MarkingDefinition {
 
     #[staticmethod]
     fn from_json(json_str: String) -> Result<Self, PyErr> {
-        let md = crate::meta_objects::marking_definition::MarkingDefinition::from_json(&json_str, false)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = MarkingDefinitionBuilder::from_parsed(&md)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let md = crate::meta_objects::marking_definition::MarkingDefinition::from_json(&json_str, false).map_err(stix_to_pyerr)?;
+        let builder = MarkingDefinitionBuilder::from_parsed(&md).map_err(stix_to_pyerr)?;
         Ok(MarkingDefinition(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         self.0
             .clone()
-            .build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .build().map_err(stix_to_pyerr)
             .and_then(|obj| {
                 serde_json::to_string(&obj)
-                    .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+                    .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
             })
     }
 
@@ -2356,10 +2350,9 @@ impl MarkingDefinition {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -2383,7 +2376,7 @@ impl CustomObject {
     ) -> Result<Self, PyErr> {
         // Validate it's valid JSON
         let _: serde_json::Value = serde_json::from_str(&custom_properties_json)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         
         Ok(CustomObject {
             type_,
@@ -2395,7 +2388,7 @@ impl CustomObject {
 
     fn to_json(&self) -> Result<String, PyErr> {
         let props: serde_json::Value = serde_json::from_str(&self.custom_properties_json)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         
         let props_map: BTreeMap<String, serde_json::Value> = if let serde_json::Value::Object(m) = props {
             let mut map = BTreeMap::new();
@@ -2404,7 +2397,7 @@ impl CustomObject {
             }
             map
         } else {
-            return Err(PyErr::new::<PyO3ValueError, _>("custom_properties must be a JSON object".to_string()));
+            return Err(PyErr::new::<StixError, _>("custom_properties must be a JSON object".to_string()));
         };
         
         let ext_def_id = self.extension_definition_id
@@ -2417,19 +2410,15 @@ impl CustomObject {
             "new-sro" => CustomObjectBuilder::new_sro(&self.type_, props_map, ext_def_id),
             "new-sco" => CustomObjectBuilder::new_sco(&self.type_, props_map, ext_def_id),
             _ => {
-                return Err(PyErr::new::<PyO3ValueError, _>(
-                    "extension_type must be new-sdo, new-sco, or new-sro".to_string(),
-                ))
+                return Err(PyErr::new::<StixError, _>("extension_type must be new-sdo, new-sco, or new-sro".to_string(),))
             }
-        }
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        }.map_err(stix_to_pyerr)?;
 
         builder
-            .build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .build_no_validate().map_err(stix_to_pyerr)
             .and_then(|obj| {
                 serde_json::to_string(&obj)
-                    .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+                    .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
             })
     }
 
@@ -2438,12 +2427,10 @@ impl CustomObject {
     /// Usage: CustomObject.from_json('{"type": "my-sdo", ...}')
     #[staticmethod]
     fn from_json(json_str: String) -> Result<Self, PyErr> {
-        let obj = crate::custom_objects::CustomObject::from_json(&json_str)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let obj = crate::custom_objects::CustomObject::from_json(&json_str).map_err(stix_to_pyerr)?;
 
         let extension_type = obj
-            .get_object_type()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .get_object_type().map_err(stix_to_pyerr)?;
 
         let ext_type_str = match extension_type {
             ExtensionType::NewSdo => "new-sdo",
@@ -2457,7 +2444,7 @@ impl CustomObject {
         });
 
         let custom_properties_json = serde_json::to_string(&obj.custom_properties)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
 
         Ok(CustomObject {
             type_: obj.object_type,
@@ -2495,13 +2482,12 @@ impl ExtensionDefinition {
             }
         } else {
             ExtensionDefinitionBuilder::new("")
-        }
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        }.map_err(stix_to_pyerr)?;
         
         if let Some(kwargs) = kwargs {
             for (k, v) in kwargs.iter() {
                 let key: String = k.extract()
-                    .map_err(|e| PyErr::new::<PyO3ValueError, _>(format!("STIX field name must be a string: {}", e)))?;
+                    .map_err(|e| PyErr::new::<StixError, _>(format!("STIX field name must be a string: {}", e)))?;
                 match key.as_str() {
                     "schema" => {
                         let val: String = v.extract()?;
@@ -2520,7 +2506,7 @@ impl ExtensionDefinition {
                             "property-extension" => ExtensionType::PropertyExtension,
                             "toplevel-property-extension" => ExtensionType::ToplevelPropertyExtension,
                             _ => {
-                                return Err(PyErr::new::<PyO3ValueError, _>(format!(
+                                return Err(PyErr::new::<StixError, _>(format!(
                                     "Invalid extension_type: '{}'. Valid values: new-sdo, new-sco, new-sro, property-extension, toplevel-property-extension",
                                     val
                                 )));
@@ -2531,7 +2517,7 @@ impl ExtensionDefinition {
                     "created_by_ref" => {
                         let val: String = v.extract()?;
                         if let Ok(id) = Identifier::from_str(&val) {
-                            builder = builder.created_by_ref(id).map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+                            builder = builder.created_by_ref(id).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
                         }
                     }
                     "description" => {
@@ -2554,21 +2540,18 @@ impl ExtensionDefinition {
 
     #[staticmethod]
     fn from_json(json_str: String) -> Result<Self, PyErr> {
-        let ext_def = StixExtensionDefinition::from_json(&json_str, false)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = ExtensionDefinitionBuilder::from_parsed(&ext_def)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let ext_def = StixExtensionDefinition::from_json(&json_str, false).map_err(stix_to_pyerr)?;
+        let builder = ExtensionDefinitionBuilder::from_parsed(&ext_def).map_err(stix_to_pyerr)?;
         Ok(ExtensionDefinition(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         self.0
             .clone()
-            .build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .build().map_err(stix_to_pyerr)
             .and_then(|obj| {
                 serde_json::to_string(&obj)
-                    .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+                    .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
             })
     }
 
@@ -2578,10 +2561,9 @@ impl ExtensionDefinition {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 }
@@ -2598,14 +2580,14 @@ impl LanguageContent {
         if let Some(kwargs) = kwargs {
             for (k, v) in kwargs.iter() {
                 let key: String = k.extract()
-                    .map_err(|e| PyErr::new::<PyO3ValueError, _>(format!("STIX field name must be a string: {}", e)))?;
+                    .map_err(|e| PyErr::new::<StixError, _>(format!("STIX field name must be a string: {}", e)))?;
                 json_obj[key] = py_to_json(&v)?;
             }
         }
         // Ensure required fields
         if json_obj.get("id").is_none() {
             let id = Identifier::new("language-content")
-                .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+                .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
             json_obj["id"] = serde_json::Value::String(id.to_string());
         }
         if json_obj.get("created").is_none() {
@@ -2624,29 +2606,25 @@ impl LanguageContent {
         }
         // Deserialize WITHOUT running stix_check (validation happens at to_json time)
         let lc: StixLanguageContent = serde_json::from_str(&json_obj.to_string())
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = LanguageContentBuilder::from_parsed(&lc)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
+        let builder = LanguageContentBuilder::from_parsed(&lc).map_err(stix_to_pyerr)?;
         Ok(LanguageContent(builder))
     }
 
     #[staticmethod]
     fn from_json(json_str: String) -> Result<Self, PyErr> {
-        let lc = StixLanguageContent::from_json(&json_str, false)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = LanguageContentBuilder::from_parsed(&lc)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let lc = StixLanguageContent::from_json(&json_str, false).map_err(stix_to_pyerr)?;
+        let builder = LanguageContentBuilder::from_parsed(&lc).map_err(stix_to_pyerr)?;
         Ok(LanguageContent(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
         self.0
             .clone()
-            .build()
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .build().map_err(stix_to_pyerr)
             .and_then(|obj| {
                 serde_json::to_string(&obj)
-                    .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+                    .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
             })
     }
 
@@ -2656,10 +2634,9 @@ impl LanguageContent {
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
-    let obj = self.0.clone().build()
-        .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+    let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
-        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
 }
 
@@ -2669,11 +2646,10 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         content: pyo3::Bound<'_, pyo3::types::PyDict>,
     ) -> Result<(), PyErr> {
         let hashmap: std::collections::HashMap<String, String> = content.extract().map_err(|e| {
-            PyErr::new::<PyO3ValueError, _>(format!("Failed to extract content: {}", e))
+            PyErr::new::<StixError, _>(format!("Failed to extract content: {}", e))
         })?;
         self.0 = self.0.clone()
-            .insert_content_strings(&lang, hashmap)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .insert_content_strings(&lang, hashmap).map_err(stix_to_pyerr)?;
         Ok(())
     }
 
@@ -2683,11 +2659,10 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         content: pyo3::Bound<'_, pyo3::types::PyDict>,
     ) -> Result<(), PyErr> {
         let hashmap: std::collections::HashMap<String, Vec<String>> = content.extract().map_err(|e| {
-            PyErr::new::<PyO3ValueError, _>(format!("Failed to extract content: {}", e))
+            PyErr::new::<StixError, _>(format!("Failed to extract content: {}", e))
         })?;
         self.0 = self.0.clone()
-            .insert_content_lists(&lang, hashmap)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .insert_content_lists(&lang, hashmap).map_err(stix_to_pyerr)?;
         Ok(())
     }
 
@@ -2701,7 +2676,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         
         for (key, value) in content.iter() {
             let k: String = key.extract().map_err(|e| {
-                PyErr::new::<PyO3ValueError, _>(format!("Failed to extract key: {}", e))
+                PyErr::new::<StixError, _>(format!("Failed to extract key: {}", e))
             })?;
             
             if value.is_none() {
@@ -2709,13 +2684,13 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
             }
             
             let v: pyo3::Bound<'_, pyo3::types::PyDict> = value.extract().map_err(|e| {
-                PyErr::new::<PyO3ValueError, _>(format!("Failed to extract nested dict: {}", e))
+                PyErr::new::<StixError, _>(format!("Failed to extract nested dict: {}", e))
             })?;
             
             let mut inner_hashmap = std::collections::HashMap::new();
             for (inner_key, inner_value) in v.iter() {
                 let ik: String = inner_key.extract().map_err(|e| {
-                    PyErr::new::<PyO3ValueError, _>(format!("Failed to extract inner key: {}", e))
+                    PyErr::new::<StixError, _>(format!("Failed to extract inner key: {}", e))
                 })?;
                 
                 if inner_value.is_none() {
@@ -2735,8 +2710,7 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         }
         
         self.0 = self.0.clone()
-            .insert_content_objects(&lang, hashmap)
-            .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+            .insert_content_objects(&lang, hashmap).map_err(stix_to_pyerr)?;
         Ok(())
     }
 
@@ -2759,7 +2733,7 @@ impl Bundle {
         let mut bundle = StixBundle {
             object_type: "bundle".to_string(),
             id: crate::types::Identifier::new("bundle")
-                .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?,
+                .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?,
             objects: Vec::new(),
         };
         if let Some(kwargs) = kwargs {
@@ -2767,36 +2741,32 @@ impl Bundle {
                 let obj_jsons: Vec<String> = objects_val.extract()?;
                 for obj_json in obj_jsons {
                     bundle.push_json(&obj_json)
-                        .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+                        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
                 }
             }
         }
         if bundle.objects.is_empty() {
-            return Err(PyErr::new::<PyO3ValueError, _>(
-                "Bundle must contain at least one object"
-            ));
+            return Err(PyErr::new::<ValidationError, _>("Bundle must contain at least one object"));
         }
         Ok(Bundle(bundle))
     }
 
     fn add(&mut self, stix_json: String) -> Result<(), PyErr> {
-        self.0.push_json(&stix_json)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        self.0.push_json(&stix_json).map_err(stix_to_pyerr)?;
         Ok(())
     }
 
     #[staticmethod]
     fn from_json(json_str: String) -> Result<Self, PyErr> {
-        let bundle = StixBundle::from_json(&json_str)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        let bundle = StixBundle::from_json(&json_str).map_err(stix_to_pyerr)?;
         Ok(Bundle(bundle))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        self.0.stix_check()
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
+        // Serialization does not re-validate the bundle. Validation is the
+        // caller's responsibility before reaching this stage.
         serde_json::to_string(&self.0)
-            .map_err(|e| PyErr::new::<PyO3ValueError, _>(e.to_string()))
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
     #[getter]
@@ -2817,6 +2787,8 @@ impl Bundle {
 
 #[pymodule(name = "stixflayer")]
 pub fn stixflayer_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    let py = m.py();
+
     m.add_function(wrap_pyfunction!(version, m)?)?;
     m.add_function(wrap_pyfunction!(test_stix, m)?)?;
     m.add_function(wrap_pyfunction!(create_timestamp, m)?)?;
@@ -2868,6 +2840,11 @@ pub fn stixflayer_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ExtensionDefinition>()?;
     m.add_class::<LanguageContent>()?;
     m.add_class::<Bundle>()?;
+
+    // Errors
+    m.add("StixError", py.get_type_bound::<StixError>())?;
+    m.add("ValidationError", py.get_type_bound::<ValidationError>())?;
+    m.add("DeserializationError", py.get_type_bound::<DeserializationError>())?;
 
     // Vocab enums
     m.add_class::<AttackMotivation>()?;

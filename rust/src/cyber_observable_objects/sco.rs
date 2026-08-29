@@ -1,4 +1,5 @@
 //! Contains the implementation logic for STIX Cyber-observable Objects (SCOs).
+use stix_derive::StixProperties;
 use crate::{
     base::{CommonProperties, CommonPropertiesBuilder, BuilderType, Stix},
     cyber_observable_objects::{
@@ -11,12 +12,12 @@ use crate::{
         vocab::EncryptionAlgorithm,
     },
     error::{add_error, return_multiple_errors, StixError as Error},
-    json,
     relationship_objects::{Related, RelationshipObjectBuilder},
     types::{
         get_field_by_name, is_sco_type_name, stix_case, DictionaryValue, ExternalReference,
         GranularMarking, Hashes, Identified, Identifier, StixDictionary, Timestamp,
     },
+    validation::validate_value,
 };
 use log::warn;
 use serde::{Deserialize, Serialize};
@@ -127,18 +128,13 @@ pub struct CyberObject {
 }
 impl CyberObject {
     /// Deserializes an SCO from a JSON String.
-    /// Checks that all fields conform to the STIX 2.1 standard
-    /// If the `allow_custom` flag is flase, checks that there are no fields in the JSON String that are not in the SRO type definition
+    /// Checks that all fields conform to the STIX 2.1 standard.
+    /// If the `allow_custom` flag is false, checks that there are no fields in the JSON String
+    /// that are not in the SCO type definition.
     pub fn from_json(json: &str, allow_custom: bool) -> Result<Self, Error> {
-        let cyber_object: Self =
-            serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
-        cyber_object.stix_check()?;
-
-        if !allow_custom {
-            json::field_check(&cyber_object, json)?;
-        }
-
-        Ok(cyber_object)
+        let value: serde_json::Value = serde_json::from_str(json)
+            .map_err(|e| Error::DeserializationError(e.to_string()))?;
+        validate_value(value, allow_custom, true)
     }
 
     pub fn is_revoked(&self) -> bool {
@@ -2111,12 +2107,14 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
-    /// Builds a new SCO, using the information found in the DomainObjectBuilder
+    /// Builds a new SCO without running `stix_check()` validation.
     ///
-    /// This performs a final check that all required fields for a given SDO type are included before construction.
-    /// If possible, it generates a UUIDv5 for the SCO, in place of a UUIDv4.
-    /// This also runs the `stick_check()` validation method on the newly constructed SDO.
-    pub fn build(self) -> Result<CyberObject, Error> {
+    /// This performs the same required-field checks as [`Self::build`], generates
+    /// a UUIDv5/v4 identifier as appropriate, and assembles the final `CyberObject`,
+    /// but it skips the object-specific `stix_check()`. It is intended for callers
+    /// that have already validated the object and only need its typed representation
+    /// (e.g. serialization).
+    pub fn build_no_validate(self) -> Result<CyberObject, Error> {
         // Note: Many SCOs have all optional fields, but require that at least one such field be present.
         // This is checked as part of stix_check() to guarantee that an error will occur during building or deserialization.
         match self.object_type {
@@ -2297,8 +2295,17 @@ impl CyberObjectBuilder {
             common_properties,
         };
 
-        sco.stix_check()?;
+        Ok(sco)
+    }
 
+    /// Builds a new SCO, using the information found in the `CyberObjectBuilder`.
+    ///
+    /// This performs the same required-field checks and identifier generation as
+    /// [`Self::build_no_validate`] and then runs `stix_check()` on the newly
+    /// constructed SCO.
+    pub fn build(self) -> Result<CyberObject, Error> {
+        let sco = self.build_no_validate()?;
+        sco.stix_check()?;
         Ok(sco)
     }
 
@@ -2516,7 +2523,7 @@ impl Stix for IdPropertyValue {
 /// The various SCO types represented in STIX.
 #[derive(
     Clone, Debug, PartialEq, Eq, Serialize, Deserialize, AsRefStr, EnumString, StrumDisplay,
-)]
+StixProperties)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum CyberObjectType {

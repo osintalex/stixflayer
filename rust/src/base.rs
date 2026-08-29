@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 
+use stix_derive::StixProperties;
 use crate::{
     error::{add_error, return_multiple_errors, StixError as Error},
     extensions::{
@@ -50,7 +51,7 @@ pub fn check_timestamp_ordering(
 /// This struct is intended to be nested and flattened inside of a specific STIX Object,
 /// with the validator ensuring that properties that cannot exist for that object are not included.
 #[skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Default, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Default, Deserialize, StixProperties)]
 pub struct CommonProperties {
     /// The version of the STIX specification used to represent this object (**MUST** be 2.1 in STIX 2.1).
     ///

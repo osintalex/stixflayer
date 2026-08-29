@@ -10,6 +10,7 @@ use crate::{
         get_extension_type, stix_case, DictionaryValue, ExtensionType, ExternalReference,
         Identified, Identifier, StixDictionary,
     },
+    validation::validate_value,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -40,14 +41,12 @@ pub struct CustomObject {
 }
 
 impl CustomObject {
-    /// Deserializes a  custom object from a JSON String.
-    /// Checks that all fields conform to the STIX 2.1 standard
+    /// Deserializes a custom object from a JSON String.
+    /// Checks that all fields conform to the STIX 2.1 standard.
     pub fn from_json(json: &str) -> Result<Self, Error> {
-        let object: Self =
-            serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
-        object.stix_check()?;
-
-        Ok(object)
+        let value: serde_json::Value = serde_json::from_str(json)
+            .map_err(|e| Error::DeserializationError(e.to_string()))?;
+        validate_value(value, true, true)
     }
 
     /// Returns whether a custom STIX Object is an SDO, SRO, or SCO, as determined by its new object extension
@@ -424,11 +423,13 @@ impl CustomObjectBuilder {
         Ok(self)
     }
 
-    /// Builds a new custom STIX object, using the information found in the CustombjectBuilder
+    /// Builds a new custom STIX object without running validation.
     ///
-    /// This performs a final check that all required fields for a given object type are included before construction.
-    /// This also runs the `stick_check()` validation method on the newly constructed object.
-    pub fn build(self) -> Result<CustomObject, Error> {
+    /// This assembles the final `CustomObject` from the builder, skipping the
+    /// object-specific validation. It is intended for callers that have already
+    /// validated the object and only need its typed representation
+    /// (e.g. serialization).
+    pub fn build_no_validate(self) -> Result<CustomObject, Error> {
         let common_properties = self.common_properties.build();
 
         let object = CustomObject {
@@ -437,6 +438,15 @@ impl CustomObjectBuilder {
             custom_properties: self.custom_properties,
         };
 
+        Ok(object)
+    }
+
+    /// Builds a new custom STIX object, using the information found in the
+    /// `CustomObjectBuilder`.
+    ///
+    /// This assembles the final `CustomObject` and runs validation on it.
+    pub fn build(self) -> Result<CustomObject, Error> {
+        let object = self.build_no_validate()?;
         let mut errors = Vec::new();
 
         // Check required and prohibited fields for the object type

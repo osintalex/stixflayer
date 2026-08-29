@@ -1,11 +1,12 @@
 //! Data structures and functions for implementing Marking Definition SMOs
 
+use stix_derive::StixProperties;
 use crate::{
     base::{CommonProperties, CommonPropertiesBuilder, Stix},
     error::{return_multiple_errors, StixError as Error},
-    json,
     relationship_objects::{Related, RelationshipObjectBuilder},
     types::{ExternalReference, GranularMarking, Identified, Identifier},
+    validation::validate_value,
 };
 use log::warn;
 use serde::{Deserialize, Serialize};
@@ -34,7 +35,7 @@ use serde_with::skip_serializing_none;
 ///
 
 #[skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct MarkingDefinition {
     #[serde(rename = "type")]
     pub object_type: String,
@@ -49,19 +50,14 @@ pub struct MarkingDefinition {
     pub definition: Option<MarkingTypes>,
 }
 impl MarkingDefinition {
-    /// Deserializes a MarkingDefintion SMO from a JSON String.
-    /// Checks that all fields conform to the STIX 2.1 standard
-    /// If the `allow_custom` flag is flase, checks that there are no fields in the JSON String that are not in the SDO type definition
+    /// Deserializes a MarkingDefinition SMO from a JSON String.
+    /// Checks that all fields conform to the STIX 2.1 standard.
+    /// If the `allow_custom` flag is false, checks that there are no fields in the JSON String
+    /// that are not in the Marking Definition SMO type definition.
     pub fn from_json(json: &str, allow_custom: bool) -> Result<Self, Error> {
-        let marking_definition: Self =
-            serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
-        marking_definition.stix_check()?;
-
-        if !allow_custom {
-            json::field_check(&marking_definition, json)?;
-        }
-
-        Ok(marking_definition)
+        let value: serde_json::Value = serde_json::from_str(json)
+            .map_err(|e| Error::DeserializationError(e.to_string()))?;
+        validate_value(value, allow_custom, true)
     }
 
     pub fn is_revoked(&self) -> bool {
@@ -242,23 +238,13 @@ impl MarkingDefinitionBuilder {
         self
     }
 
-    /// Builds a new Marking Definition SMO, using the information found in the ExtensionDefinitionBuilder
+    /// Builds a new Marking Definition SMO without running `stix_check()` validation.
     ///
-    /// This runs the `stick_check()` validation method on the newly constructed SMO.
-    pub fn build(self) -> Result<MarkingDefinition, Error> {
-        // let mut errors = Vec::new();
-
-        // Check that required fields are included before cerating the object
-
-        /*if self.schema.is_none() {
-            errors.push(Error::MissingBuilderProperty {
-                object_type: "extension-definition".to_string(),
-                property: "schema".to_string(),
-            })
-        }*/
-
-        // return_multiple_errors(errors)?;
-
+    /// This assembles the final `MarkingDefinition` object from the builder, but
+    /// skips the object-specific `stix_check()`. It is intended for callers that
+    /// have already validated the object and only need its typed representation
+    /// (e.g. serialization).
+    pub fn build_no_validate(self) -> Result<MarkingDefinition, Error> {
         let common_properties = self.common_properties.build();
 
         let name = self.name;
@@ -273,8 +259,17 @@ impl MarkingDefinitionBuilder {
             definition,
         };
 
-        marking_definition.stix_check()?;
+        Ok(marking_definition)
+    }
 
+    /// Builds a new Marking Definition SMO, using the information found in the
+    /// `MarkingDefinitionBuilder`.
+    ///
+    /// This assembles the final `MarkingDefinition` object from the builder and
+    /// then runs `stix_check()` on it.
+    pub fn build(self) -> Result<MarkingDefinition, Error> {
+        let marking_definition = self.build_no_validate()?;
+        marking_definition.stix_check()?;
         Ok(marking_definition)
     }
 

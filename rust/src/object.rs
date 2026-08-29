@@ -16,15 +16,16 @@ use crate::{
         Opinion, Report, ThreatActor, Tool, Vulnerability,
     },
     error::StixError as Error,
-    json,
     meta_objects::{
         extension_definition::ExtensionDefinition, language_content::LanguageContent,
         marking_definition::MarkingDefinition,
     },
     relationship_objects::{Relationship, RelationshipObject, RelationshipObjectType, Sighting},
-    types::{ExtensionType, Identified},
+    types::{get_object_type, ExtensionType, Identified},
+    validation::validate_value,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use strum::AsRefStr;
 
 /// Possible STIX Objects
@@ -130,39 +131,53 @@ impl StixObject {
         }
     }
 
-    /// Deserialize amy STIX Object from a JSON string
+    /// Deserialize any STIX Object from a JSON string.
     pub fn from_json(json_str: &str, allow_custom: bool) -> Result<Self, Error> {
-        // Identify the type of STIX Object from the JSON (or treat it as a custom object if the type is not recognized)
-        let object_type = json::get_object_type_from_json(json_str)?;
+        let value: Value = serde_json::from_str(json_str)
+            .map_err(|e| Error::DeserializationError(e.to_string()))?;
+        Self::from_value(value, allow_custom, true)
+    }
 
-        // Use the appropriate JSON deserializer function to create an object of the correct type
-        match object_type.as_ref() {
-            "sdo" => Ok(StixObject::Sdo(DomainObject::from_json(
-                json_str,
+    /// Deserialize any STIX Object from an already-parsed JSON value.
+    pub fn from_value(value: Value, allow_custom: bool, strict: bool) -> Result<Self, Error> {
+        let type_name = value.get("type").and_then(|v| v.as_str()).unwrap_or_default();
+        match get_object_type(type_name).as_ref() {
+            "sdo" => Ok(StixObject::Sdo(validate_value(
+                value,
                 allow_custom,
+                strict,
             )?)),
-            "sro" => Ok(StixObject::Sro(RelationshipObject::from_json(
-                json_str,
+            "sro" => Ok(StixObject::Sro(validate_value(
+                value,
                 allow_custom,
+                strict,
             )?)),
-            "sco" => Ok(StixObject::Sco(CyberObject::from_json(
-                json_str,
+            "sco" => Ok(StixObject::Sco(validate_value(
+                value,
                 allow_custom,
+                strict,
             )?)),
-            "language-content" => Ok(StixObject::LanguageContent(LanguageContent::from_json(
-                json_str,
+            "language-content" => Ok(StixObject::LanguageContent(validate_value(
+                value,
                 allow_custom,
+                strict,
             )?)),
-            "extension-definition" => Ok(StixObject::ExtensionDefinition(
-                ExtensionDefinition::from_json(json_str, allow_custom)?,
-            )),
-            "marking-definition" => Ok(StixObject::MarkingDefinition(
-                MarkingDefinition::from_json(json_str, allow_custom)?,
-            )),
-            // "object-marking" => Ok(StixObject::ObjectMarking(ObjectMarking::from_json(json_str, allow_custom)?)),
-            "custom" => Ok(StixObject::Custom(CustomObject::from_json(json_str)?)),
-            // Any unrecognized type will cause get_object_type_from_json() to return an `object_type` of "custom"
-            _ => unreachable!(),
+            "extension-definition" => Ok(StixObject::ExtensionDefinition(validate_value(
+                value,
+                allow_custom,
+                strict,
+            )?)),
+            "marking-definition" => Ok(StixObject::MarkingDefinition(validate_value(
+                value,
+                allow_custom,
+                strict,
+            )?)),
+            // "object-marking" => Ok(StixObject::ObjectMarking(validate_value(value, allow_custom, strict)?)),
+            "custom" | _ => Ok(StixObject::Custom(validate_value(
+                value,
+                allow_custom,
+                strict,
+            )?)),
         }
     }
 
@@ -184,49 +199,26 @@ impl StixObject {
     /// `strict: false` skips validation but still respects `allow_custom`.
     /// `allow_custom: false` (default) rejects unknown fields.
     pub fn from_envelope(envelope_json: &str) -> Result<Self, Error> {
-        let envelope: serde_json::Value = serde_json::from_str(envelope_json)
+        let mut envelope: Value = serde_json::from_str(envelope_json)
             .map_err(|e| Error::DeserializationError(e.to_string()))?;
-        
-        let object = envelope.get("object")
+
+        let object = envelope
+            .get_mut("object")
+            .map(|v| v.take())
             .ok_or_else(|| Error::ValidationError("Envelope missing 'object' field".to_string()))?;
-        let options = envelope.get("options").unwrap_or(&serde_json::Value::Null);
+        let options = envelope.get("options").unwrap_or(&Value::Null);
         let strict = options.get("strict").and_then(|v| v.as_bool()).unwrap_or(true);
         let version = options.get("version").and_then(|v| v.as_str()).unwrap_or("2.1");
         let allow_custom = options.get("allow_custom").and_then(|v| v.as_bool()).unwrap_or(false);
-        
+
         if version != "2.1" {
-            return Err(Error::ValidationError(
-                format!("Unsupported STIX version '{}'. Only 2.1 is supported.", version)
-            ));
+            return Err(Error::ValidationError(format!(
+                "Unsupported STIX version '{}'. Only 2.1 is supported.",
+                version
+            )));
         }
-        
-        let object_json = object.to_string();
-        
-        if strict {
-            // Full validation path - runs stix_check inside each typed deserializer
-            Self::from_json(&object_json, allow_custom)
-        } else {
-            // Fast path - raw serde, but still field_check if allow_custom is false
-            let object_type = json::get_object_type_from_json(&object_json)?;
-            macro_rules! fast_parse {
-                ($variant:path, $ty:ty) => {{
-                    let obj: $ty = serde_json::from_str(&object_json)
-                        .map_err(|e| Error::DeserializationError(e.to_string()))?;
-                    if !allow_custom { json::field_check(&obj, &object_json)?; }
-                    Ok($variant(obj))
-                }}
-            }
-            match object_type.as_ref() {
-                "sdo" => fast_parse!(StixObject::Sdo, DomainObject),
-                "sro" => fast_parse!(StixObject::Sro, RelationshipObject),
-                "sco" => fast_parse!(StixObject::Sco, CyberObject),
-                "language-content" => fast_parse!(StixObject::LanguageContent, LanguageContent),
-                "extension-definition" => fast_parse!(StixObject::ExtensionDefinition, ExtensionDefinition),
-                "marking-definition" => fast_parse!(StixObject::MarkingDefinition, MarkingDefinition),
-                "custom" => fast_parse!(StixObject::Custom, CustomObject),
-                _ => unreachable!(),
-            }
-        }
+
+        Self::from_value(object, allow_custom, strict)
     }
 }
 

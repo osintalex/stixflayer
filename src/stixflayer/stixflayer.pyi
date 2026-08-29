@@ -12,6 +12,21 @@
 from typing import Any, Self
 
 # =============================================================================
+# Exception hierarchy
+# =============================================================================
+
+class StixError(Exception):
+    """Base exception for all stixflayer errors."""
+
+    errors: list[dict[str, Any]]
+
+class ValidationError(StixError):
+    """Raised when one or more STIX validation rules fail."""
+
+class DeserializationError(StixError):
+    """Raised when input cannot be parsed as STIX JSON."""
+
+# =============================================================================
 # Module-level functions
 # =============================================================================
 

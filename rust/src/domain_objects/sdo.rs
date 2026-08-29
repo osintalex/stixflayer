@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 
+use stix_derive::StixProperties;
 use crate::{
     base::{CommonProperties, CommonPropertiesBuilder, Stix},
     domain_objects::{
@@ -13,17 +14,18 @@ use crate::{
         vocab::OpinionType,
     },
     error::{add_error, return_multiple_errors, StixError as Error},
-    json,
     relationship_objects::{Related, RelationshipObjectBuilder},
     types::{
         DictionaryValue, ExternalReference, GranularMarking, Identified, Identifier,
         KillChainPhase, StixDictionary, Timestamp, stix_case,
     },
+    validation::validate_value,
 };
 
 use jiff::Timestamp as JiffTimestamp;
 use ordered_float::OrderedFloat as ordered_float;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use serde_with::skip_serializing_none;
 use std::str::FromStr;
 use strum::{AsRefStr, Display as StrumDisplay, EnumString};
@@ -47,18 +49,13 @@ pub struct DomainObject {
 
 impl DomainObject {
     /// Deserializes an SDO from a JSON String.
-    /// Checks that all fields conform to the STIX 2.1 standard
-    /// If the `allow_custom` flag is flase, checks that there are no fields in the JSON String that are not in the SDO type definition
+    /// Checks that all fields conform to the STIX 2.1 standard.
+    /// If the `allow_custom` flag is false, checks that there are no fields in the JSON String
+    /// that are not in the SDO type definition.
     pub fn from_json(json: &str, allow_custom: bool) -> Result<Self, Error> {
-        let domain_object: Self =
-            serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
-        domain_object.stix_check()?;
-
-        if !allow_custom {
-            json::field_check(&domain_object, json)?;
-        }
-
-        Ok(domain_object)
+        let value: Value = serde_json::from_str(json)
+            .map_err(|e| Error::DeserializationError(e.to_string()))?;
+        validate_value(value, allow_custom, true)
     }
 
     pub fn is_revoked(&self) -> bool {
@@ -167,7 +164,7 @@ pub fn check_sdo_properties(properties: &CommonProperties) -> Result<(), Error> 
 /// The various SDO types represented in STIX.
 #[derive(
     Clone, Debug, PartialEq, Eq, Serialize, Deserialize, AsRefStr, EnumString, StrumDisplay,
-)]
+StixProperties)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum DomainObjectType {
@@ -1657,11 +1654,13 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
-    /// Builds a new SDO, using the information found in the DomainObjectBuilder
+    /// Builds a new SDO without running `stix_check()` validation.
     ///
-    /// This performs a final check that all required fields for a given SDO type are included before construction.
-    /// This also runs the `stick_check()` validation method on the newly constructed SDO.
-    pub fn build(self) -> Result<DomainObject, Error> {
+    /// This performs the same required-field checks as [`Self::build`] and
+    /// assembles the final `DomainObject`, but it skips the object-specific
+    /// `stix_check()`. It is intended for callers that have already validated
+    /// the object and only need its typed representation (e.g. serialization).
+    pub fn build_no_validate(self) -> Result<DomainObject, Error> {
         match self.object_type {
             DomainObjectType::AttackPattern(ref attack_pattern) => {
                 if attack_pattern.name.is_empty() {
@@ -1716,7 +1715,7 @@ impl DomainObjectBuilder {
                     || indicator.pattern_type.is_empty()
                     || indicator.valid_from.0 == JiffTimestamp::UNIX_EPOCH
                 {
-                    return Err(Error::MultipleErrors(vec![
+                    return Err(Error::ValidationErrors(vec![
                         Error::MissingBuilderProperty {
                             object_type: self.object_type.to_string(),
                             property: "pattern".to_string(),
@@ -1777,7 +1776,7 @@ impl DomainObjectBuilder {
             }
             DomainObjectType::Note(ref note) => {
                 if note.content.is_empty() || note.object_refs.is_empty() {
-                    return Err(Error::MultipleErrors(vec![
+                    return Err(Error::ValidationErrors(vec![
                         Error::MissingBuilderProperty {
                             object_type: self.object_type.to_string(),
                             property: "content".to_string(),
@@ -1795,7 +1794,7 @@ impl DomainObjectBuilder {
                     || observed_data.number_observed == 0
                     || observed_data.object_refs.is_empty()
                 {
-                    return Err(Error::MultipleErrors(vec![
+                    return Err(Error::ValidationErrors(vec![
                         Error::MissingBuilderProperty {
                             object_type: self.object_type.to_string(),
                             property: "first_observed".to_string(),
@@ -1867,8 +1866,17 @@ impl DomainObjectBuilder {
             common_properties,
         };
 
-        sdo.stix_check()?;
+        Ok(sdo)
+    }
 
+    /// Builds a new SDO, using the information found in the `DomainObjectBuilder`.
+    ///
+    /// This performs the same required-field checks as
+    /// [`Self::build_no_validate`] and then runs `stix_check()` on the newly
+    /// constructed SDO.
+    pub fn build(self) -> Result<DomainObject, Error> {
+        let sdo = self.build_no_validate()?;
+        sdo.stix_check()?;
         Ok(sdo)
     }
 }

@@ -1,5 +1,6 @@
 //! Defines the data structures for each specific STIX Domain Object type.
 
+use stix_derive::StixProperties;
 use crate::{
     base::{check_timestamp_ordering, Stix},
     domain_objects::vocab::{
@@ -29,7 +30,7 @@ use strum::IntoEnumIterator;
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_axjijf603msy>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct AttackPattern {
     /// A name used to identify the Attack Pattern.
     pub name: String,
@@ -71,7 +72,7 @@ impl Stix for AttackPattern {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_pcpvfz4ik6d6>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Campaign {
     /// A name used to identify the Campaign.
     pub name: String,
@@ -118,7 +119,7 @@ impl Stix for Campaign {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_a925mpw39txn>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct CourseOfAction {
     /// A name used to identify the Course of Action.
     pub name: String,
@@ -145,7 +146,7 @@ impl Stix for CourseOfAction {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_t56pn7elv6u7>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Grouping {
     /// A name used to identify the Grouping.
     pub name: Option<String>,
@@ -184,7 +185,7 @@ impl Stix for Grouping {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_wh296fiwpklp>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Identity {
     /// The name of the Identity.
     ///
@@ -242,7 +243,7 @@ impl Stix for Identity {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_sczfhw64pjxt>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Incident {
     /// The name of the Incident.
     pub name: String,
@@ -270,7 +271,7 @@ impl Stix for Incident {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_muftrcpnf89v>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Indicator {
     /// An optional name used to identify the Indicator.
     ///
@@ -377,7 +378,7 @@ impl Stix for Indicator {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_jo3k1o6lr9>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Infrastructure {
     /// A name used to identify the Infrastructure.
     pub name: String,
@@ -452,7 +453,7 @@ impl Stix for Infrastructure {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_5ol9xlbbnrdn>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct IntrusionSet {
     /// A name used to identify this Threat Actor or Threat Actor group.
     pub name: String,
@@ -558,7 +559,7 @@ impl Stix for IntrusionSet {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_th8nitr8jb4k>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Location {
     /// A name used to identify the Location.
     pub name: Option<String>,
@@ -692,7 +693,7 @@ impl Stix for Location {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_s5l7katgbp09>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 /// Represents a malware instance or family.
 pub struct Malware {
     /// A name used to identify the malware instance or family.
@@ -860,7 +861,7 @@ impl Stix for Malware {
 ///
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_6hdrixb3ua4j>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct MalwareAnalysis {
     /// The name of the analysis engine or product that was used.
     pub product: String,
@@ -1026,7 +1027,7 @@ impl Stix for MalwareAnalysis {
 ///  
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_gudodcg1sbb9>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Note {
     /// An optional abstract providing a summary of the note.
     #[serde(rename = "abstract")]
@@ -1084,7 +1085,7 @@ impl Stix for Note {
 ///
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_p49j1fwoxldc>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct ObservedData {
     /// The beginning of the time window during which the data was seen.
     pub first_observed: Timestamp,
@@ -1175,7 +1176,7 @@ impl Stix for ObservedData {
 ///
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_ht1vtzfbtzda>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Opinion {
     /// An optional abstract providing a summary of the note.
     pub explanation: Option<String>,
@@ -1222,7 +1223,7 @@ impl Stix for Opinion {
 ///
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_n8bjzg1ysgdq>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Report {
     /// A name used to identify the Report.
     /// This field is required.
@@ -1292,7 +1293,7 @@ impl Stix for Report {
 ///
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_k017w16zutw>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct ThreatActor {
     /// A name used to identify this Threat Actor or Threat Actor group.
     pub name: String,
@@ -1456,7 +1457,7 @@ impl Stix for ThreatActor {
 ///
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_z4voa9ndw8v>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Tool {
     /// The name used to identify the Tool.
     pub name: String,
@@ -1513,7 +1514,7 @@ impl Stix for Tool {
 ///
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_q5ytzmajn6re>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Vulnerability {
     /// Required: The name of the Vulnerability.
     pub name: String,

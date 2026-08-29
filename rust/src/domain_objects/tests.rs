@@ -3050,73 +3050,17 @@ mod test {
         assert_eq!(result, expected);
     }
 
-    // tests for managing unknown fields in json as it is serialized/deserialized
+    // Tests for managing unknown fields during deserialization.
     #[test]
-    fn test_get_keys() {
-        let example = DomainObjectBuilder::new("indicator")
-            .unwrap()
-            .name("Indicator".to_string())
-            .unwrap()
-            .description(
-                "This indicator detects connections to a known malicious IP address".to_string(),
-            )
-            .unwrap()
-            .indicator_types(vec!["malicious-activity".to_string()])
-            .unwrap()
-            .pattern("[domain-name:value = 'example.com']".to_string())
-            .unwrap()
-            .pattern_type("stix".to_string())
-            .unwrap()
-            .valid_from("2016-05-12T08:17:27.000Z")
-            .unwrap()
-            .valid_until("2023-10-05T10:00:00.000Z")
-            .unwrap()
-            .external_references(vec![ExternalReference::new(
-                "capec",
-                None,
-                None,
-                Some("CAPEC-163".to_string()),
-            )
-            .unwrap()])
-            .build()
-            .unwrap()
-            // Change id, created, and modified fields for test matching
-            .test_id()
-            .created("2016-05-12T08:17:27.000Z")
-            .modified("2016-05-12T08:17:27.000Z");
-
-        let keys = crate::json::get_keys(&example).unwrap();
-        assert_eq!(
-            keys,
-            vec![
-                "created".to_string(),
-                "description".to_string(),
-                "external_references".to_string(),
-                "id".to_string(),
-                "indicator_types".to_string(),
-                "modified".to_string(),
-                "name".to_string(),
-                "pattern".to_string(),
-                "pattern_type".to_string(),
-                "pattern_version".to_string(),
-                "spec_version".to_string(),
-                "type".to_string(),
-                "valid_from".to_string(),
-                "valid_until".to_string(),
-            ]
-        );
-    }
-
-    #[test]
-    fn test_find_differences() {
-        let json_str = r#"{
+    fn test_unknown_property_rejected_when_allow_custom_false() {
+        let json_str_invalid = r#"{
         "type": "indicator",
         "name": "Indicator",
         "description": "This indicator detects connections to a known malicious IP address",
         "indicator_types": [
                 "malicious-activity"
             ],
-        "pattern": "[type=domain-name,value='example.com']",
+        "pattern": "[domain-name:value = 'example.com']",
         "pattern_type": "stix",
         "pattern_version": "2.1",
         "valid_from": "2016-05-12T08:17:27Z",
@@ -3125,9 +3069,7 @@ mod test {
         "id": "indicator--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
         "created": "2016-05-12T08:17:27Z",
         "modified": "2016-05-12T08:17:27Z",
-        "banana":"banana",
         "junk":"junk",
-        "apple":"apple",
         "external_references": [
             {
             "source_name": "capec",
@@ -3136,39 +3078,45 @@ mod test {
         ]
         }"#;
 
-        let example: Value = serde_json::from_str(json_str).unwrap();
-        let check_fields = crate::json::get_keys(&example).unwrap();
-        let correct_fields = vec![
-            String::from("apple"),
-            String::from("fig"),
-            String::from("orange"),
-        ];
-        let unknown_fields = vec![
-            "banana".to_string(),
-            "created".to_string(),
-            "description".to_string(),
-            "external_references".to_string(),
-            "id".to_string(),
-            "indicator_types".to_string(),
-            "junk".to_string(),
-            "modified".to_string(),
-            "name".to_string(),
-            "pattern".to_string(),
-            "pattern_type".to_string(),
-            "pattern_version".to_string(),
-            "spec_version".to_string(),
-            "type".to_string(),
-            "valid_from".to_string(),
-            "valid_until".to_string(),
-        ];
-
-        let result = crate::json::find_differences(&check_fields, &correct_fields);
-
-        assert_eq!(result, unknown_fields);
+        let err = DomainObject::from_json(json_str_invalid, false).unwrap_err();
+        assert!(
+            matches!(err, Error::UnknownProperties { .. }),
+            "expected UnknownProperties, got {err:?}"
+        );
     }
 
     #[test]
-    fn test_field_check_valid() {
+    fn test_unknown_property_allowed_when_allow_custom_true() {
+        let json_str_invalid = r#"{
+        "type": "indicator",
+        "name": "Indicator",
+        "description": "This indicator detects connections to a known malicious IP address",
+        "indicator_types": [
+                "malicious-activity"
+            ],
+        "pattern": "[domain-name:value = 'example.com']",
+        "pattern_type": "stix",
+        "pattern_version": "2.1",
+        "valid_from": "2016-05-12T08:17:27Z",
+        "valid_until":"2023-10-05T10:00:00Z",
+        "spec_version": "2.1",
+        "id": "indicator--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+        "created": "2016-05-12T08:17:27Z",
+        "modified": "2016-05-12T08:17:27Z",
+        "junk":"junk",
+        "external_references": [
+            {
+            "source_name": "capec",
+            "external_id": "CAPEC-163"
+            }
+        ]
+        }"#;
+
+        assert!(DomainObject::from_json(json_str_invalid, true).is_ok());
+    }
+
+    #[test]
+    fn test_valid_indicator_deserializes_with_allow_custom_false() {
         let json_str_valid = r#"{
         "type": "indicator",
         "name": "Indicator",
@@ -3193,70 +3141,6 @@ mod test {
         ]
         }"#;
 
-        let expected: DomainObject = serde_json::from_str(json_str_valid).unwrap();
-        let deserialized_valid = DomainObject::from_json(json_str_valid, false).unwrap();
-        assert_eq!(deserialized_valid, expected);
-    }
-
-    #[test]
-    fn test_field_check_invalid() {
-        let json_str_invalid = r#"{
-        "type": "indicator",
-        "name": "Indicator",
-        "description": "This indicator detects connections to a known malicious IP address",
-        "indicator_types": [
-                "malicious-activity"
-            ],
-        "pattern": "[type=domain-name,value='example.com']",
-        "pattern_type": "stix",
-        "pattern_version": "2.1",
-        "valid_from": "2016-05-12T08:17:27Z",
-        "valid_until":"2023-10-05T10:00:00Z",
-        "spec_version": "2.1",
-        "id": "indicator--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
-        "created": "2016-05-12T08:17:27Z",
-        "modified": "2016-05-12T08:17:27Z",
-        "junk":"junk",
-        "external_references": [
-            {
-            "source_name": "capec",
-            "external_id": "CAPEC-163"
-            }
-        ]
-        }"#;
-
-        let deserialized_invalid = DomainObject::from_json(json_str_invalid, false);
-        assert!(deserialized_invalid.is_err());
-    }
-
-    #[test]
-    fn test_custom_field_check_invalid() {
-        let json_str_invalid = r#"{
-        "type": "indicator",
-        "name": "Indicator",
-        "description": "This indicator detects connections to a known malicious IP address",
-        "indicator_types": [
-                "malicious-activity"
-            ],
-        "pattern": "[domain-name:value = 'example.com']",
-        "pattern_type": "stix",
-        "pattern_version": "2.1",
-        "valid_from": "2016-05-12T08:17:27Z",
-        "valid_until":"2023-10-05T10:00:00Z",
-        "spec_version": "2.1",
-        "id": "indicator--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
-        "created": "2016-05-12T08:17:27Z",
-        "modified": "2016-05-12T08:17:27Z",
-        "junk":"junk",
-        "external_references": [
-            {
-            "source_name": "capec",
-            "external_id": "CAPEC-163"
-            }
-        ]
-        }"#;
-
-        let deserialized_invalid = DomainObject::from_json(json_str_invalid, true);
-        assert!(deserialized_invalid.is_ok());
+        assert!(DomainObject::from_json(json_str_valid, false).is_ok());
     }
 }

@@ -1,16 +1,17 @@
 //! Data structures and functions for implementing Lanugage Content SMOs
 
+use stix_derive::StixProperties;
 use std::str::FromStr;
 
 use crate::{
     base::{CommonProperties, CommonPropertiesBuilder, Stix},
     error::{add_error, return_multiple_errors, StixError as Error},
-    json,
     relationship_objects::{Related, RelationshipObjectBuilder},
     types::{
         DictionaryValue, ExternalReference, GranularMarking, Identified, Identifier,
         StixDictionary, Timestamp,
     },
+    validation::validate_value,
 };
 use language_tags::LanguageTag;
 use serde::{Deserialize, Serialize};
@@ -34,7 +35,7 @@ use uuid::Uuid;
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_z9r1cwtu8jja>
 #[skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct LanguageContent {
     #[serde(rename = "type")]
     pub object_type: String,
@@ -56,18 +57,13 @@ pub struct LanguageContent {
 
 impl LanguageContent {
     /// Deserializes a LanguageContent SMO from a JSON String.
-    /// Checks that all fields conform to the STIX 2.1 standard
-    /// If the `allow_custom` flag is flase, checks that there are no fields in the JSON String that are not in the SDO type definition
+    /// Checks that all fields conform to the STIX 2.1 standard.
+    /// If the `allow_custom` flag is false, checks that there are no fields in the JSON String
+    /// that are not in the Language Content SMO type definition.
     pub fn from_json(json: &str, allow_custom: bool) -> Result<Self, Error> {
-        let language_content: Self =
-            serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
-        language_content.stix_check()?;
-
-        if !allow_custom {
-            json::field_check(&language_content, json)?;
-        }
-
-        Ok(language_content)
+        let value: serde_json::Value = serde_json::from_str(json)
+            .map_err(|e| Error::DeserializationError(e.to_string()))?;
+        validate_value(value, allow_custom, true)
     }
 
     pub fn is_revoked(&self) -> bool {
@@ -475,10 +471,14 @@ impl LanguageContentBuilder {
         Ok(self)
     }
 
-    /// Builds a new Language Content SMO, using the information found in the LanguageContentBuilder
+    /// Builds a new Language Content SMO without running `stix_check()`
+    /// validation.
     ///
-    /// This runs the `stick_check()` validation method on the newly constructed SMO, which includes check that the `contents` dictionary is nonempty.
-    pub fn build(self) -> Result<LanguageContent, Error> {
+    /// This assembles the final `LanguageContent` object from the builder, but
+    /// skips the object-specific `stix_check()`. It is intended for callers that
+    /// have already validated the object and only need its typed representation
+    /// (e.g. serialization).
+    pub fn build_no_validate(self) -> Result<LanguageContent, Error> {
         let common_properties = self.common_properties.build();
 
         let object_ref = self.object_ref;
@@ -493,8 +493,17 @@ impl LanguageContentBuilder {
             contents,
         };
 
-        language_content.stix_check()?;
+        Ok(language_content)
+    }
 
+    /// Builds a new Language Content SMO, using the information found in the
+    /// `LanguageContentBuilder`.
+    ///
+    /// This assembles the final `LanguageContent` object from the builder and
+    /// then runs `stix_check()` on it.
+    pub fn build(self) -> Result<LanguageContent, Error> {
+        let language_content = self.build_no_validate()?;
+        language_content.stix_check()?;
         Ok(language_content)
     }
 }

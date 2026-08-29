@@ -17,8 +17,10 @@ pub mod error;
 pub mod extensions;
 pub mod json;
 pub mod meta_objects;
+pub mod validation;
 pub mod object;
 pub mod pattern;
+pub mod properties;
 pub mod relationship_objects;
 pub mod types;
 

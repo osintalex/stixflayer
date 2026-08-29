@@ -1,4 +1,5 @@
 //! Defines the data structures for each specific STIX Cyber-observable Object type.
+use stix_derive::StixProperties;
 use crate::{
     base::Stix,
     cyber_observable_objects::{
@@ -33,7 +34,7 @@ use url::Url as RustUrl;
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_4jegwl6ojbes>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Artifact {
     pub mime_type: Option<String>,
     pub payload_bin: Option<String>,
@@ -102,7 +103,7 @@ impl Stix for Artifact {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_27gux0aol9e3>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct AutonomousSystem {
     ///Specifies the number assigned to the AS.
     #[serde(default, deserialize_with = "as_u64")]
@@ -124,7 +125,7 @@ impl Stix for AutonomousSystem {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_lyvpga5hlw52>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Directory {
     pub path: String, // if not USCII path_enc must be set: not sure how we can determine
     pub path_enc: Option<String>, //supposed to be from charcter set list
@@ -169,7 +170,7 @@ impl Stix for Directory {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_prhhksbxbg87>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct DomainName {
     /// Specifies the value of the domain name.
     pub value: String,
@@ -210,7 +211,7 @@ impl Stix for DomainName {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_wmenahkvqmgj>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct EmailAddress {
     /// Specifies the value of the email address. This MUST NOT include the display name.
     pub value: String,
@@ -271,7 +272,7 @@ impl Stix for EmailAddress {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_grboc7sq5514>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct EmailMessage {
     //bools default to false: so is_multipart only needs to be set if true
     pub is_multipart: bool,
@@ -421,7 +422,7 @@ impl Stix for EmailMimeCompomentType {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_99bl2dibcztv>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct File {
     /// Specifies a dictionary of hashes for the file.
     pub hashes: Option<Hashes>,
@@ -529,7 +530,7 @@ impl Stix for File {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_ki1ufj1ku8s0>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Ipv4Addr {
     /// Specifies the values of one or more IPv4 addresses expressed using CIDR notation.
     pub value: String,
@@ -595,7 +596,7 @@ impl Stix for Ipv4Addr {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_oeggeryskriq>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Ipv6Addr {
     /// Specifies the values of one or more IPv6 addresses expressed using CIDR notation.
     pub value: String,
@@ -660,7 +661,7 @@ impl Stix for Ipv6Addr {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_f92nr9plf58y>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct MacAddr {
     /// Specifies the value of a single MAC address.
     pub value: String,
@@ -686,7 +687,7 @@ impl Stix for MacAddr {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_84hwlkdmev1w>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Mutex {
     /// Specifies the name of the mutex object.
     pub name: String,
@@ -713,7 +714,7 @@ impl Stix for Mutex {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_rgnc3w40xy>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct NetworkTraffic {
     pub start: Option<Timestamp>,
     pub end: Option<Timestamp>,
@@ -906,7 +907,7 @@ impl Stix for NetworkTraffic {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_hpppnm86a1jm>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Process {
     /// Specifies the name of the process.
     pub name: Option<String>,
@@ -1002,7 +1003,7 @@ impl Stix for Process {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_7rkyhtkdthok>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Software {
     // name of the software.
     pub name: String,
@@ -1061,7 +1062,7 @@ impl Stix for Software {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_ah3hict2dez0>
 #[skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Url {
     pub value: RustUrl,
 }
@@ -1089,7 +1090,7 @@ impl Default for Url {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_azo70vgj1vm2>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct UserAccount {
     // The identifier of the account.
     pub user_id: Option<String>,
@@ -1149,7 +1150,7 @@ impl Stix for UserAccount {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_luvw8wjlfo3y>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct WindowsRegistryKey {
     /// Specifies the full registry key including the hive.
     pub key: Option<String>,
@@ -1202,7 +1203,7 @@ impl Stix for WindowsRegistryKey {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_u7n4ndghs3qq>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct WindowsRegistryKeyType {
     /// Specifies the name of the registry value. For specifying the default value in a registry key, an empty string MUST be used.
     pub name: Option<String>,
@@ -1232,7 +1233,7 @@ impl Stix for WindowsRegistryKeyType {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_8abcy1o5x9w1>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct X509Certificate {
     /// Specifies whether the certificate is self-signed, i.e., whether it is signed by the same entity whose identity it certifies.
     pub is_self_signed: Option<bool>,
