@@ -29,6 +29,7 @@ CLASS_OVERRIDES = {
     "ipv6-addr": "IPv6Address",
     "mac-addr": "MacAddr",
     "url": "URL",
+    "email-addr": "EmailAddress",
     "x509-certificate": "X509Certificate",
 }
 

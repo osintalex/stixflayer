@@ -416,7 +416,7 @@ mod test {
 
     #[test]
     fn serialize_emailaddress() {
-        let email_address = CyberObjectBuilder::new("email-address")
+        let email_address = CyberObjectBuilder::new("email-addr")
             .unwrap()
             .value("john@example.com".to_string())
             .unwrap()
@@ -428,9 +428,9 @@ mod test {
         let result = serde_json::to_value(&email_address).unwrap();
 
         let expected = r#"{
-            "type": "email-address",
+            "type": "email-addr",
             "spec_version": "2.1",
-            "id": "email-address--cc7fa653-c35f-53db-afdd-dce4c3a241d5",
+            "id": "email-addr--cc7fa653-c35f-53db-afdd-dce4c3a241d5",
             "value": "john@example.com"
         }"#;
 
@@ -442,13 +442,13 @@ mod test {
     #[test]
     fn deserialize_emailaddress() {
         let json = r#"{
-            "type": "email-address",
+            "type": "email-addr",
             "spec_version": "2.1",
-            "id": "email-address--cc7fa653-c35f-53db-afdd-dce4c3a241d5",
+            "id": "email-addr--cc7fa653-c35f-53db-afdd-dce4c3a241d5",
             "value": "john@example.com"
         }"#;
         let result = CyberObject::from_json(json, false).unwrap();
-        let email_address = CyberObjectBuilder::new("email-address")
+        let email_address = CyberObjectBuilder::new("email-addr")
             .unwrap()
             .value("john@example.com".to_string())
             .unwrap()
@@ -460,7 +460,7 @@ mod test {
 
     #[test]
     fn email_display_nameinvalid() {
-        let email_address = CyberObjectBuilder::new("email-address")
+        let email_address = CyberObjectBuilder::new("email-addr")
             .unwrap()
             .value("john@example.com".to_string())
             .unwrap()
@@ -472,7 +472,7 @@ mod test {
 
     #[test]
     fn email_belongs_to_ref() {
-        let email_address = CyberObjectBuilder::new("email-address")
+        let email_address = CyberObjectBuilder::new("email-addr")
             .unwrap()
             .value("john@example.com".to_string())
             .unwrap()
@@ -495,7 +495,7 @@ mod test {
         let mut all_invalid = true;
 
         for address in test_addresses {
-            let email_address = CyberObjectBuilder::new("email-address")
+            let email_address = CyberObjectBuilder::new("email-addr")
                 .unwrap()
                 .value(address.to_string())
                 .unwrap()
@@ -519,7 +519,7 @@ mod test {
         let mut all_valid = true;
 
         for address in test_addresses {
-            let email_address = CyberObjectBuilder::new("email-address")
+            let email_address = CyberObjectBuilder::new("email-addr")
                 .unwrap()
                 .value(address.to_string())
                 .unwrap()

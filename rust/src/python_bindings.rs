@@ -1456,7 +1456,7 @@ impl EmailAddress {
 
     #[getter]
     fn r#type(&self) -> String {
-    "email-address".to_string()
+    "email-addr".to_string()
 }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {

@@ -2493,7 +2493,8 @@ pub enum CyberObjectType {
     AutonomousSystem(AutonomousSystem),
     Directory(Directory),
     DomainName(DomainName),
-    #[serde(alias = "email-addr")]
+    #[serde(rename = "email-addr", alias = "email-address")]
+    #[strum(serialize = "email-addr")]
     EmailAddress(EmailAddress),
     EmailMessage(EmailMessage),
     File(File),
