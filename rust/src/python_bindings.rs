@@ -1229,7 +1229,7 @@ impl IPv4Address {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(IPv4Address(builder))
     }
@@ -1277,7 +1277,7 @@ impl IPv6Address {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(IPv6Address(builder))
     }
@@ -1332,7 +1332,7 @@ impl DomainName {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(DomainName(builder))
     }
@@ -1387,7 +1387,7 @@ impl URL {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(URL(builder))
     }
@@ -1442,7 +1442,7 @@ impl EmailAddress {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(EmailAddress(builder))
     }
@@ -1497,7 +1497,7 @@ impl EmailMessage {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(EmailMessage(builder))
     }
@@ -1552,7 +1552,7 @@ impl MacAddr {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(MacAddr(builder))
     }
@@ -1614,7 +1614,7 @@ impl AutonomousSystem {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(AutonomousSystem(builder))
     }
@@ -1663,7 +1663,7 @@ impl File {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(File(builder))
     }
@@ -1718,7 +1718,7 @@ impl Software {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Software(builder))
     }
@@ -1773,7 +1773,7 @@ impl Directory {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Directory(builder))
     }
@@ -1828,7 +1828,7 @@ impl Mutex {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Mutex(builder))
     }
@@ -1883,7 +1883,7 @@ impl Process {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Process(builder))
     }
@@ -1926,7 +1926,7 @@ impl NetworkTraffic {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(NetworkTraffic(builder))
     }
@@ -1969,7 +1969,7 @@ impl UserAccount {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(UserAccount(builder))
     }
@@ -2024,7 +2024,7 @@ impl WindowsRegistryKey {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(WindowsRegistryKey(builder))
     }
@@ -2080,7 +2080,7 @@ impl X509Certificate {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(X509Certificate(builder))
     }
@@ -2135,7 +2135,7 @@ impl Artifact {
     fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
         let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
-        let builder = CyberObjectBuilder::from(&sco)
+        let builder = CyberObjectBuilder::from_parsed(&sco)
             .map_err(|e: StixError| PyErr::new::<PyO3ValueError, _>(e.to_string()))?;
         Ok(Artifact(builder))
     }

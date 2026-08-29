@@ -1,6 +1,6 @@
 //! Contains the implementation logic for STIX Cyber-observable Objects (SCOs).
 use crate::{
-    base::{CommonProperties, CommonPropertiesBuilder, Stix},
+    base::{CommonProperties, CommonPropertiesBuilder, BuilderType, Stix},
     cyber_observable_objects::{
         sco_types::{
             Artifact, AutonomousSystem, Directory, DomainName, EmailAddress, EmailMessage,
@@ -358,6 +358,20 @@ impl CyberObjectBuilder {
         let object_type = cyber_object.object_type.clone();
         let common_properties =
             CommonPropertiesBuilder::version("sco", &cyber_object.common_properties)?;
+        Ok(CyberObjectBuilder {
+            object_type,
+            common_properties,
+        })
+    }
+
+    /// Create a CyberObjectBuilder from an already-parsed CyberObject, preserving
+    /// its `id` exactly. Unlike `from()`, this does not treat the object as the
+    /// basis for a new version, so `build()` keeps the parsed identifier instead
+    /// of regenerating it (parsing is not versioning).
+    pub fn from_parsed(cyber_object: &CyberObject) -> Result<CyberObjectBuilder, Error> {
+        let object_type = cyber_object.object_type.clone();
+        let common_properties =
+            CommonPropertiesBuilder::from_existing("sco", &cyber_object.common_properties)?;
         Ok(CyberObjectBuilder {
             object_type,
             common_properties,
@@ -2264,7 +2278,12 @@ impl CyberObjectBuilder {
         // If no contributing properties are present, fall back to UUIDv4 per STIX 2.1 spec section 2.9:
         // "If the contributing properties are all optional, and none are present on the SCO,
         // then a UUIDv4 MUST be used."
-        if is_sco_type_name(self.object_type.as_ref()) {
+        //
+        // When reconstructing an already-parsed object (from_parsed), the parsed
+        // identifier is preserved exactly - parsing is not versioning.
+        if is_sco_type_name(self.object_type.as_ref())
+            && self.common_properties.builder_type != BuilderType::FromExisting
+        {
             if let Some(contributing_properties) = self.get_uuid5_properties()? {
                 let id_v5 = Identifier::new_v5(self.object_type.as_ref(), &contributing_properties)?;
                 common_properties.id = id_v5;

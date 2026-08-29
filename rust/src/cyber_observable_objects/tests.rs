@@ -115,6 +115,30 @@ mod test {
     }
 
     #[test]
+    fn from_parsed_preserves_parsed_identifier() {
+        // Parsing is not versioning: a parsed SCO keeps its exact identifier,
+        // including the spec-sanctioned UUIDv4 case (Process).
+        let json = r#"{
+            "type": "process",
+            "spec_version": "2.1",
+            "id": "process--ffa353d6-8ee4-48a0-a17c-c394d0fc56ac",
+            "pid": 4135,
+            "command_line": "evil.exe --flag"
+        }"#;
+        let parsed = CyberObject::from_json(json, false).unwrap();
+        let rebuilt = CyberObjectBuilder::from_parsed(&parsed)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        assert_eq!(
+            parsed.common_properties.id.to_string(),
+            rebuilt.common_properties.id.to_string()
+        );
+        assert_eq!(rebuilt.common_properties.id.get_uuid_version(), "UUIDv4");
+    }
+
+    #[test]
     fn process_uses_spec_sanctioned_uuidv4() {
         // STIX 2.1 spec section 6.14 (Process): all properties are optional,
         // so a UUIDv4 MUST be used for the identifier.

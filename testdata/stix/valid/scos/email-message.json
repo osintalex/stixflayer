@@ -1,7 +1,7 @@
 {
     "type": "email-message",
     "spec_version": "2.1",
-    "id": "email-message--c84c4679-2bd7-55d0-b0a7-79075a76d58f",
+    "id": "email-message--c532c031-5518-5a16-86af-8d5fe894ab1a",
     "is_multipart": false,
     "subject": "Test Email",
     "body": "This is the email body",
