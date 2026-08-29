@@ -2288,34 +2288,40 @@ impl CyberObjectBuilder {
         let object_type = self.object_type.as_ref();
         let mut properties = HashMap::new();
 
-        // First check any required properties
+        // First check any required properties.
+        // If a required contributing property is not present (builder mid-construction),
+        // return None so build() falls back to UUIDv4; the per-type required-property
+        // validation in build() reports the missing property separately.
         if let Some(required) = REQUIRED_ID_PROPERTIES.get(object_type) {
             for field in required {
-                // PANIC: Safe to unwrap Option because these fields are required
-                //
                 // Handle special cases of non-String values
                 if object_type == "autonomous-system" {
                     // AutonomousSystem.number is a u64
-                    let value = get_field_by_name::<&CyberObjectBuilder, u64>(self, field)?
-                        .unwrap()
-                        .to_string();
+                    let value = match get_field_by_name::<&CyberObjectBuilder, u64>(self, field)? {
+                        Some(v) => v.to_string(),
+                        None => return Ok(None),
+                    };
                     properties.insert(field.to_string(), IdPropertyValue::String(value));
                 } else if object_type == "network-traffic" {
                     // NetworkTraffic.protocols is a Vec<String>
-                    let protocols =
-                        get_field_by_name::<&CyberObjectBuilder, Vec<String>>(self, field)?
-                            .unwrap();
+                    let protocols = match get_field_by_name::<&CyberObjectBuilder, Vec<String>>(self, field)? {
+                        Some(v) => v,
+                        None => return Ok(None),
+                    };
                     properties.insert(field.to_string(), IdPropertyValue::List(protocols));
                 } else if object_type == "url" {
                     // Url.value is a url::Url
-                    let value = get_field_by_name::<&CyberObjectBuilder, RustUrl>(self, field)?
-                        .unwrap()
-                        .to_string();
+                    let value = match get_field_by_name::<&CyberObjectBuilder, RustUrl>(self, field)? {
+                        Some(v) => v.to_string(),
+                        None => return Ok(None),
+                    };
                     properties.insert(field.to_string(), IdPropertyValue::String(value));
                 } else {
                     // Everything else is a String
-                    let value =
-                        get_field_by_name::<&CyberObjectBuilder, String>(self, field)?.unwrap();
+                    let value = match get_field_by_name::<&CyberObjectBuilder, String>(self, field)? {
+                        Some(v) => v,
+                        None => return Ok(None),
+                    };
                     properties.insert(field.to_string(), IdPropertyValue::String(value));
                 }
             }
@@ -2456,8 +2462,14 @@ impl CyberObjectBuilder {
     }
 }
 
-// Possible collections of ID contributing property strings
+// Possible collections of ID contributing property strings.
+//
+// Untagged: these values are fed to the UUIDv5 name as the RFC 8785
+// canonical JSON of the contributing properties (spec section 2.9), so
+// they MUST serialize as plain JSON values - any enum tagging would leak
+// into the identifier and break interoperability with other producers.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
 enum IdPropertyValue {
     // A single String (whether natively or parsed to a String)
     String(String),

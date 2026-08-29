@@ -72,6 +72,63 @@ mod test {
     }
 
     #[test]
+    fn golden_mutex_id_matches_normative_uuidv5_algorithm() {
+        // STIX 2.1 spec section 2.9 (normative): the UUIDv5 name is the RFC 8785
+        // canonical JSON of the ID contributing properties - for a Mutex with
+        // name "__CLEANSWEEP__" that is `{"name":"__CLEANSWEEP__"}`.
+        //
+        // NOTE: the example identifier shown in the spec's Mutex section
+        // (mutex--eba44954-d4e4-5d3b-814c-2b17dd8de300) does not match the
+        // spec's own normative algorithm under the defined namespace - no
+        // serialization of {name: value} reproduces it. The normative
+        // algorithm wins; this golden value was computed independently of
+        // this codebase (python uuid5 over the canonical JSON).
+        let mutex = CyberObjectBuilder::new("mutex")
+            .unwrap()
+            .name("__CLEANSWEEP__".to_string())
+            .unwrap()
+            .build()
+            .unwrap();
+
+        assert_eq!(
+            mutex.common_properties.id.to_string(),
+            "mutex--f93fe911-e545-5239-b9b0-597840d0c871"
+        );
+        assert_eq!(mutex.common_properties.id.get_uuid_version(), "UUIDv5");
+    }
+
+    #[test]
+    fn email_addr_id_is_stable_across_builds() {
+        let build = || {
+            CyberObjectBuilder::new("email-addr")
+                .unwrap()
+                .value("user@example.com".to_string())
+                .unwrap()
+                .build()
+                .unwrap()
+        };
+        let first = build();
+        let second = build();
+
+        assert_eq!(first.common_properties.id, second.common_properties.id);
+        assert_eq!(first.common_properties.id.get_uuid_version(), "UUIDv5");
+    }
+
+    #[test]
+    fn process_uses_spec_sanctioned_uuidv4() {
+        // STIX 2.1 spec section 6.14 (Process): all properties are optional,
+        // so a UUIDv4 MUST be used for the identifier.
+        let process = CyberObjectBuilder::new("process")
+            .unwrap()
+            .command_line("evil.exe --flag".to_string())
+            .unwrap()
+            .build()
+            .unwrap();
+
+        assert_eq!(process.common_properties.id.get_uuid_version(), "UUIDv4");
+    }
+
+    #[test]
     fn u64_max_test() {
         let limit: u64 = 1 << 53;
         let autonomous_system = CyberObjectBuilder::new("autonomous-system")
