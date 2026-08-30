@@ -5,7 +5,7 @@ use crate::{
     base::{CommonProperties, CommonPropertiesBuilder, Stix},
     error::{add_error, return_multiple_errors, StixError as Error},
     relationship_objects::{Related, RelationshipObjectBuilder},
-    types::{ExtensionType, ExternalReference, GranularMarking, Identified, Identifier},
+    types::{ExtensionType, ExternalReference, GranularMarking, Identified, Identifier, Timestamp},
     validation::validate_value,
 };
 use serde::{Deserialize, Serialize};
@@ -339,6 +339,18 @@ impl ExtensionDefinitionBuilder {
     /// Set the optional `granular_markings` field for an Extension Definition SMO under construction.
     pub fn granular_markings(mut self, markings: Vec<GranularMarking>) -> Self {
         self.common_properties = self.common_properties.clone().granular_markings(markings);
+        self
+    }
+
+    /// Set the `created` timestamp for an Extension Definition SMO under construction.
+    pub fn created(mut self, created: Timestamp) -> Self {
+        self.common_properties = self.common_properties.clone().created(created);
+        self
+    }
+
+    /// Set the `modified` timestamp for an Extension Definition SMO under construction.
+    pub fn modified(mut self, modified: Timestamp) -> Self {
+        self.common_properties = self.common_properties.clone().modified(modified);
         self
     }
 

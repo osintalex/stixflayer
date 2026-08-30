@@ -454,6 +454,22 @@ impl CommonPropertiesBuilder {
         self
     }
 
+    /// Set the `created` timestamp for an object under construction.
+    ///
+    /// When creating a new object this overrides the default "now" timestamp.
+    pub fn created(mut self, created: Timestamp) -> Self {
+        self.properties.created = Some(created);
+        self
+    }
+
+    /// Set the `modified` timestamp for an object under construction.
+    ///
+    /// When creating a new object this overrides the default "now" timestamp.
+    pub fn modified(mut self, modified: Timestamp) -> Self {
+        self.properties.modified = Some(modified);
+        self
+    }
+
     /// Add an optional extension to the `extensions` field for an object under construction, creating the field if it does not already exist.
     pub fn add_extension(
         mut self,
@@ -482,12 +498,13 @@ impl CommonPropertiesBuilder {
                 if self.builder_type == BuilderType::FromExisting {
                     (properties.created, None)
                 } else {
-                    // Get the current datetime, for setting `modified` and conditionally `created`
-                    let now = Timestamp::now();
-                    // If we are creating a new object, `created` is set to the time of creation
-                    // If we are versioning an existing object, `created` stays the same as before
+                    // If we are creating a new object, `created` defaults to the time of creation
+                    // but may be overridden by the caller. When versioning, `created` is preserved
+                    // and `modified` is left None (marking definitions cannot be versioned).
                     let created = match self.builder_type {
-                        BuilderType::Creation => Some(now.clone()),
+                        BuilderType::Creation => {
+                            Some(properties.created.unwrap_or_else(Timestamp::now))
+                        }
                         BuilderType::Version => properties.created,
                         BuilderType::FromExisting => unreachable!(),
                     };
@@ -499,17 +516,29 @@ impl CommonPropertiesBuilder {
                 if self.builder_type == BuilderType::FromExisting {
                     (properties.created, properties.modified)
                 } else {
-                    // Get the current datetime, for setting `modified` and conditionally `created`
+                    // When creating a new object, the caller may override the default
+                    // "now" timestamps. When versioning, `created` is preserved and
+                    // `modified` is set to the current time.
                     let now = Timestamp::now();
-                    // If we are creating a new object, `created` is set to the time of creation
-                    // If we are versioning an existing object, `created` stays the same as before
                     let created = match self.builder_type {
-                        BuilderType::Creation => Some(now.clone()),
-                        BuilderType::Version => properties.created,
+                        BuilderType::Creation => {
+                            properties.created.unwrap_or_else(|| now.clone())
+                        }
+                        BuilderType::Version => {
+                            properties.created.expect(
+                                "versioned object must retain its original created time",
+                            )
+                        }
                         BuilderType::FromExisting => unreachable!(),
                     };
-                    let modified = Some(now);
-                    (created, modified)
+                    let modified = match self.builder_type {
+                        BuilderType::Creation => {
+                            properties.modified.unwrap_or_else(|| now.clone())
+                        }
+                        BuilderType::Version => now,
+                        BuilderType::FromExisting => unreachable!(),
+                    };
+                    (Some(created), Some(modified))
                 }
             }
         };

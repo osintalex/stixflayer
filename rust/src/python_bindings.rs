@@ -20,6 +20,7 @@ use strum::IntoEnumIterator;
 use crate::types::ExtensionType;
 use crate::types::Identifier;
 use crate::types::Timestamp;
+use jiff::Timestamp as JiffTimestamp;
 use crate::types::{DictionaryValue, StixDictionary};
 use pyo3::types::PyDict;
 use pyo3::types::PyList;
@@ -2316,6 +2317,17 @@ impl MarkingDefinition {
                                 .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
                         builder = builder.definition(marking_type);
                     }
+                    "created" => {
+                        let val: String = v.extract()?;
+                        let ts = JiffTimestamp::from_str(&val)
+                            .map_err(|e| PyErr::new::<StixError, _>(format!("Invalid created timestamp '{}': {}", val, e)))?;
+                        builder = builder.created(Timestamp(ts));
+                    }
+                    "modified" => {
+                        return Err(PyErr::new::<ValidationError, _>(
+                            "MarkingDefinition cannot have a modified property".to_string()
+                        ));
+                    }
                     _ => {
                         // Unknown field - we could store it or ignore it
                         // For now, just ignore unknown fields to allow flexibility
@@ -2374,10 +2386,34 @@ impl CustomObject {
         custom_properties_json: String,
         extension_definition_id: Option<String>,
     ) -> Result<Self, PyErr> {
-        // Validate it's valid JSON
-        let _: serde_json::Value = serde_json::from_str(&custom_properties_json)
+        let props: serde_json::Value = serde_json::from_str(&custom_properties_json)
             .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
-        
+
+        let props_map: BTreeMap<String, serde_json::Value> = if let serde_json::Value::Object(m) = props {
+            m.into_iter().collect()
+        } else {
+            return Err(PyErr::new::<StixError, _>("custom_properties must be a JSON object".to_string()));
+        };
+
+        let ext_def_id = extension_definition_id
+            .as_deref()
+            .unwrap_or("extension-definition--00000000-0000-0000-0000-000000000000");
+
+        let builder = match extension_type.as_str() {
+            "new-sdo" => CustomObjectBuilder::new_sdo(&type_, props_map, ext_def_id),
+            "new-sro" => CustomObjectBuilder::new_sro(&type_, props_map, ext_def_id),
+            "new-sco" => CustomObjectBuilder::new_sco(&type_, props_map, ext_def_id),
+            _ => {
+                return Err(PyErr::new::<StixError, _>(
+                    "extension_type must be new-sdo, new-sco, or new-sro".to_string(),
+                ));
+            }
+        }
+        .map_err(stix_to_pyerr)?;
+
+        // Validate at construction time. to_json() can then use build_no_validate().
+        builder.build().map_err(stix_to_pyerr)?;
+
         Ok(CustomObject {
             type_,
             extension_type,
@@ -2524,6 +2560,18 @@ impl ExtensionDefinition {
                         let val: String = v.extract()?;
                         builder = builder.description(val);
                     }
+                    "created" => {
+                        let val: String = v.extract()?;
+                        let ts = JiffTimestamp::from_str(&val)
+                            .map_err(|e| PyErr::new::<StixError, _>(format!("Invalid created timestamp '{}': {}", val, e)))?;
+                        builder = builder.created(Timestamp(ts));
+                    }
+                    "modified" => {
+                        let val: String = v.extract()?;
+                        let ts = JiffTimestamp::from_str(&val)
+                            .map_err(|e| PyErr::new::<StixError, _>(format!("Invalid modified timestamp '{}': {}", val, e)))?;
+                        builder = builder.modified(Timestamp(ts));
+                    }
                     "extension_properties" => {
                         let val: Vec<String> = v.extract()?;
                         builder = builder.extension_properties(val);
@@ -2535,6 +2583,9 @@ impl ExtensionDefinition {
                 }
             }
         }
+        // Validate at construction time so invalid extension definitions fail
+        // immediately rather than only when serialized.
+        builder.clone().build().map_err(stix_to_pyerr)?;
         Ok(ExtensionDefinition(builder))
     }
 
@@ -2604,10 +2655,12 @@ impl LanguageContent {
         if json_obj.get("contents").is_none() {
             json_obj["contents"] = serde_json::json!({});
         }
-        // Deserialize WITHOUT running stix_check (validation happens at to_json time)
+        // Deserialize and validate immediately. from_parsed preserves the
+        // caller-supplied timestamps/contents, and build() runs stix_check.
         let lc: StixLanguageContent = serde_json::from_str(&json_obj.to_string())
             .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         let builder = LanguageContentBuilder::from_parsed(&lc).map_err(stix_to_pyerr)?;
+        builder.clone().build().map_err(stix_to_pyerr)?;
         Ok(LanguageContent(builder))
     }
 

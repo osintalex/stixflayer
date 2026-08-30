@@ -161,7 +161,10 @@ impl StixError {
             | StixError::MissingProperty { .. }
             | StixError::UnknownProperties { .. }
             | StixError::InvalidPropertyType { .. }
-            | StixError::ValidationError(_) => "validation",
+            | StixError::ValidationError(_)
+            | StixError::WrongExtension
+            | StixError::CustomMissingExtension
+            | StixError::UnknownExtension => "validation",
             StixError::DeserializationError(_)
             | StixError::SerializationError(_)
             | StixError::UnexpectedJsonFormat

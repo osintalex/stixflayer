@@ -5,7 +5,7 @@ use crate::{
     base::{CommonProperties, CommonPropertiesBuilder, Stix},
     error::{return_multiple_errors, StixError as Error},
     relationship_objects::{Related, RelationshipObjectBuilder},
-    types::{ExternalReference, GranularMarking, Identified, Identifier},
+    types::{ExternalReference, GranularMarking, Identified, Identifier, Timestamp},
     validation::validate_value,
 };
 use log::warn;
@@ -218,6 +218,15 @@ impl MarkingDefinitionBuilder {
     /// Set the optional `granular_markings` field for a Marking Definition SMO under construction.
     pub fn granular_markings(mut self, markings: Vec<GranularMarking>) -> Self {
         self.common_properties = self.common_properties.clone().granular_markings(markings);
+        self
+    }
+
+    /// Set the `created` timestamp for a Marking Definition SMO under construction.
+    ///
+    /// Marking definitions cannot have a `modified` timestamp, so only `created`
+    /// is exposed.
+    pub fn created(mut self, created: Timestamp) -> Self {
+        self.common_properties = self.common_properties.clone().created(created);
         self
     }
 

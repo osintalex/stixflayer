@@ -64,7 +64,14 @@ const TYPE_KEY: &'static str = "type";
 
 /// SCOs structurally accept only this subset of the common properties
 /// (mirrors check_sco_properties).
-const SCO_COMMON: &[&'static str] = &["spec_version", "id", "defanged", "extensions"];
+const SCO_COMMON: &[&'static str] = &[
+    "spec_version",
+    "id",
+    "defanged",
+    "extensions",
+    "object_marking_refs",
+    "granular_markings",
+];
 
 /// SDO/SRO/meta structurally accept every common property except `defanged`
 /// (mirrors check_sdo_properties / check_sro_properties).
