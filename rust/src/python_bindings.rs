@@ -4,15 +4,15 @@ use pyo3::{create_exception, PyErr};
 use std::collections::BTreeMap;
 use std::str::FromStr;
 use ordered_float::OrderedFloat;
-use crate::cyber_observable_objects::sco::CyberObjectBuilder;
+use crate::cyber_observable_objects::sco::{CyberObjectBuilder, CyberObjectType};
 use crate::custom_objects::CustomObjectBuilder;
-use crate::domain_objects::sdo::DomainObjectBuilder;
+use crate::domain_objects::sdo::{DomainObjectBuilder, DomainObjectType};
 use crate::error::StixError as RustStixError;
 use crate::meta_objects::extension_definition::{ExtensionDefinition as StixExtensionDefinition, ExtensionDefinitionBuilder};
 use crate::meta_objects::language_content::LanguageContentBuilder;
 use crate::meta_objects::language_content::LanguageContent as StixLanguageContent;
 use crate::meta_objects::marking_definition::MarkingDefinitionBuilder;
-use crate::relationship_objects::RelationshipObjectBuilder;
+use crate::relationship_objects::{RelationshipObjectBuilder, RelationshipObjectType};
 use crate::relationship_objects::RelationshipObject as StixRelationshipObject;
 use crate::bundles::Bundle as StixBundle;
 use crate::pattern::validate_pattern as rust_validate_pattern;
@@ -366,6 +366,20 @@ pub fn validate_pattern(pattern: &str) -> Result<(), PyErr> {
 
 // PyO3 limitation: #[pyclass] and #[pymethods] cannot be generated via macros.
 // Each SCO struct must be written explicitly with these proc-macro attributes.
+
+fn parse_extension_type(val: &str) -> Result<ExtensionType, PyErr> {
+    match val {
+        "new-sdo" => Ok(ExtensionType::NewSdo),
+        "new-sco" => Ok(ExtensionType::NewSco),
+        "new-sro" => Ok(ExtensionType::NewSro),
+        "property-extension" => Ok(ExtensionType::PropertyExtension),
+        "toplevel-property-extension" => Ok(ExtensionType::ToplevelPropertyExtension),
+        _ => Err(PyErr::new::<StixError, _>(format!(
+            "Invalid extension_type: '{}'. Valid values: new-sdo, new-sco, new-sro, property-extension, toplevel-property-extension",
+            val
+        ))),
+    }
+}
 
 fn pydict_to_stix_dict(dict: &Bound<'_, PyDict>) -> Result<StixDictionary<DictionaryValue>, PyErr> {
     let mut output = StixDictionary::new();
@@ -2324,24 +2338,31 @@ impl MarkingDefinition {
                         builder = builder.created(Timestamp(ts));
                     }
                     "modified" => {
-                        return Err(PyErr::new::<ValidationError, _>(
-                            "MarkingDefinition cannot have a modified property".to_string()
-                        ));
+                        return Err(stix_to_pyerr(RustStixError::ValidationError(
+                            "MarkingDefinition cannot have a modified property".to_string(),
+                        )));
                     }
                     _ => {
-                        // Unknown field - we could store it or ignore it
-                        // For now, just ignore unknown fields to allow flexibility
+                        return Err(PyErr::new::<StixError, _>(format!(
+                            "Unknown argument for MarkingDefinition: '{}'",
+                            key
+                        )));
                     }
                 }
             }
         }
-        
+
         Ok(MarkingDefinition(validate_marking_builder(builder)?))
     }
 
     #[staticmethod]
-    fn from_json(json_str: String) -> Result<Self, PyErr> {
-        let md = crate::meta_objects::marking_definition::MarkingDefinition::from_json(&json_str, false).map_err(stix_to_pyerr)?;
+    #[pyo3(signature = (json_str, _strict = true, _version = "2.1", allow_custom = false))]
+    fn from_json(json_str: String, _strict: bool, _version: &str, allow_custom: bool) -> Result<Self, PyErr> {
+        let md = crate::meta_objects::marking_definition::MarkingDefinition::from_json(
+            &json_str,
+            allow_custom,
+        )
+        .map_err(stix_to_pyerr)?;
         let builder = MarkingDefinitionBuilder::from_parsed(&md).map_err(stix_to_pyerr)?;
         Ok(MarkingDefinition(builder))
     }
@@ -2361,6 +2382,63 @@ impl MarkingDefinition {
     "marking-definition".to_string()
 }
 
+    #[getter]
+    fn id(&self) -> String {
+        self.0
+            .clone()
+            .build_no_validate()
+            .map(|obj| obj.common_properties.id.to_string())
+            .unwrap_or_default()
+    }
+
+    #[getter]
+    fn created(&self) -> Option<String> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .and_then(|obj| obj.common_properties.created.map(|t| t.to_string()))
+    }
+
+    #[getter]
+    fn name(&self) -> Option<String> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .and_then(|obj| obj.name)
+    }
+
+    #[getter]
+    fn definition_type(&self) -> Option<String> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .and_then(|obj| obj.definition_type)
+    }
+
+    #[getter]
+    fn definition<'py>(&self, py: Python<'py>) -> Result<Option<Bound<'py, PyDict>>, PyErr> {
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        match obj.definition {
+            Some(def) => {
+                let value = serde_json::to_value(&def)
+                    .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
+                if let serde_json::Value::Object(map) = value {
+                    let dict = PyDict::new_bound(py);
+                    for (k, v) in map {
+                        dict.set_item(k, json_to_py(py, &v)?)?;
+                    }
+                    Ok(Some(dict))
+                } else {
+                    Ok(None)
+                }
+            }
+            None => Ok(None),
+        }
+    }
+
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
     let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
     let value = serde_json::to_value(&obj)
@@ -2370,134 +2448,220 @@ fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
 }
 
 #[pyclass]
-pub struct CustomObject {
-    type_: String,
-    custom_properties_json: String,
-    extension_type: String,
-    extension_definition_id: Option<String>,
-}
+pub struct CustomObject(CustomObjectBuilder);
 
 #[pymethods]
 impl CustomObject {
     #[new]
-    fn new(
-        type_: String,
-        extension_type: String,
-        custom_properties_json: String,
-        extension_definition_id: Option<String>,
-    ) -> Result<Self, PyErr> {
-        let props: serde_json::Value = serde_json::from_str(&custom_properties_json)
-            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
+    #[pyo3(signature = (**kwargs))]
+    fn new(kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let mut type_ = None;
+        let mut extension_type = None;
+        let mut extension_definition_id: Option<String> = None;
+        let mut custom_properties: BTreeMap<String, serde_json::Value> = BTreeMap::new();
+        let mut created: Option<String> = None;
+        let mut modified: Option<String> = None;
 
-        let props_map: BTreeMap<String, serde_json::Value> = if let serde_json::Value::Object(m) = props {
-            m.into_iter().collect()
-        } else {
-            return Err(PyErr::new::<StixError, _>("custom_properties must be a JSON object".to_string()));
-        };
+        if let Some(kwargs) = kwargs {
+            for (k, v) in kwargs.iter() {
+                let key: String = k.extract()
+                    .map_err(|e| PyErr::new::<StixError, _>(format!("STIX field name must be a string: {}", e)))?;
+                match key.as_str() {
+                    "type" | "type_" => {
+                        let val: String = v.extract()?;
+                        type_ = Some(val);
+                    }
+                    "extension_type" => {
+                        let val: String = v.extract()?;
+                        extension_type = Some(val);
+                    }
+                    "custom_properties" => {
+                        let val = py_to_json(&v)?;
+                        if let serde_json::Value::Object(m) = val {
+                            custom_properties = m.into_iter().collect();
+                        } else {
+                            return Err(PyErr::new::<StixError, _>(
+                                "custom_properties must be a dictionary".to_string(),
+                            ));
+                        }
+                    }
+                    "created" => {
+                        created = Some(v.extract()?);
+                    }
+                    "modified" => {
+                        modified = Some(v.extract()?);
+                    }
+                    "extension_definition_id" => {
+                        let val: String = v.extract()?;
+                        extension_definition_id = Some(val);
+                    }
+                    "custom_properties_json" => {
+                        return Err(PyErr::new::<StixError, _>(
+                            "custom_properties_json is no longer supported; pass custom_properties as a dict".to_string(),
+                        ));
+                    }
+                    _ => {
+                        // Any other keyword becomes a custom property, matching the SDO/SCO/SRO
+                        // envelope behaviour for arbitrary fields.
+                        let val = py_to_json(&v)?;
+                        custom_properties.insert(key, val);
+                    }
+                }
+            }
+        }
+
+        let type_ = type_.ok_or_else(|| {
+            PyErr::new::<StixError, _>("CustomObject requires a 'type_' argument".to_string())
+        })?;
+        let extension_type = extension_type.ok_or_else(|| {
+            PyErr::new::<StixError, _>("CustomObject requires an 'extension_type' argument".to_string())
+        })?;
 
         let ext_def_id = extension_definition_id
             .as_deref()
             .unwrap_or("extension-definition--00000000-0000-0000-0000-000000000000");
 
-        let builder = match extension_type.as_str() {
-            "new-sdo" => CustomObjectBuilder::new_sdo(&type_, props_map, ext_def_id),
-            "new-sro" => CustomObjectBuilder::new_sro(&type_, props_map, ext_def_id),
-            "new-sco" => CustomObjectBuilder::new_sco(&type_, props_map, ext_def_id),
+        let mut builder = match extension_type.as_str() {
+            "new-sdo" => CustomObjectBuilder::new_sdo(&type_, custom_properties, ext_def_id),
+            "new-sro" => CustomObjectBuilder::new_sro(&type_, custom_properties, ext_def_id),
+            "new-sco" => CustomObjectBuilder::new_sco(&type_, custom_properties, ext_def_id),
             _ => {
-                return Err(PyErr::new::<StixError, _>(
-                    "extension_type must be new-sdo, new-sco, or new-sro".to_string(),
-                ));
+                return Err(PyErr::new::<StixError, _>(format!(
+                    "Invalid extension_type: '{}'. Valid values: new-sdo, new-sco, new-sro",
+                    extension_type
+                )));
             }
         }
         .map_err(stix_to_pyerr)?;
 
-        // Validate at construction time. to_json() can then use build_no_validate().
-        builder.build().map_err(stix_to_pyerr)?;
+        if let Some(created) = created {
+            let ts = JiffTimestamp::from_str(&created)
+                .map_err(|e| PyErr::new::<StixError, _>(format!("Invalid created timestamp '{}': {}", created, e)))?;
+            builder = builder.created(Timestamp(ts));
+        }
+        if let Some(modified) = modified {
+            let ts = JiffTimestamp::from_str(&modified)
+                .map_err(|e| PyErr::new::<StixError, _>(format!("Invalid modified timestamp '{}': {}", modified, e)))?;
+            builder = builder.modified(Timestamp(ts));
+        }
 
-        Ok(CustomObject {
-            type_,
-            extension_type,
-            custom_properties_json,
-            extension_definition_id,
-        })
+        // Validate at construction time so invalid custom objects fail immediately.
+        builder.clone().build().map_err(stix_to_pyerr)?;
+
+        Ok(CustomObject(builder))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
-        let props: serde_json::Value = serde_json::from_str(&self.custom_properties_json)
-            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
-        
-        let props_map: BTreeMap<String, serde_json::Value> = if let serde_json::Value::Object(m) = props {
-            let mut map = BTreeMap::new();
-            for (k, v) in m {
-                let _ = map.insert(k, v);
-            }
-            map
-        } else {
-            return Err(PyErr::new::<StixError, _>("custom_properties must be a JSON object".to_string()));
-        };
-        
-        let ext_def_id = self.extension_definition_id
-            .as_ref()
-            .map(|s| s.as_str())
-            .unwrap_or("extension-definition--00000000-0000-0000-0000-000000000000");
-        
-        let builder = match self.extension_type.as_str() {
-            "new-sdo" => CustomObjectBuilder::new_sdo(&self.type_, props_map, ext_def_id),
-            "new-sro" => CustomObjectBuilder::new_sro(&self.type_, props_map, ext_def_id),
-            "new-sco" => CustomObjectBuilder::new_sco(&self.type_, props_map, ext_def_id),
-            _ => {
-                return Err(PyErr::new::<StixError, _>("extension_type must be new-sdo, new-sco, or new-sro".to_string(),))
-            }
-        }.map_err(stix_to_pyerr)?;
-
-        builder
-            .build_no_validate().map_err(stix_to_pyerr)
-            .and_then(|obj| {
-                serde_json::to_string(&obj)
-                    .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
-            })
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        serde_json::to_string(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
     }
 
-    /// Deserialize a CustomObject from JSON string
-    /// Note: from_json needs pyo3 0.22 fix - using staticmethod pattern
-    /// Usage: CustomObject.from_json('{"type": "my-sdo", ...}')
     #[staticmethod]
-    fn from_json(json_str: String) -> Result<Self, PyErr> {
-        let obj = crate::custom_objects::CustomObject::from_json(&json_str).map_err(stix_to_pyerr)?;
-
-        let extension_type = obj
-            .get_object_type().map_err(stix_to_pyerr)?;
-
-        let ext_type_str = match extension_type {
-            ExtensionType::NewSdo => "new-sdo",
-            ExtensionType::NewSro => "new-sro",
-            ExtensionType::NewSco => "new-sco",
-            _ => "unknown",
-        };
-
-        let extension_definition_id = obj.common_properties.extensions.as_ref().and_then(|exts| {
-            exts.keys().next().cloned()
-        });
-
-        let custom_properties_json = serde_json::to_string(&obj.custom_properties)
-            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
-
-        Ok(CustomObject {
-            type_: obj.object_type,
-            custom_properties_json,
-            extension_type: ext_type_str.to_string(),
-            extension_definition_id,
-        })
+    #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
+    fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
+        let obj = <crate::custom_objects::CustomObject as crate::object::FromJson>::from_json(
+            &json_str,
+            strict,
+            version,
+            allow_custom,
+        )
+        .map_err(stix_to_pyerr)?;
+        let builder = CustomObjectBuilder::from_parsed(&obj).map_err(stix_to_pyerr)?;
+        Ok(CustomObject(builder))
     }
 
     #[getter]
     fn r#type(&self) -> String {
-        self.type_.clone()
+        self.0
+            .clone()
+            .build_no_validate()
+            .map(|obj| obj.object_type)
+            .unwrap_or_default()
     }
 
     #[getter]
-    fn custom_properties(&self) -> String {
-        self.custom_properties_json.clone()
+    fn id(&self) -> String {
+        self.0
+            .clone()
+            .build_no_validate()
+            .map(|obj| obj.common_properties.id.to_string())
+            .unwrap_or_default()
+    }
+
+    #[getter]
+    fn created(&self) -> Option<String> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .and_then(|obj| obj.common_properties.created.map(|t| t.to_string()))
+    }
+
+    #[getter]
+    fn modified(&self) -> Option<String> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .and_then(|obj| obj.common_properties.modified.map(|t| t.to_string()))
+    }
+
+    #[getter]
+    fn spec_version(&self) -> Option<String> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .and_then(|obj| obj.common_properties.spec_version)
+    }
+
+    #[getter]
+    fn extension_type(&self) -> Result<String, PyErr> {
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        let ext_type = obj.get_object_type().map_err(stix_to_pyerr)?;
+        Ok(match ext_type {
+            ExtensionType::NewSdo => "new-sdo".to_string(),
+            ExtensionType::NewSro => "new-sro".to_string(),
+            ExtensionType::NewSco => "new-sco".to_string(),
+            _ => "unknown".to_string(),
+        })
+    }
+
+    #[getter]
+    fn extension_definition_id(&self) -> Option<String> {
+        let obj = self.0.clone().build_no_validate().ok()?;
+        obj.common_properties.extensions.as_ref().and_then(|exts| {
+            for (key, ext) in exts.iter() {
+                if Identifier::from_str(key)
+                    .map(|id| id.get_type() == "extension-definition")
+                    .unwrap_or(false)
+                {
+                    if let Some(DictionaryValue::String(val)) = ext.get("extension_type") {
+                        if val != "property-extension" && val != "toplevel-property-extension" {
+                            return Some(key.clone());
+                        }
+                    }
+                }
+            }
+            None
+        })
+    }
+
+    #[getter]
+    fn custom_properties<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, PyErr> {
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        let dict = PyDict::new_bound(py);
+        for (k, v) in obj.custom_properties.iter() {
+            dict.set_item(k, json_to_py(py, v)?)?;
+        }
+        Ok(dict)
+    }
+
+    fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        let value = serde_json::to_value(&obj)
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
+        dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
     }
 }
 
@@ -2535,26 +2699,20 @@ impl ExtensionDefinition {
                     }
                     "extension_type" => {
                         let val: String = v.extract()?;
-                        let ext_type = match val.as_str() {
-                            "new-sdo" => ExtensionType::NewSdo,
-                            "new-sco" => ExtensionType::NewSco,
-                            "new-sro" => ExtensionType::NewSro,
-                            "property-extension" => ExtensionType::PropertyExtension,
-                            "toplevel-property-extension" => ExtensionType::ToplevelPropertyExtension,
-                            _ => {
-                                return Err(PyErr::new::<StixError, _>(format!(
-                                    "Invalid extension_type: '{}'. Valid values: new-sdo, new-sco, new-sro, property-extension, toplevel-property-extension",
-                                    val
-                                )));
-                            }
-                        };
+                        let ext_type = parse_extension_type(&val)?;
                         builder = builder.extension_types(vec![ext_type]);
+                    }
+                    "extension_types" => {
+                        let vals: Vec<String> = v.extract()?;
+                        let ext_types: Result<Vec<ExtensionType>, PyErr> =
+                            vals.iter().map(|s| parse_extension_type(s)).collect();
+                        builder = builder.extension_types(ext_types?);
                     }
                     "created_by_ref" => {
                         let val: String = v.extract()?;
-                        if let Ok(id) = Identifier::from_str(&val) {
-                            builder = builder.created_by_ref(id).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
-                        }
+                        let id = Identifier::from_str(&val)
+                            .map_err(|e| PyErr::new::<StixError, _>(format!("Invalid created_by_ref identifier '{}': {}", val, e)))?;
+                        builder = builder.created_by_ref(id).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
                     }
                     "description" => {
                         let val: String = v.extract()?;
@@ -2579,7 +2737,12 @@ impl ExtensionDefinition {
                     "name" => {
                         // Already handled above
                     }
-                    _ => {}
+                    _ => {
+                        return Err(PyErr::new::<StixError, _>(format!(
+                            "Unknown argument for ExtensionDefinition: '{}'",
+                            key
+                        )));
+                    }
                 }
             }
         }
@@ -2590,8 +2753,15 @@ impl ExtensionDefinition {
     }
 
     #[staticmethod]
-    fn from_json(json_str: String) -> Result<Self, PyErr> {
-        let ext_def = StixExtensionDefinition::from_json(&json_str, false).map_err(stix_to_pyerr)?;
+    #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
+    fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
+        let ext_def = <StixExtensionDefinition as crate::object::FromJson>::from_json(
+            &json_str,
+            strict,
+            version,
+            allow_custom,
+        )
+        .map_err(stix_to_pyerr)?;
         let builder = ExtensionDefinitionBuilder::from_parsed(&ext_def).map_err(stix_to_pyerr)?;
         Ok(ExtensionDefinition(builder))
     }
@@ -2610,6 +2780,104 @@ impl ExtensionDefinition {
     fn r#type(&self) -> String {
     "extension-definition".to_string()
 }
+
+    #[getter]
+    fn id(&self) -> String {
+        self.0
+            .clone()
+            .build_no_validate()
+            .map(|obj| obj.common_properties.id.to_string())
+            .unwrap_or_default()
+    }
+
+    #[getter]
+    fn created(&self) -> Option<String> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .and_then(|obj| obj.common_properties.created.map(|t| t.to_string()))
+    }
+
+    #[getter]
+    fn modified(&self) -> Option<String> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .and_then(|obj| obj.common_properties.modified.map(|t| t.to_string()))
+    }
+
+    #[getter]
+    fn name(&self) -> String {
+        self.0
+            .clone()
+            .build_no_validate()
+            .map(|obj| obj.name)
+            .unwrap_or_default()
+    }
+
+    #[getter]
+    fn description(&self) -> Option<String> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .and_then(|obj| obj.description)
+    }
+
+    #[getter]
+    fn schema(&self) -> Option<String> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .map(|obj| obj.schema)
+    }
+
+    #[getter]
+    fn version(&self) -> Option<String> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .map(|obj| obj.version)
+    }
+
+    #[getter]
+    fn extension_types(&self) -> Result<Option<Vec<String>>, PyErr> {
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        Ok(Some(
+            obj.extension_types
+                .iter()
+                .map(|et| match et {
+                    ExtensionType::NewSdo => "new-sdo".to_string(),
+                    ExtensionType::NewSro => "new-sro".to_string(),
+                    ExtensionType::NewSco => "new-sco".to_string(),
+                    ExtensionType::PropertyExtension => "property-extension".to_string(),
+                    ExtensionType::ToplevelPropertyExtension => "toplevel-property-extension".to_string(),
+                })
+                .collect(),
+        ))
+    }
+
+    #[getter]
+    fn extension_properties(&self) -> Option<Vec<String>> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .and_then(|obj| obj.extension_properties)
+    }
+
+    #[getter]
+    fn created_by_ref(&self) -> Option<String> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .and_then(|obj| obj.common_properties.created_by_ref.map(|id| id.to_string()))
+    }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
     let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
@@ -2665,8 +2933,15 @@ impl LanguageContent {
     }
 
     #[staticmethod]
-    fn from_json(json_str: String) -> Result<Self, PyErr> {
-        let lc = StixLanguageContent::from_json(&json_str, false).map_err(stix_to_pyerr)?;
+    #[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
+    fn from_json(json_str: String, strict: bool, version: &str, allow_custom: bool) -> Result<Self, PyErr> {
+        let lc = <StixLanguageContent as crate::object::FromJson>::from_json(
+            &json_str,
+            strict,
+            version,
+            allow_custom,
+        )
+        .map_err(stix_to_pyerr)?;
         let builder = LanguageContentBuilder::from_parsed(&lc).map_err(stix_to_pyerr)?;
         Ok(LanguageContent(builder))
     }
@@ -2685,6 +2960,54 @@ impl LanguageContent {
     fn r#type(&self) -> String {
     "language-content".to_string()
 }
+
+    #[getter]
+    fn id(&self) -> String {
+        self.0
+            .clone()
+            .build_no_validate()
+            .map(|obj| obj.common_properties.id.to_string())
+            .unwrap_or_default()
+    }
+
+    #[getter]
+    fn created(&self) -> Option<String> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .and_then(|obj| obj.common_properties.created.map(|t| t.to_string()))
+    }
+
+    #[getter]
+    fn modified(&self) -> Option<String> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .and_then(|obj| obj.common_properties.modified.map(|t| t.to_string()))
+    }
+
+    #[getter]
+    fn object_modified(&self) -> Option<String> {
+        self.0
+            .clone()
+            .build_no_validate()
+            .ok()
+            .and_then(|obj| obj.object_modified.map(|t| t.to_string()))
+    }
+
+    #[getter]
+    fn contents<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyDict>, PyErr> {
+        let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        let value = serde_json::to_value(&obj)
+            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
+        let contents = value
+            .get("contents")
+            .cloned()
+            .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+        json_to_py(py, &contents)?.extract(py)
+    }
 
 fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
     let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
@@ -2810,7 +3133,8 @@ impl Bundle {
     }
 
     #[staticmethod]
-    fn from_json(json_str: String) -> Result<Self, PyErr> {
+    #[pyo3(signature = (json_str, _strict = true, _version = "2.1", _allow_custom = false))]
+    fn from_json(json_str: String, _strict: bool, _version: &str, _allow_custom: bool) -> Result<Self, PyErr> {
         let bundle = StixBundle::from_json(&json_str).map_err(stix_to_pyerr)?;
         Ok(Bundle(bundle))
     }
@@ -2835,6 +3159,98 @@ impl Bundle {
     #[getter]
     fn r#type(&self) -> String {
         "bundle".to_string()
+    }
+
+    #[getter]
+    fn objects<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyList>, PyErr> {
+        let list = PyList::empty_bound(py);
+        for obj in self.0.get_objects() {
+            let py_obj = wrap_stix_object(py, obj)?;
+            list.append(py_obj)?;
+        }
+        Ok(list)
+    }
+}
+
+/// Convert a typed [`StixObject`] into its corresponding Python wrapper class.
+fn wrap_stix_object(py: Python<'_>, obj: crate::object::StixObject) -> Result<PyObject, PyErr> {
+    match obj {
+        crate::object::StixObject::Sdo(domain_obj) => {
+            let builder = DomainObjectBuilder::from_parsed(&domain_obj).map_err(stix_to_pyerr)?;
+            Ok(match domain_obj.object_type {
+                DomainObjectType::AttackPattern(_) => Py::new(py, AttackPattern(builder))?.into_py(py),
+                DomainObjectType::Campaign(_) => Py::new(py, Campaign(builder))?.into_py(py),
+                DomainObjectType::CourseOfAction(_) => Py::new(py, CourseOfAction(builder))?.into_py(py),
+                DomainObjectType::Grouping(_) => Py::new(py, Grouping(builder))?.into_py(py),
+                DomainObjectType::Identity(_) => Py::new(py, Identity(builder))?.into_py(py),
+                DomainObjectType::Incident(_) => Py::new(py, Incident(builder))?.into_py(py),
+                DomainObjectType::Indicator(_) => Py::new(py, Indicator(builder))?.into_py(py),
+                DomainObjectType::Infrastructure(_) => Py::new(py, Infrastructure(builder))?.into_py(py),
+                DomainObjectType::IntrusionSet(_) => Py::new(py, IntrusionSet(builder))?.into_py(py),
+                DomainObjectType::Location(_) => Py::new(py, Location(builder))?.into_py(py),
+                DomainObjectType::Malware(_) => Py::new(py, Malware(builder))?.into_py(py),
+                DomainObjectType::MalwareAnalysis(_) => Py::new(py, MalwareAnalysis(builder))?.into_py(py),
+                DomainObjectType::Note(_) => Py::new(py, Note(builder))?.into_py(py),
+                DomainObjectType::ObservedData(_) => Py::new(py, ObservedData(builder))?.into_py(py),
+                DomainObjectType::Opinion(_) => Py::new(py, Opinion(builder))?.into_py(py),
+                DomainObjectType::Report(_) => Py::new(py, Report(builder))?.into_py(py),
+                DomainObjectType::ThreatActor(_) => Py::new(py, ThreatActor(builder))?.into_py(py),
+                DomainObjectType::Tool(_) => Py::new(py, Tool(builder))?.into_py(py),
+                DomainObjectType::Vulnerability(_) => Py::new(py, Vulnerability(builder))?.into_py(py),
+            })
+        }
+        crate::object::StixObject::Sro(rel_obj) => {
+            let builder = RelationshipObjectBuilder::from_parsed(&rel_obj).map_err(stix_to_pyerr)?;
+            Ok(match rel_obj.object_type {
+                RelationshipObjectType::Relationship(_) => Py::new(py, Relationship(builder))?.into_py(py),
+                RelationshipObjectType::Sighting(_) => Py::new(py, Sighting(builder))?.into_py(py),
+            })
+        }
+        crate::object::StixObject::Sco(cyber_obj) => {
+            let builder = CyberObjectBuilder::from_parsed(&cyber_obj).map_err(stix_to_pyerr)?;
+            Ok(match cyber_obj.object_type {
+                CyberObjectType::Artifact(_) => Py::new(py, Artifact(builder))?.into_py(py),
+                CyberObjectType::AutonomousSystem(_) => Py::new(py, AutonomousSystem(builder))?.into_py(py),
+                CyberObjectType::Directory(_) => Py::new(py, Directory(builder))?.into_py(py),
+                CyberObjectType::DomainName(_) => Py::new(py, DomainName(builder))?.into_py(py),
+                CyberObjectType::EmailAddress(_) => Py::new(py, EmailAddress(builder))?.into_py(py),
+                CyberObjectType::EmailMessage(_) => Py::new(py, EmailMessage(builder))?.into_py(py),
+                CyberObjectType::File(_) => Py::new(py, File(builder))?.into_py(py),
+                CyberObjectType::Ipv4Addr(_) => Py::new(py, IPv4Address(builder))?.into_py(py),
+                CyberObjectType::Ipv6Addr(_) => Py::new(py, IPv6Address(builder))?.into_py(py),
+                CyberObjectType::MacAddr(_) => Py::new(py, MacAddr(builder))?.into_py(py),
+                CyberObjectType::Mutex(_) => Py::new(py, Mutex(builder))?.into_py(py),
+                CyberObjectType::NetworkTraffic(_) => Py::new(py, NetworkTraffic(builder))?.into_py(py),
+                CyberObjectType::Process(_) => Py::new(py, Process(builder))?.into_py(py),
+                CyberObjectType::Software(_) => Py::new(py, Software(builder))?.into_py(py),
+                CyberObjectType::Url(_) => Py::new(py, URL(builder))?.into_py(py),
+                CyberObjectType::UserAccount(_) => Py::new(py, UserAccount(builder))?.into_py(py),
+                CyberObjectType::WindowsRegistryKey(_) => Py::new(py, WindowsRegistryKey(builder))?.into_py(py),
+                CyberObjectType::WindowsRegistryKeyType(_) => {
+                    // Not a top-level SCO; fall back to a JSON dict.
+                    let value = serde_json::to_value(&cyber_obj)
+                        .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
+                    json_to_py(py, &value)?
+                }
+                CyberObjectType::X509Certificate(_) => Py::new(py, X509Certificate(builder))?.into_py(py),
+            })
+        }
+        crate::object::StixObject::LanguageContent(lc) => {
+            let builder = LanguageContentBuilder::from_parsed(&lc).map_err(stix_to_pyerr)?;
+            Ok(Py::new(py, LanguageContent(builder))?.into_py(py))
+        }
+        crate::object::StixObject::ExtensionDefinition(ed) => {
+            let builder = ExtensionDefinitionBuilder::from_parsed(&ed).map_err(stix_to_pyerr)?;
+            Ok(Py::new(py, ExtensionDefinition(builder))?.into_py(py))
+        }
+        crate::object::StixObject::MarkingDefinition(md) => {
+            let builder = MarkingDefinitionBuilder::from_parsed(&md).map_err(stix_to_pyerr)?;
+            Ok(Py::new(py, MarkingDefinition(builder))?.into_py(py))
+        }
+        crate::object::StixObject::Custom(custom) => {
+            let builder = CustomObjectBuilder::from_parsed(&custom).map_err(stix_to_pyerr)?;
+            Ok(Py::new(py, CustomObject(builder))?.into_py(py))
+        }
     }
 }
 

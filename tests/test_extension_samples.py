@@ -88,16 +88,23 @@ class TestCustomObjectErrors:
         obj = stixflayer.CustomObject(
             type_="vendor-enrichment-sdo",
             extension_type="new-sdo",
-            custom_properties_json=json.dumps({
+            custom_properties={
                 "name": "Vendor enrichment",
                 "severity": 5,
-            }),
+            },
             extension_definition_id=EXT_ID,
         )
         wire = json.loads(obj.to_json())
         assert wire["type"] == "vendor-enrichment-sdo"
         assert wire["extensions"][EXT_ID]["extension_type"] == "new-sdo"
         assert "created" in wire  # sanity: common properties were populated
+        # New Python-friendly attributes
+        assert obj.id.startswith("vendor-enrichment-sdo--")
+        assert obj.created is not None
+        assert obj.extension_type == "new-sdo"
+        assert obj.extension_definition_id == EXT_ID
+        assert isinstance(obj.custom_properties, dict)
+        assert obj.custom_properties["severity"] == 5
 
     def test_wrong_extension_type_in_extensions_is_rejected(self):
         bad_json = {
@@ -133,7 +140,7 @@ class TestCustomObjectErrors:
             lambda: stixflayer.CustomObject(
                 type_="vendor_enrichment_sdo",
                 extension_type="new-sdo",
-                custom_properties_json=json.dumps({"name": "Bad"}),
+                custom_properties={"name": "Bad"},
                 extension_definition_id=EXT_ID,
             )
         )
@@ -145,7 +152,7 @@ class TestCustomObjectErrors:
             lambda: stixflayer.CustomObject(
                 type_="vendor-enrichment-sdo",
                 extension_type="new-sdo",
-                custom_properties_json=json.dumps({"1sev": 5}),
+                custom_properties={"1sev": 5},
                 extension_definition_id=EXT_ID,
             )
         )

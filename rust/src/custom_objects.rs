@@ -8,7 +8,7 @@ use crate::{
     relationship_objects::{check_sro_properties, Related, RelationshipObjectBuilder},
     types::{
         get_extension_type, stix_case, DictionaryValue, ExtensionType, ExternalReference,
-        Identified, Identifier, StixDictionary,
+        Identified, Identifier, StixDictionary, Timestamp,
     },
     validation::validate_value,
 };
@@ -332,6 +332,61 @@ impl CustomObjectBuilder {
         })
     }
 
+    /// Create a new STIX 2.1 `CustomObjectBuilder` by cloning the fields from an already-parsed
+    /// `CustomObject`, preserving its `id`, `created`, `modified`, and `revoked` properties exactly.
+    /// Unlike `version()`, this does not treat the object as the basis for a new version.
+    pub fn from_parsed(old: &CustomObject) -> Result<CustomObjectBuilder, Error> {
+        let object_type = old.get_object_type()?;
+        let object_type_name = old.object_type.clone();
+        let custom_properties = old.custom_properties.clone();
+
+        // Find the extension-definition key that declares this as a custom object.
+        let ext_def_id = old
+            .common_properties
+            .extensions
+            .as_ref()
+            .and_then(|exts| {
+                for (key, ext) in exts.iter() {
+                    if Identifier::from_str(key)
+                        .map(|id| id.get_type() == "extension-definition")
+                        .unwrap_or(false)
+                    {
+                        if let Some(DictionaryValue::String(val)) = ext.get("extension_type") {
+                            if val != "property-extension" && val != "toplevel-property-extension" {
+                                return Some(key.as_str());
+                            }
+                        }
+                    }
+                }
+                None
+            })
+            .unwrap_or("extension-definition--00000000-0000-0000-0000-000000000000");
+
+        let mut builder = match object_type {
+            ExtensionType::NewSdo => {
+                CustomObjectBuilder::new_sdo(&object_type_name, custom_properties, ext_def_id)?
+            }
+            ExtensionType::NewSro => {
+                CustomObjectBuilder::new_sro(&object_type_name, custom_properties, ext_def_id)?
+            }
+            ExtensionType::NewSco => {
+                CustomObjectBuilder::new_sco(&object_type_name, custom_properties, ext_def_id)?
+            }
+            _ => unreachable!(),
+        };
+
+        let object_name = match object_type {
+            ExtensionType::NewSdo => "sdo",
+            ExtensionType::NewSro => "sro",
+            ExtensionType::NewSco => "sco",
+            _ => unreachable!(),
+        };
+        builder.common_properties =
+            CommonPropertiesBuilder::from_existing(object_name, &old.common_properties)?;
+
+        Ok(builder)
+    }
+
     /// Create a new STIX 2.1 `CustomObjectBuilder` by cloning the fields from an existing `CustomObject`
     /// When built, this will create `CustomObject` as a newer version of the original object.
     ///
@@ -389,6 +444,18 @@ impl CustomObjectBuilder {
     /// If the language is English ("en"), this does not need to be set (but it can be if specificity is desired).
     pub fn lang(mut self, language: String) -> Self {
         self.common_properties = self.common_properties.clone().lang(language);
+        self
+    }
+
+    /// Set the `created` timestamp for a custom object under construction.
+    pub fn created(mut self, created: Timestamp) -> Self {
+        self.common_properties = self.common_properties.clone().created(created);
+        self
+    }
+
+    /// Set the `modified` timestamp for a custom object under construction.
+    pub fn modified(mut self, modified: Timestamp) -> Self {
+        self.common_properties = self.common_properties.clone().modified(modified);
         self
     }
 
