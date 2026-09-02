@@ -3114,9 +3114,16 @@ impl Bundle {
         };
         if let Some(kwargs) = kwargs {
             if let Some(objects_val) = kwargs.get_item("objects")? {
-                let obj_jsons: Vec<String> = objects_val.extract()?;
-                for obj_json in obj_jsons {
-                    bundle.push_json(&obj_json)
+                let py_list = objects_val.downcast::<PyList>()
+                    .map_err(|_| PyErr::new::<StixError, _>("Bundle.objects must be a list".to_string()))?;
+                for item in py_list.iter() {
+                    let json_str = if let Ok(s) = item.extract::<String>() {
+                        s
+                    } else {
+                        let json_obj = item.call_method0("to_json")?;
+                        json_obj.extract::<String>()?
+                    };
+                    bundle.push_json(&json_str)
                         .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
                 }
             }

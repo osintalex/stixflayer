@@ -299,3 +299,26 @@ def test_bundle_round_trip():
     bundle2 = stixflayer.Bundle.from_json(bundle.to_json())
     assert bundle2.objects[0].id == identity.id
     assert bundle2.objects[0].name == "Acme"
+
+
+def test_bundle_constructor_accepts_python_objects():
+    """Bundle(objects=[...]) can accept wrapper objects directly, not just JSON strings."""
+    identity = stixflayer.Identity(name="Acme", identity_class="organization")
+    ipv4 = stixflayer.IPv4Address(value="198.51.100.1")
+    custom = stixflayer.CustomObject(
+        type_="vendor-enrichment-sdo",
+        extension_type="new-sdo",
+        custom_properties={"name": "Enrichment"},
+    )
+
+    # Pass actual Python objects as well as a JSON string to prove mixed input works.
+    bundle = stixflayer.Bundle(objects=[identity, ipv4, custom.to_json()])
+    assert bundle.object_count == 3
+
+    rec_identity, rec_ipv4, rec_custom = bundle.objects
+    assert isinstance(rec_identity, stixflayer.Identity)
+    assert rec_identity.name == "Acme"
+    assert isinstance(rec_ipv4, stixflayer.IPv4Address)
+    assert rec_ipv4.value == "198.51.100.1"
+    assert isinstance(rec_custom, stixflayer.CustomObject)
+    assert rec_custom.custom_properties["name"] == "Enrichment"
