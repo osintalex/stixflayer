@@ -1,7 +1,6 @@
 //! Contains the implementation logic for STIX Cyber-observable Objects (SCOs).
-use stix_derive::StixProperties;
 use crate::{
-    base::{CommonProperties, CommonPropertiesBuilder, BuilderType, Stix},
+    base::{BuilderType, CommonProperties, CommonPropertiesBuilder, Stix},
     cyber_observable_objects::{
         sco_types::{
             Artifact, AutonomousSystem, Directory, DomainName, EmailAddress, EmailMessage,
@@ -23,6 +22,7 @@ use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{collections::HashMap, str::FromStr, sync::LazyLock};
+use stix_derive::StixProperties;
 use strum::{AsRefStr, Display as StrumDisplay, EnumString};
 use url::Url as RustUrl;
 
@@ -88,14 +88,8 @@ static OPTIONAL_ID_PROPERTIES: LazyLock<HashMap<&'static str, Vec<&'static str>>
             "user-account",
             vec!["account_type", "user_id", "account_login"],
         );
-        m.insert(
-            "windows-registry-key",
-            vec!["key", "values"],
-        );
-        m.insert(
-            "x509-certificate",
-            vec!["hashes", "serial_number"],
-        );
+        m.insert("windows-registry-key", vec!["key", "values"]);
+        m.insert("x509-certificate", vec!["hashes", "serial_number"]);
         m
     });
 
@@ -132,8 +126,8 @@ impl CyberObject {
     /// If the `allow_custom` flag is false, checks that there are no fields in the JSON String
     /// that are not in the SCO type definition.
     pub fn from_json(json: &str, allow_custom: bool) -> Result<Self, Error> {
-        let value: serde_json::Value = serde_json::from_str(json)
-            .map_err(|e| Error::DeserializationError(e.to_string()))?;
+        let value: serde_json::Value =
+            serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
         validate_value(value, allow_custom, true)
     }
 
@@ -2283,7 +2277,8 @@ impl CyberObjectBuilder {
             && self.common_properties.builder_type != BuilderType::FromExisting
         {
             if let Some(contributing_properties) = self.get_uuid5_properties()? {
-                let id_v5 = Identifier::new_v5(self.object_type.as_ref(), &contributing_properties)?;
+                let id_v5 =
+                    Identifier::new_v5(self.object_type.as_ref(), &contributing_properties)?;
                 common_properties.id = id_v5;
             } else {
                 common_properties.id = Identifier::new_v4(self.object_type.as_ref())?;
@@ -2330,21 +2325,24 @@ impl CyberObjectBuilder {
                     properties.insert(field.to_string(), IdPropertyValue::String(value));
                 } else if object_type == "network-traffic" {
                     // NetworkTraffic.protocols is a Vec<String>
-                    let protocols = match get_field_by_name::<&CyberObjectBuilder, Vec<String>>(self, field)? {
-                        Some(v) => v,
-                        None => return Ok(None),
-                    };
+                    let protocols =
+                        match get_field_by_name::<&CyberObjectBuilder, Vec<String>>(self, field)? {
+                            Some(v) => v,
+                            None => return Ok(None),
+                        };
                     properties.insert(field.to_string(), IdPropertyValue::List(protocols));
                 } else if object_type == "url" {
                     // Url.value is a url::Url
-                    let value = match get_field_by_name::<&CyberObjectBuilder, RustUrl>(self, field)? {
-                        Some(v) => v.to_string(),
-                        None => return Ok(None),
-                    };
+                    let value =
+                        match get_field_by_name::<&CyberObjectBuilder, RustUrl>(self, field)? {
+                            Some(v) => v.to_string(),
+                            None => return Ok(None),
+                        };
                     properties.insert(field.to_string(), IdPropertyValue::String(value));
                 } else {
                     // Everything else is a String
-                    let value = match get_field_by_name::<&CyberObjectBuilder, String>(self, field)? {
+                    let value = match get_field_by_name::<&CyberObjectBuilder, String>(self, field)?
+                    {
                         Some(v) => v,
                         None => return Ok(None),
                     };
@@ -2522,8 +2520,17 @@ impl Stix for IdPropertyValue {
 
 /// The various SCO types represented in STIX.
 #[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, AsRefStr, EnumString, StrumDisplay,
-StixProperties)]
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    AsRefStr,
+    EnumString,
+    StrumDisplay,
+    StixProperties,
+)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum CyberObjectType {

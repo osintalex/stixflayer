@@ -84,8 +84,7 @@ fn common_except_defanged() -> Vec<&'static str> {
 }
 
 fn compose(variant: &VariantProps, common: &[&'static str]) -> TypeProperties {
-    let mut known: Vec<&'static str> =
-        Vec::with_capacity(variant.known.len() + common.len() + 1);
+    let mut known: Vec<&'static str> = Vec::with_capacity(variant.known.len() + common.len() + 1);
     known.extend_from_slice(variant.known);
     known.extend_from_slice(common);
     known.push(TYPE_KEY);

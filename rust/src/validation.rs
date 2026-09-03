@@ -51,10 +51,7 @@ pub fn validate_value<T: DeserializeOwned + Stix>(
             let known: std::collections::HashSet<&str> = props.known.iter().copied().collect();
 
             if !allow_custom {
-                let unknown: Vec<String> = keys
-                    .difference(&known)
-                    .map(|k| k.to_string())
-                    .collect();
+                let unknown: Vec<String> = keys.difference(&known).map(|k| k.to_string()).collect();
                 if !unknown.is_empty() {
                     errors.push(Error::UnknownProperties {
                         object_type: type_name.to_string(),
@@ -76,8 +73,8 @@ pub fn validate_value<T: DeserializeOwned + Stix>(
 
     // For path-aware deserialization we need a textual form. This serializes the
     // value once instead of the previous N-pass parse/serialize dance.
-    let json = serde_json::to_string(&value)
-        .map_err(|e| Error::SerializationError(e.to_string()))?;
+    let json =
+        serde_json::to_string(&value).map_err(|e| Error::SerializationError(e.to_string()))?;
 
     let typed: T = match serde_path::deserialize(&mut serde_json::Deserializer::from_str(&json)) {
         Ok(t) => t,
@@ -177,11 +174,15 @@ mod tests {
         match err {
             Error::ValidationErrors(errors) => {
                 assert!(
-                    errors.iter().any(|e| matches!(e, Error::UnknownProperties { .. })),
+                    errors
+                        .iter()
+                        .any(|e| matches!(e, Error::UnknownProperties { .. })),
                     "missing unknown property error"
                 );
                 assert!(
-                    errors.iter().any(|e| matches!(e, Error::ValidationError(_))),
+                    errors
+                        .iter()
+                        .any(|e| matches!(e, Error::ValidationError(_))),
                     "missing validation error"
                 );
             }

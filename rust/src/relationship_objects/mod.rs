@@ -4,17 +4,17 @@
 
 pub mod types;
 
-use stix_derive::StixProperties;
 use crate::{
     base::{check_timestamp_ordering, CommonProperties, CommonPropertiesBuilder, Stix},
     error::{add_error, return_multiple_errors, StixError as Error},
     relationship_objects::types::RelationshipType,
     types::{
-        DictionaryValue, ExternalReference, GranularMarking, Identified, Identifier, ScoTypes,
-        SdoTypes, SroTypes, StixDictionary, StixMetaTypes, Timestamp, stix_case,
+        stix_case, DictionaryValue, ExternalReference, GranularMarking, Identified, Identifier,
+        ScoTypes, SdoTypes, SroTypes, StixDictionary, StixMetaTypes, Timestamp,
     },
     validation::validate_value,
 };
+use stix_derive::StixProperties;
 
 use log::warn;
 use regex::Regex;
@@ -55,8 +55,8 @@ impl RelationshipObject {
     /// If the `allow_custom` flag is false, checks that there are no fields in the JSON String
     /// that are not in the SRO type definition.
     pub fn from_json(json: &str, allow_custom: bool) -> Result<Self, Error> {
-        let value: serde_json::Value = serde_json::from_str(json)
-            .map_err(|e| Error::DeserializationError(e.to_string()))?;
+        let value: serde_json::Value =
+            serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
         validate_value(value, allow_custom, true)
     }
 
@@ -156,7 +156,9 @@ pub fn check_sro_properties(properties: &CommonProperties) -> Result<(), Error> 
 }
 
 /// Whether the SRO is a standard generic or a sighting
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, AsRefStr, StrumDisplay, StixProperties)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, AsRefStr, StrumDisplay, StixProperties,
+)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum RelationshipObjectType {
@@ -279,20 +281,16 @@ impl Stix for Sighting {
             }
         }
 
-        if SdoTypes::iter()
-            .all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type()))
-        {
+        if SdoTypes::iter().all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type())) {
             return Err(Error::ValidationError(format!(
                 "Sighting of ref must be an SDO. Sighting of ref is type {}.",
                 self.sighting_of_ref.get_type()
             )));
         }
-        if !ScoTypes::iter()
-            .all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type()))
+        if !ScoTypes::iter().all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type()))
             || !StixMetaTypes::iter()
                 .all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type()))
-            || !SroTypes::iter()
-                .all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type()))
+            || !SroTypes::iter().all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type()))
         {
             return Err(Error::ValidationError(format!(
                 "Sighting of ref must be an SDO. Sighting of ref is type {}.",

@@ -44,8 +44,8 @@ impl CustomObject {
     /// Deserializes a custom object from a JSON String.
     /// Checks that all fields conform to the STIX 2.1 standard.
     pub fn from_json(json: &str) -> Result<Self, Error> {
-        let value: serde_json::Value = serde_json::from_str(json)
-            .map_err(|e| Error::DeserializationError(e.to_string()))?;
+        let value: serde_json::Value =
+            serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
         validate_value(value, true, true)
     }
 

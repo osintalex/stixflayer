@@ -1,6 +1,5 @@
 //! Defines the data structures for each specific STIX Domain Object type.
 
-use stix_derive::StixProperties;
 use crate::{
     base::{check_timestamp_ordering, Stix},
     domain_objects::vocab::{
@@ -12,13 +11,17 @@ use crate::{
     },
     error::{add_error, return_multiple_errors, StixError as Error},
     pattern::validate_pattern,
-    types::{Identifier, KillChainPhase, ScoTypes, SdoTypes, SroTypes, StixMetaTypes, Timestamp, stix_case},
+    types::{
+        stix_case, Identifier, KillChainPhase, ScoTypes, SdoTypes, SroTypes, StixMetaTypes,
+        Timestamp,
+    },
 };
 use log::warn;
 use ordered_float::OrderedFloat as ordered_float;
 use serde::{Deserialize, Serialize};
 use serde_this_or_that::as_u64;
 use serde_with::skip_serializing_none;
+use stix_derive::StixProperties;
 use strum::IntoEnumIterator;
 
 /// Attack Pattern SDOs
@@ -331,8 +334,7 @@ impl Stix for Indicator {
         // If the pattern is a STIX Pattern, validate it using the Rust implemtation of STIX Patterning
         if stix_case(&self.pattern_type) == "stix" {
             add_error(&mut errors, validate_pattern(&self.pattern));
-        } else if IndicatorPatternType::iter()
-            .all(|x| x.as_ref() != stix_case(&self.pattern_type))
+        } else if IndicatorPatternType::iter().all(|x| x.as_ref() != stix_case(&self.pattern_type))
         {
             errors.push(Error::ValidationError(format!(
                 "A pattern type should come from the STIX pattern type open vocabulary. Pattern type {} for is not in the vocabulary.",
@@ -342,8 +344,7 @@ impl Stix for Indicator {
         if let Some(indicator_types) = &self.indicator_types {
             add_error(&mut errors, indicator_types.stix_check());
             for indicator_type in indicator_types {
-                if IndicatorType::iter().all(|x| x.as_ref() != stix_case(&indicator_type))
-                {
+                if IndicatorType::iter().all(|x| x.as_ref() != stix_case(&indicator_type)) {
                     errors.push(Error::ValidationError(format!(
                         "A indicator Type should come from the STIX pattern type open vocabulary. Identity sector '{}' is not in the vocabulary.",
                         indicator_type,
@@ -368,7 +369,6 @@ impl Stix for Indicator {
         return_multiple_errors(errors)
     }
 }
-
 
 ///
 /// The Infrastructure SDO represents a type of TTP and describes any systems, software services and any associated physical or virtual resources intended to
@@ -419,8 +419,7 @@ impl Stix for Infrastructure {
         if let Some(its) = &self.infrastructure_types {
             add_error(&mut errors, its.stix_check());
             for infrastructure_type in its {
-                if InfrastructureType::iter()
-                    .all(|x| x.as_ref() != stix_case(&infrastructure_type))
+                if InfrastructureType::iter().all(|x| x.as_ref() != stix_case(&infrastructure_type))
                 {
                     errors.push(Error::ValidationError(format!(
                         "An infrastructure type should come from the STIX pattern type open vocabulary. Infrastructure type {} for is not in the vocabulary.",
@@ -515,9 +514,7 @@ impl Stix for IntrusionSet {
         }
 
         if let Some(resource_level) = self.resource_level.as_deref() {
-            if AttackResourceLevel::iter()
-                .all(|x| x.as_ref() != stix_case(&resource_level))
-            {
+            if AttackResourceLevel::iter().all(|x| x.as_ref() != stix_case(&resource_level)) {
                 errors.push(Error::ValidationError(format!(
                         "A resource_level should come from the attack resource level open vocabulary. IntrusionSet resource_level {} is not in the vocabulary.",
                         resource_level,
@@ -770,9 +767,7 @@ impl Stix for Malware {
                     )));
                     continue;
                 }
-                if MalwareType::iter()
-                    .all(|x| x.as_ref() != stix_case(&malware_type.as_str()))
-                {
+                if MalwareType::iter().all(|x| x.as_ref() != stix_case(&malware_type.as_str())) {
                     errors.push(Error::ValidationError(format!(
                         "malware_types '{}' should come from the list",
                         malware_type
@@ -827,8 +822,7 @@ impl Stix for Malware {
         if let Some(capabilities) = &self.capabilities {
             add_error(&mut errors, capabilities.stix_check());
             for capability in capabilities {
-                if MalwareCapability::iter()
-                    .all(|x| x.as_ref() != stix_case(&capability.as_str()))
+                if MalwareCapability::iter().all(|x| x.as_ref() != stix_case(&capability.as_str()))
                 {
                     errors.push(Error::ValidationError(format!(
                         "A capability should come from the STIX pattern type open vocabulary. Malware capability '{}' is not in the vocabulary.",
@@ -965,16 +959,13 @@ impl Stix for MalwareAnalysis {
         if let Some(analysis_sco_refs) = &self.analysis_sco_refs {
             add_error(&mut errors, analysis_sco_refs.stix_check());
             for analysis_sco_ref in analysis_sco_refs {
-                if ScoTypes::iter()
-                    .all(|x| x.as_ref() != stix_case(&analysis_sco_ref.get_type()))
-                {
+                if ScoTypes::iter().all(|x| x.as_ref() != stix_case(&analysis_sco_ref.get_type())) {
                     errors.push(Error::ValidationError(format!(
                         "An analysis_sco_ref should come from STIX Cyber-observable objects. Malware is type '{}'.",
                         analysis_sco_ref,
                     )));
                 }
-                if !SroTypes::iter()
-                    .all(|x| x.as_ref() != stix_case(&analysis_sco_ref.get_type()))
+                if !SroTypes::iter().all(|x| x.as_ref() != stix_case(&analysis_sco_ref.get_type()))
                     || !SdoTypes::iter()
                         .all(|x| x.as_ref() != stix_case(&analysis_sco_ref.get_type()))
                     || !StixMetaTypes::iter()
@@ -998,10 +989,8 @@ impl Stix for MalwareAnalysis {
             }
 
             if !SroTypes::iter().all(|x| x.as_ref() != stix_case(&sample_ref.get_type()))
-                || !SdoTypes::iter()
-                    .all(|x| x.as_ref() != stix_case(&sample_ref.get_type()))
-                || !StixMetaTypes::iter()
-                    .all(|x| x.as_ref() != stix_case(&sample_ref.get_type()))
+                || !SdoTypes::iter().all(|x| x.as_ref() != stix_case(&sample_ref.get_type()))
+                || !StixMetaTypes::iter().all(|x| x.as_ref() != stix_case(&sample_ref.get_type()))
             {
                 errors.push(Error::ValidationError(format!(
                     "A sample_ref must be an SCO. Malware Analysis host_vm_ref is type '{}'.",
@@ -1266,8 +1255,7 @@ impl Stix for Report {
                 }
                 if !ScoTypes::iter().all(|x| x.as_ref() != stix_case(&report_type))
                     || !SroTypes::iter().all(|x| x.as_ref() != stix_case(&report_type))
-                    || !StixMetaTypes::iter()
-                        .all(|x| x.as_ref() != stix_case(&report_type))
+                    || !StixMetaTypes::iter().all(|x| x.as_ref() != stix_case(&report_type))
                 {
                     errors.push(Error::ValidationError(format!(
                         "A report type must be an SDO. Report is type {}.",
@@ -1367,8 +1355,7 @@ impl Stix for ThreatActor {
         if let Some(roles) = &self.roles {
             add_error(&mut errors, roles.stix_check());
             for role in roles {
-                if ThreatActorRole::iter().all(|x| x.as_ref() != stix_case(&role.as_str()))
-                {
+                if ThreatActorRole::iter().all(|x| x.as_ref() != stix_case(&role.as_str())) {
                     errors.push(Error::ValidationError(format!(
                         "A role should come from the STIX pattern type open vocabulary. Threat actor role '{}' is not in the vocabulary.",
                         role,
@@ -1381,9 +1368,7 @@ impl Stix for ThreatActor {
         }
 
         if let Some(resource_level) = self.resource_level.as_deref() {
-            if AttackResourceLevel::iter()
-                .all(|x| x.as_ref() != stix_case(&resource_level))
-            {
+            if AttackResourceLevel::iter().all(|x| x.as_ref() != stix_case(&resource_level)) {
                 errors.push(Error::ValidationError(format!(
                     "A resource_level should come from the attack resource level open vocabulary. ThreatActor resource_level {} is not in the vocabulary.",
                     resource_level,
@@ -1392,9 +1377,7 @@ impl Stix for ThreatActor {
         }
 
         if let Some(sophistication) = self.sophistication.as_deref() {
-            if ThreatActorSophistication::iter()
-                .all(|x| x.as_ref() != stix_case(&sophistication))
-            {
+            if ThreatActorSophistication::iter().all(|x| x.as_ref() != stix_case(&sophistication)) {
                 errors.push(Error::ValidationError(format!(
                         "A sophistication should come from the STIX pattern type open vocabulary. Threat actor sophistication {} is not in the vocabulary.",
                         sophistication,
@@ -1402,9 +1385,7 @@ impl Stix for ThreatActor {
             }
         }
         if let Some(primary_motivation) = self.primary_motivation.as_deref() {
-            if AttackMotivation::iter()
-                .all(|x| x.as_ref() != stix_case(&primary_motivation))
-            {
+            if AttackMotivation::iter().all(|x| x.as_ref() != stix_case(&primary_motivation)) {
                 errors.push(Error::ValidationError(format!(
                         "A primary_motivation should come from the STIX pattern type open vocabulary. Threat actor primary_motivation {} is not in the vocabulary.",
                         primary_motivation,

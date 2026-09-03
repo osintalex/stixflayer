@@ -45,8 +45,8 @@ fn registry_covers_all_valid_fixture_properties() {
     let mut checked = 0;
     let mut recognized = 0;
     for path in fixture_paths("valid") {
-        let text = fs::read_to_string(&path)
-            .unwrap_or_else(|e| panic!("read {}: {}", path.display(), e));
+        let text =
+            fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {}", path.display(), e));
         let value: Value = serde_json::from_str(&text)
             .unwrap_or_else(|e| panic!("parse {}: {}", path.display(), e));
         let Some(object) = value.as_object() else {
@@ -91,7 +91,15 @@ fn composed_registry_includes_common_and_type_properties() {
     for key in ["name", "description", "kill_chain_phases"] {
         assert!(props.known.contains(&key), "attack-pattern known: {key}");
     }
-    for key in ["type", "id", "spec_version", "created", "modified", "labels", "extensions"] {
+    for key in [
+        "type",
+        "id",
+        "spec_version",
+        "created",
+        "modified",
+        "labels",
+        "extensions",
+    ] {
         assert!(props.known.contains(&key), "attack-pattern common: {key}");
     }
     // SDOs cannot have `defanged`
@@ -151,11 +159,20 @@ fn meta_types_are_registered() {
 #[test]
 fn relationship_registry_includes_sro_fields() {
     let relationship = type_properties("relationship").expect("relationship");
-    for key in ["relationship_type", "source_ref", "target_ref", "start_time", "stop_time"] {
+    for key in [
+        "relationship_type",
+        "source_ref",
+        "target_ref",
+        "start_time",
+        "stop_time",
+    ] {
         assert!(relationship.known.contains(&key), "relationship: {key}");
     }
     for key in ["relationship_type", "source_ref", "target_ref", "id"] {
-        assert!(relationship.required.contains(&key), "relationship required: {key}");
+        assert!(
+            relationship.required.contains(&key),
+            "relationship required: {key}"
+        );
     }
 
     let sighting = type_properties("sighting").expect("sighting");

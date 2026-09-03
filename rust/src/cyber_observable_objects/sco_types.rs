@@ -1,15 +1,12 @@
 //! Defines the data structures for each specific STIX Cyber-observable Object type.
-use stix_derive::StixProperties;
 use crate::{
     base::Stix,
     cyber_observable_objects::{
         lang_codes::{is_iso639_2_code, is_valid_language_code},
-        vocab::{
-            AccountTypeVocabulary, EncryptionAlgorithm, WindowsRegistryDataTypeEnum,
-        },
+        vocab::{AccountTypeVocabulary, EncryptionAlgorithm, WindowsRegistryDataTypeEnum},
     },
     error::{add_error, return_multiple_errors, StixError as Error},
-    types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp, stix_case},
+    types::{stix_case, DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp},
 };
 use addr::parse_domain_name;
 use base64::{engine::general_purpose, Engine};
@@ -20,6 +17,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_this_or_that::{as_opt_i64, as_opt_u64, as_u64};
 use serde_with::skip_serializing_none;
+use stix_derive::StixProperties;
 use strum::IntoEnumIterator;
 
 use url::Url as RustUrl;
@@ -1129,9 +1127,7 @@ impl Stix for UserAccount {
         let mut errors = Vec::new();
 
         if let Some(account_type_str) = &self.account_type {
-            if !AccountTypeVocabulary::iter()
-                .any(|x| x.as_ref() == stix_case(&account_type_str))
-            {
+            if !AccountTypeVocabulary::iter().any(|x| x.as_ref() == stix_case(&account_type_str)) {
                 errors.push(Error::ValidationError(format!(
                     "The account_type property should come from the `account-type-ov` open vocabulary. Account type '{}' is not in the vocabulary.",
                     account_type_str

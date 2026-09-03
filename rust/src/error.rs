@@ -436,8 +436,8 @@ mod tests {
         assert!(return_multiple_errors(vec![]).is_ok());
         let single = return_multiple_errors(vec![StixError::EmptyList]).unwrap_err();
         assert!(matches!(single, StixError::EmptyList));
-        let multiple = return_multiple_errors(vec![StixError::EmptyList, StixError::EmptyList])
-            .unwrap_err();
+        let multiple =
+            return_multiple_errors(vec![StixError::EmptyList, StixError::EmptyList]).unwrap_err();
         assert!(matches!(multiple, StixError::ValidationErrors(_)));
     }
 
@@ -446,7 +446,10 @@ mod tests {
         let error = classify("{}");
         let envelope = error.to_json();
         assert_eq!(envelope["error"], "validation");
-        assert_eq!(envelope["message"], "`attack-pattern` is missing required property 'name'");
+        assert_eq!(
+            envelope["message"],
+            "`attack-pattern` is missing required property 'name'"
+        );
         let entries = envelope["errors"].as_array().unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0]["kind"], "missing_property");
@@ -514,8 +517,7 @@ mod tests {
         let entries = envelope["errors"].as_array().unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0]["kind"], "unknown_property");
-        let props: Vec<String> =
-            serde_json::from_value(entries[0]["properties"].clone()).unwrap();
+        let props: Vec<String> = serde_json::from_value(entries[0]["properties"].clone()).unwrap();
         assert_eq!(props, vec!["foo", "bar"]);
     }
 
@@ -524,7 +526,10 @@ mod tests {
         let error = StixError::EmptyList;
         let envelope = error.to_json();
         assert_eq!(envelope["error"], "stix");
-        assert_eq!(envelope["message"], "Empty lists and dictionaries are prohibted in STIX");
+        assert_eq!(
+            envelope["message"],
+            "Empty lists and dictionaries are prohibted in STIX"
+        );
         assert!(envelope["errors"].as_array().unwrap().is_empty());
     }
 

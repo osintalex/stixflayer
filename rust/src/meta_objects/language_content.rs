@@ -1,7 +1,7 @@
 //! Data structures and functions for implementing Lanugage Content SMOs
 
-use stix_derive::StixProperties;
 use std::str::FromStr;
+use stix_derive::StixProperties;
 
 use crate::{
     base::{CommonProperties, CommonPropertiesBuilder, Stix},
@@ -61,8 +61,8 @@ impl LanguageContent {
     /// If the `allow_custom` flag is false, checks that there are no fields in the JSON String
     /// that are not in the Language Content SMO type definition.
     pub fn from_json(json: &str, allow_custom: bool) -> Result<Self, Error> {
-        let value: serde_json::Value = serde_json::from_str(json)
-            .map_err(|e| Error::DeserializationError(e.to_string()))?;
+        let value: serde_json::Value =
+            serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
         validate_value(value, allow_custom, true)
     }
 

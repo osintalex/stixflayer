@@ -2,7 +2,6 @@
 
 #![allow(dead_code)]
 
-use stix_derive::StixProperties;
 use crate::{
     base::{CommonProperties, CommonPropertiesBuilder, Stix},
     domain_objects::{
@@ -16,11 +15,12 @@ use crate::{
     error::{add_error, return_multiple_errors, StixError as Error},
     relationship_objects::{Related, RelationshipObjectBuilder},
     types::{
-        DictionaryValue, ExternalReference, GranularMarking, Identified, Identifier,
-        KillChainPhase, StixDictionary, Timestamp, stix_case,
+        stix_case, DictionaryValue, ExternalReference, GranularMarking, Identified, Identifier,
+        KillChainPhase, StixDictionary, Timestamp,
     },
     validation::validate_value,
 };
+use stix_derive::StixProperties;
 
 use jiff::Timestamp as JiffTimestamp;
 use ordered_float::OrderedFloat as ordered_float;
@@ -53,8 +53,8 @@ impl DomainObject {
     /// If the `allow_custom` flag is false, checks that there are no fields in the JSON String
     /// that are not in the SDO type definition.
     pub fn from_json(json: &str, allow_custom: bool) -> Result<Self, Error> {
-        let value: Value = serde_json::from_str(json)
-            .map_err(|e| Error::DeserializationError(e.to_string()))?;
+        let value: Value =
+            serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
         validate_value(value, allow_custom, true)
     }
 
@@ -163,8 +163,17 @@ pub fn check_sdo_properties(properties: &CommonProperties) -> Result<(), Error> 
 
 /// The various SDO types represented in STIX.
 #[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, AsRefStr, EnumString, StrumDisplay,
-StixProperties)]
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    AsRefStr,
+    EnumString,
+    StrumDisplay,
+    StixProperties,
+)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum DomainObjectType {

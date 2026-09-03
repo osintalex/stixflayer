@@ -140,7 +140,10 @@ impl StixObject {
 
     /// Deserialize any STIX Object from an already-parsed JSON value.
     pub fn from_value(value: Value, allow_custom: bool, strict: bool) -> Result<Self, Error> {
-        let type_name = value.get("type").and_then(|v| v.as_str()).unwrap_or_default();
+        let type_name = value
+            .get("type")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
         match get_object_type(type_name).as_ref() {
             "sdo" => Ok(StixObject::Sdo(validate_value(
                 value,
@@ -207,9 +210,18 @@ impl StixObject {
             .map(|v| v.take())
             .ok_or_else(|| Error::ValidationError("Envelope missing 'object' field".to_string()))?;
         let options = envelope.get("options").unwrap_or(&Value::Null);
-        let strict = options.get("strict").and_then(|v| v.as_bool()).unwrap_or(true);
-        let version = options.get("version").and_then(|v| v.as_str()).unwrap_or("2.1");
-        let allow_custom = options.get("allow_custom").and_then(|v| v.as_bool()).unwrap_or(false);
+        let strict = options
+            .get("strict")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+        let version = options
+            .get("version")
+            .and_then(|v| v.as_str())
+            .unwrap_or("2.1");
+        let allow_custom = options
+            .get("allow_custom")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
 
         if version != "2.1" {
             return Err(Error::ValidationError(format!(
@@ -245,7 +257,12 @@ impl Stix for StixObject {
 ///
 /// `strict` controls full validation, `version` must be "2.1", and
 /// `allow_custom` permits unknown fields.
-pub fn parse_sdo(json_str: &str, strict: bool, version: &str, allow_custom: bool) -> Result<DomainObject, Error> {
+pub fn parse_sdo(
+    json_str: &str,
+    strict: bool,
+    version: &str,
+    allow_custom: bool,
+) -> Result<DomainObject, Error> {
     let envelope = serde_json::json!({
         "object": serde_json::from_str::<serde_json::Value>(json_str)
             .map_err(|e| Error::DeserializationError(e.to_string()))?,
@@ -268,7 +285,12 @@ pub fn parse_sdo(json_str: &str, strict: bool, version: &str, allow_custom: bool
 /// Parse an SCO from a JSON envelope.
 ///
 /// See [`parse_sdo`] for parameter semantics.
-pub fn parse_sco(json_str: &str, strict: bool, version: &str, allow_custom: bool) -> Result<CyberObject, Error> {
+pub fn parse_sco(
+    json_str: &str,
+    strict: bool,
+    version: &str,
+    allow_custom: bool,
+) -> Result<CyberObject, Error> {
     let envelope = serde_json::json!({
         "object": serde_json::from_str::<serde_json::Value>(json_str)
             .map_err(|e| Error::DeserializationError(e.to_string()))?,
@@ -291,7 +313,12 @@ pub fn parse_sco(json_str: &str, strict: bool, version: &str, allow_custom: bool
 /// Parse an SRO from a JSON envelope.
 ///
 /// See [`parse_sdo`] for parameter semantics.
-pub fn parse_sro(json_str: &str, strict: bool, version: &str, allow_custom: bool) -> Result<RelationshipObject, Error> {
+pub fn parse_sro(
+    json_str: &str,
+    strict: bool,
+    version: &str,
+    allow_custom: bool,
+) -> Result<RelationshipObject, Error> {
     let envelope = serde_json::json!({
         "object": serde_json::from_str::<serde_json::Value>(json_str)
             .map_err(|e| Error::DeserializationError(e.to_string()))?,
@@ -326,7 +353,12 @@ pub trait FromJson: Sized {
     /// - `strict: false` skips validation but still parses.
     /// - `allow_custom: true` permits unknown fields; `false` rejects them.
     /// - `version` must currently be `"2.1"`.
-    fn from_json(json_str: &str, strict: bool, version: &str, allow_custom: bool) -> Result<Self, Error>;
+    fn from_json(
+        json_str: &str,
+        strict: bool,
+        version: &str,
+        allow_custom: bool,
+    ) -> Result<Self, Error>;
 }
 
 macro_rules! impl_from_json_sdo {
@@ -486,30 +518,62 @@ macro_rules! impl_from_json_custom {
 
 // ── SDO implementations ──────────────────────────────────────────────
 
-impl_from_json_sdo!(AttackPattern, DomainObjectType::AttackPattern, "attack-pattern");
+impl_from_json_sdo!(
+    AttackPattern,
+    DomainObjectType::AttackPattern,
+    "attack-pattern"
+);
 impl_from_json_sdo!(Campaign, DomainObjectType::Campaign, "campaign");
-impl_from_json_sdo!(CourseOfAction, DomainObjectType::CourseOfAction, "course-of-action");
+impl_from_json_sdo!(
+    CourseOfAction,
+    DomainObjectType::CourseOfAction,
+    "course-of-action"
+);
 impl_from_json_sdo!(Grouping, DomainObjectType::Grouping, "grouping");
 impl_from_json_sdo!(Identity, DomainObjectType::Identity, "identity");
 impl_from_json_sdo!(Incident, DomainObjectType::Incident, "incident");
 impl_from_json_sdo!(Indicator, DomainObjectType::Indicator, "indicator");
-impl_from_json_sdo!(Infrastructure, DomainObjectType::Infrastructure, "infrastructure");
-impl_from_json_sdo!(IntrusionSet, DomainObjectType::IntrusionSet, "intrusion-set");
+impl_from_json_sdo!(
+    Infrastructure,
+    DomainObjectType::Infrastructure,
+    "infrastructure"
+);
+impl_from_json_sdo!(
+    IntrusionSet,
+    DomainObjectType::IntrusionSet,
+    "intrusion-set"
+);
 impl_from_json_sdo!(Location, DomainObjectType::Location, "location");
 impl_from_json_sdo!(Malware, DomainObjectType::Malware, "malware");
-impl_from_json_sdo!(MalwareAnalysis, DomainObjectType::MalwareAnalysis, "malware-analysis");
+impl_from_json_sdo!(
+    MalwareAnalysis,
+    DomainObjectType::MalwareAnalysis,
+    "malware-analysis"
+);
 impl_from_json_sdo!(Note, DomainObjectType::Note, "note");
-impl_from_json_sdo!(ObservedData, DomainObjectType::ObservedData, "observed-data");
+impl_from_json_sdo!(
+    ObservedData,
+    DomainObjectType::ObservedData,
+    "observed-data"
+);
 impl_from_json_sdo!(Opinion, DomainObjectType::Opinion, "opinion");
 impl_from_json_sdo!(Report, DomainObjectType::Report, "report");
 impl_from_json_sdo!(ThreatActor, DomainObjectType::ThreatActor, "threat-actor");
 impl_from_json_sdo!(Tool, DomainObjectType::Tool, "tool");
-impl_from_json_sdo!(Vulnerability, DomainObjectType::Vulnerability, "vulnerability");
+impl_from_json_sdo!(
+    Vulnerability,
+    DomainObjectType::Vulnerability,
+    "vulnerability"
+);
 
 // ── SCO implementations ──────────────────────────────────────────────
 
 impl_from_json_sco!(Artifact, CyberObjectType::Artifact, "artifact");
-impl_from_json_sco!(AutonomousSystem, CyberObjectType::AutonomousSystem, "autonomous-system");
+impl_from_json_sco!(
+    AutonomousSystem,
+    CyberObjectType::AutonomousSystem,
+    "autonomous-system"
+);
 impl_from_json_sco!(Directory, CyberObjectType::Directory, "directory");
 impl_from_json_sco!(DomainName, CyberObjectType::DomainName, "domain-name");
 impl_from_json_sco!(EmailAddress, CyberObjectType::EmailAddress, "email-addr");
@@ -519,15 +583,32 @@ impl_from_json_sco!(Ipv4Addr, CyberObjectType::Ipv4Addr, "ipv4-addr");
 impl_from_json_sco!(Ipv6Addr, CyberObjectType::Ipv6Addr, "ipv6-addr");
 impl_from_json_sco!(ScoMacAddr, CyberObjectType::MacAddr, "mac-addr");
 impl_from_json_sco!(ScoMutex, CyberObjectType::Mutex, "mutex");
-impl_from_json_sco!(NetworkTraffic, CyberObjectType::NetworkTraffic, "network-traffic");
+impl_from_json_sco!(
+    NetworkTraffic,
+    CyberObjectType::NetworkTraffic,
+    "network-traffic"
+);
 impl_from_json_sco!(ScoProcess, CyberObjectType::Process, "process");
 impl_from_json_sco!(Software, CyberObjectType::Software, "software");
 impl_from_json_sco!(ScoUrl, CyberObjectType::Url, "url");
 impl_from_json_sco!(UserAccount, CyberObjectType::UserAccount, "user-account");
-impl_from_json_sco!(WindowsRegistryKey, CyberObjectType::WindowsRegistryKey, "windows-registry-key");
-impl_from_json_sco!(WindowsRegistryKeyType, CyberObjectType::WindowsRegistryKeyType, "windows-registry-key-type");
+impl_from_json_sco!(
+    WindowsRegistryKey,
+    CyberObjectType::WindowsRegistryKey,
+    "windows-registry-key"
+);
+impl_from_json_sco!(
+    WindowsRegistryKeyType,
+    CyberObjectType::WindowsRegistryKeyType,
+    "windows-registry-key-type"
+);
 impl FromJson for X509Certificate {
-    fn from_json(json_str: &str, strict: bool, version: &str, allow_custom: bool) -> Result<Self, Error> {
+    fn from_json(
+        json_str: &str,
+        strict: bool,
+        version: &str,
+        allow_custom: bool,
+    ) -> Result<Self, Error> {
         let envelope = serde_json::json!({
             "object": serde_json::from_str::<serde_json::Value>(json_str)
                 .map_err(|e| Error::DeserializationError(e.to_string()))?,
@@ -556,14 +637,30 @@ impl FromJson for X509Certificate {
 
 // ── SRO implementations ──────────────────────────────────────────────
 
-impl_from_json_sro!(Relationship, RelationshipObjectType::Relationship, "relationship");
+impl_from_json_sro!(
+    Relationship,
+    RelationshipObjectType::Relationship,
+    "relationship"
+);
 impl_from_json_sro!(Sighting, RelationshipObjectType::Sighting, "sighting");
 
 // ── Meta implementations ────────────────────────────────────────────────
 
-impl_from_json_meta!(LanguageContent, StixObject::LanguageContent, "language-content");
-impl_from_json_meta!(ExtensionDefinition, StixObject::ExtensionDefinition, "extension-definition");
-impl_from_json_meta!(MarkingDefinition, StixObject::MarkingDefinition, "marking-definition");
+impl_from_json_meta!(
+    LanguageContent,
+    StixObject::LanguageContent,
+    "language-content"
+);
+impl_from_json_meta!(
+    ExtensionDefinition,
+    StixObject::ExtensionDefinition,
+    "extension-definition"
+);
+impl_from_json_meta!(
+    MarkingDefinition,
+    StixObject::MarkingDefinition,
+    "marking-definition"
+);
 
 // ── Custom implementation ─────────────────────────────────────────────
 

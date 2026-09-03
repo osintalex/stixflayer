@@ -22,8 +22,7 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    parse_macro_input, Data, DataEnum, DeriveInput, GenericArgument, Ident, PathArguments,
-    Token,
+    parse_macro_input, Data, DataEnum, DeriveInput, GenericArgument, Ident, PathArguments, Token,
 };
 
 #[proc_macro_derive(StixProperties)]
@@ -62,7 +61,8 @@ fn parse_serde_attrs(attrs: &[syn::Attribute]) -> syn::Result<SerdeAttrs> {
             if meta.path.is_ident("rename") {
                 out.rename = Some(meta.value()?.parse::<syn::LitStr>()?.value());
             } else if meta.path.is_ident("alias") {
-                out.alias.push(meta.value()?.parse::<syn::LitStr>()?.value());
+                out.alias
+                    .push(meta.value()?.parse::<syn::LitStr>()?.value());
             } else if meta.path.is_ident("default") {
                 out.default = true;
             } else if meta.path.is_ident("flatten") {
@@ -127,7 +127,9 @@ fn stix_kebab(name: &str) -> String {
 }
 
 fn is_option(ty: &syn::Type) -> bool {
-    let syn::Type::Path(tp) = ty else { return false };
+    let syn::Type::Path(tp) = ty else {
+        return false;
+    };
     tp.path
         .segments
         .last()
@@ -135,8 +137,12 @@ fn is_option(ty: &syn::Type) -> bool {
 }
 
 fn strip_box(ty: &syn::Type) -> syn::Result<&syn::Type> {
-    let syn::Type::Path(tp) = ty else { return Ok(ty) };
-    let Some(seg) = tp.path.segments.last() else { return Ok(ty) };
+    let syn::Type::Path(tp) = ty else {
+        return Ok(ty);
+    };
+    let Some(seg) = tp.path.segments.last() else {
+        return Ok(ty);
+    };
     if seg.ident != "Box" {
         return Ok(ty);
     }

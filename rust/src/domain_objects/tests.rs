@@ -166,8 +166,14 @@ mod test {
             .unwrap();
 
         assert_eq!(parsed.common_properties.id, rebuilt.common_properties.id);
-        assert_eq!(parsed.common_properties.created, rebuilt.common_properties.created);
-        assert_eq!(parsed.common_properties.modified, rebuilt.common_properties.modified);
+        assert_eq!(
+            parsed.common_properties.created,
+            rebuilt.common_properties.created
+        );
+        assert_eq!(
+            parsed.common_properties.modified,
+            rebuilt.common_properties.modified
+        );
     }
 
     #[test]
@@ -209,8 +215,14 @@ mod test {
 
         assert_eq!(rebuilt.common_properties.revoked, Some(true));
         assert_eq!(parsed.common_properties.id, rebuilt.common_properties.id);
-        assert_eq!(parsed.common_properties.created, rebuilt.common_properties.created);
-        assert_eq!(parsed.common_properties.modified, rebuilt.common_properties.modified);
+        assert_eq!(
+            parsed.common_properties.created,
+            rebuilt.common_properties.created
+        );
+        assert_eq!(
+            parsed.common_properties.modified,
+            rebuilt.common_properties.modified
+        );
     }
 
     #[test]
@@ -773,7 +785,10 @@ mod test {
         }"#;
 
         let result = DomainObject::from_json(json, false).unwrap();
-        assert_eq!(result.common_properties.id.to_string(), "incident--cc7fa653-c35f-43db-afdd-dce4c3a241d5");
+        assert_eq!(
+            result.common_properties.id.to_string(),
+            "incident--cc7fa653-c35f-43db-afdd-dce4c3a241d5"
+        );
     }
 
     #[test]

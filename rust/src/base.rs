@@ -2,7 +2,6 @@
 
 #![allow(dead_code)]
 
-use stix_derive::StixProperties;
 use crate::{
     error::{add_error, return_multiple_errors, StixError as Error},
     extensions::{
@@ -19,6 +18,7 @@ use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::str::FromStr;
+use stix_derive::StixProperties;
 use strum::{EnumString, IntoEnumIterator};
 
 /// A trait for all STIX 2.1 compliant objects and properties.
@@ -521,20 +521,14 @@ impl CommonPropertiesBuilder {
                     // `modified` is set to the current time.
                     let now = Timestamp::now();
                     let created = match self.builder_type {
-                        BuilderType::Creation => {
-                            properties.created.unwrap_or_else(|| now.clone())
-                        }
-                        BuilderType::Version => {
-                            properties.created.expect(
-                                "versioned object must retain its original created time",
-                            )
-                        }
+                        BuilderType::Creation => properties.created.unwrap_or_else(|| now.clone()),
+                        BuilderType::Version => properties
+                            .created
+                            .expect("versioned object must retain its original created time"),
                         BuilderType::FromExisting => unreachable!(),
                     };
                     let modified = match self.builder_type {
-                        BuilderType::Creation => {
-                            properties.modified.unwrap_or_else(|| now.clone())
-                        }
+                        BuilderType::Creation => properties.modified.unwrap_or_else(|| now.clone()),
                         BuilderType::Version => now,
                         BuilderType::FromExisting => unreachable!(),
                     };
