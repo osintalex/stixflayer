@@ -473,7 +473,7 @@ mod test {
         "statement": "Copyright 2019, Example Corp"
       }
     }"#;
-        let result = MarkingDefinition::from_json(json, false).unwrap();
+        let result = MarkingDefinition::from_json(json, true, false).unwrap();
         let expected = MarkingDefinitionBuilder::new()
             .unwrap()
             .definition_type("statement".to_string())

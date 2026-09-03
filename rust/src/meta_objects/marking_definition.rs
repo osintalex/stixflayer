@@ -1,6 +1,5 @@
 //! Data structures and functions for implementing Marking Definition SMOs
 
-use stix_derive::StixProperties;
 use crate::{
     base::{CommonProperties, CommonPropertiesBuilder, Stix},
     error::{return_multiple_errors, StixError as Error},
@@ -11,6 +10,7 @@ use crate::{
 use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use stix_derive::StixProperties;
 
 /// Type Name: marking-definition
 /// The marking-definition object represents a specific marking. Data markings typically represent
@@ -54,10 +54,10 @@ impl MarkingDefinition {
     /// Checks that all fields conform to the STIX 2.1 standard.
     /// If the `allow_custom` flag is false, checks that there are no fields in the JSON String
     /// that are not in the Marking Definition SMO type definition.
-    pub fn from_json(json: &str, allow_custom: bool) -> Result<Self, Error> {
-        let value: serde_json::Value = serde_json::from_str(json)
-            .map_err(|e| Error::DeserializationError(e.to_string()))?;
-        validate_value(value, allow_custom, true)
+    pub fn from_json(json: &str, strict: bool, allow_custom: bool) -> Result<Self, Error> {
+        let value: serde_json::Value =
+            serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
+        validate_value(value, allow_custom, strict)
     }
 
     pub fn is_revoked(&self) -> bool {
