@@ -92,6 +92,8 @@ impl Related for DomainObject {
     }
 }
 
+crate::impl_custom_properties_holder!(DomainObject);
+
 impl Stix for DomainObject {
     fn stix_check(&self) -> Result<(), Error> {
         let mut errors = Vec::new();

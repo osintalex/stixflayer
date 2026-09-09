@@ -7,6 +7,8 @@ use crate::{
     types::{ExternalReference, GranularMarking, Identified, Identifier, Timestamp},
     validation::validate_value,
 };
+use serde_json::Value;
+use std::collections::BTreeMap;
 use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -151,6 +153,8 @@ impl Stix for MarkingDefinition {
     }
 }
 
+crate::impl_custom_properties_holder!(MarkingDefinition);
+
 /// Builder struct for Marking Definition SMOs.
 ///
 /// This follows the "Rust builder pattern," where we  use a `new()` function to construct a Builder
@@ -244,6 +248,12 @@ impl MarkingDefinitionBuilder {
 
     pub fn name(mut self, name: String) -> Self {
         self.name = Some(name);
+        self
+    }
+
+    /// Set custom properties for the marking definition under construction.
+    pub fn custom_properties(mut self, custom_properties: BTreeMap<String, Value>) -> Self {
+        self.common_properties = self.common_properties.clone().custom_properties(custom_properties);
         self
     }
 

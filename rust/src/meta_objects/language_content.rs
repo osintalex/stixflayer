@@ -17,7 +17,7 @@ use language_tags::LanguageTag;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::skip_serializing_none;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use uuid::Uuid;
 
 /// A Language Content Stix Meta Object (SMO).
@@ -100,6 +100,8 @@ impl Related for LanguageContent {
         RelationshipObjectBuilder::new(source_id, target_id, &relationship_type)
     }
 }
+
+crate::impl_custom_properties_holder!(LanguageContent);
 
 impl Stix for LanguageContent {
     fn stix_check(&self) -> Result<(), Error> {
@@ -469,6 +471,15 @@ impl LanguageContentBuilder {
         }
         self.contents.insert(lang, dict)?;
         Ok(self)
+    }
+
+    /// Set custom properties for the language content SMO under construction.
+    pub fn custom_properties(mut self, custom_properties: BTreeMap<String, Value>) -> Self {
+        self.common_properties = self
+            .common_properties
+            .clone()
+            .custom_properties(custom_properties);
+        self
     }
 
     /// Builds a new Language Content SMO without running `stix_check()`

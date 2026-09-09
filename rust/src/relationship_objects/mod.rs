@@ -123,6 +123,8 @@ impl Stix for RelationshipObject {
     }
 }
 
+crate::impl_custom_properties_holder!(RelationshipObject);
+
 // Checks that the required properties for an SRO are present and that the prohibited fields for an SRO are not present
 pub fn check_sro_properties(properties: &CommonProperties) -> Result<(), Error> {
     let mut errors = Vec::new();

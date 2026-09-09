@@ -61,7 +61,9 @@ class ThreatActorSophistication(_VocabEnum): ...
 # =============================================================================
 
 class _SdoBase:
-    def __init__(self, strict: bool = True, **kwargs: Any) -> None: ...
+    def __init__(self, strict: bool = True, allow_custom: bool = False, **kwargs: Any) -> None: ...
+    @property
+    def custom_properties(self) -> dict[str, Any]: ...
     @classmethod
     def from_json(
         cls,
@@ -340,7 +342,9 @@ class Vulnerability(_SdoBase):
 # =============================================================================
 
 class _ScoBase:
-    def __init__(self, strict: bool = True, **kwargs: Any) -> None: ...
+    def __init__(self, strict: bool = True, allow_custom: bool = False, **kwargs: Any) -> None: ...
+    @property
+    def custom_properties(self) -> dict[str, Any]: ...
     @classmethod
     def from_json(
         cls,
@@ -575,6 +579,7 @@ class CustomObject:
         type_: str,
         extension_type: str,
         strict: bool = True,
+        allow_custom: bool = True,
         **kwargs: Any,
     ) -> None: ...
     @classmethod
@@ -589,7 +594,7 @@ class CustomObject:
     @property
     def type(self) -> str: ...
     @property
-    def custom_properties(self) -> str: ...
+    def custom_properties(self) -> dict[str, Any]: ...
 
 # =============================================================================
 # Bundle

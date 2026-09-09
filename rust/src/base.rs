@@ -16,7 +16,9 @@ use crate::{
 use language_tags::LanguageTag;
 use log::warn;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use serde_with::skip_serializing_none;
+use std::collections::BTreeMap;
 use std::str::FromStr;
 use stix_derive::StixProperties;
 use strum::{EnumString, IntoEnumIterator};
@@ -117,6 +119,17 @@ pub struct CommonProperties {
     ///
     /// The corresponding dictionary values **MUST** contain the contents of the extension instance.
     pub extensions: Option<StixDictionary<StixDictionary<DictionaryValue>>>,
+    /// Custom properties that are not part of the STIX 2.1 specification.
+    ///
+    /// This bag is populated after deserialization by stripping unknown top-level keys from the
+    /// incoming JSON. It is flattened back out on serialization so custom keys remain as siblings
+    /// of the standard properties in the JSON output.
+    ///
+    /// `skip_deserializing` is required: a flattened map would otherwise absorb every unknown key and
+    /// duplicate the fields that serde has already assigned to object_type/common_properties. Unknown
+    /// keys are instead captured explicitly in [`crate::validation::validate_value`].
+    #[serde(default, skip_deserializing, flatten)]
+    pub custom_properties: Option<BTreeMap<String, Value>>,
 }
 
 impl Stix for CommonProperties {
@@ -286,8 +299,88 @@ impl Stix for CommonProperties {
             }
         }
 
+        if let Some(custom_properties) = &self.custom_properties {
+            if custom_properties.is_empty() {
+                errors.push(Error::ValidationError(
+                    "custom_properties cannot be empty".to_string(),
+                ));
+            }
+            for (key, value) in custom_properties.iter() {
+                add_error(&mut errors, validate_custom_property_name(key));
+                add_error(&mut errors, value.stix_check());
+            }
+        }
+
         return_multiple_errors(errors)
     }
+}
+
+/// Validates a custom property name against the STIX 2.1 rules in section 11.1.1 and
+/// the reserved property names in section 3.8.
+///
+/// - ASCII only, characters limited to `a-z`, `0-9`, and `_`.
+/// - Length between 3 and 250 inclusive.
+/// - Must not start with a digit.
+/// - Must not be a reserved name.
+pub fn validate_custom_property_name(name: &str) -> Result<(), Error> {
+    if name.len() < 3 {
+        return Err(Error::ValidationError(format!(
+            "Custom property name '{}' is too short; minimum length is 3",
+            name
+        )));
+    }
+    if name.len() > 250 {
+        return Err(Error::ValidationError(format!(
+            "Custom property name '{}' is too long; maximum length is 250",
+            name
+        )));
+    }
+    if name.starts_with(|c: char| c.is_ascii_digit()) {
+        return Err(Error::ValidationError(format!(
+            "Custom property name '{}' must not start with a digit",
+            name
+        )));
+    }
+    if !name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_') {
+        return Err(Error::ValidationError(format!(
+            "Custom property name '{}' contains characters outside the allowed set (a-z, 0-9, _)",
+            name
+        )));
+    }
+    const RESERVED: &[&str] = &["severity", "username", "phone_number", "action"];
+    if RESERVED.contains(&name) {
+        return Err(Error::ValidationError(format!(
+            "Custom property name '{}' is reserved by STIX 2.1 and cannot be used as a custom property",
+            name
+        )));
+    }
+    Ok(())
+}
+
+/// Trait implemented by top-level STIX object structs so that the central
+/// deserialization gate ([`crate::validation::validate_value`]) can store the
+/// custom-property bag separately from the serde deserialization of standard fields.
+pub trait CustomPropertiesHolder {
+    /// Access the object's custom property bag.
+    fn custom_properties(&self) -> &Option<BTreeMap<String, Value>>;
+    /// Replace the object's custom property bag.
+    fn set_custom_properties(&mut self, custom_properties: Option<BTreeMap<String, Value>>);
+}
+
+/// Implement [`CustomPropertiesHolder`] for a standard STIX object struct that
+/// carries common properties in a field named `common_properties`.
+#[macro_export]
+macro_rules! impl_custom_properties_holder {
+    ($type:ty) => {
+        impl $crate::base::CustomPropertiesHolder for $type {
+            fn custom_properties(&self) -> &Option<std::collections::BTreeMap<std::string::String, serde_json::Value>> {
+                &self.common_properties.custom_properties
+            }
+            fn set_custom_properties(&mut self, custom_properties: Option<std::collections::BTreeMap<std::string::String, serde_json::Value>>) {
+                self.common_properties.custom_properties = custom_properties;
+            }
+        }
+    };
 }
 
 /// Builder struct for common STIX properties.
@@ -335,6 +428,7 @@ impl CommonPropertiesBuilder {
             granular_markings: Default::default(),
             defanged: Default::default(),
             extensions: Default::default(),
+            custom_properties: Default::default(),
         };
 
         Ok(CommonPropertiesBuilder {
@@ -367,6 +461,7 @@ impl CommonPropertiesBuilder {
             granular_markings: old.granular_markings.clone(),
             defanged: old.defanged,
             extensions: old.extensions.clone(),
+            custom_properties: old.custom_properties.clone(),
         };
 
         Ok(CommonPropertiesBuilder {
@@ -470,6 +565,16 @@ impl CommonPropertiesBuilder {
         self
     }
 
+    /// Set the custom property bag for an object under construction.
+    ///
+    /// This is used by the Python constructors for objects whose fields are
+    /// mapped manually (e.g. `MarkingDefinition`) rather than synthesized from a
+    /// JSON envelope.
+    pub fn custom_properties(mut self, custom_properties: BTreeMap<String, Value>) -> Self {
+        self.properties.custom_properties = Some(custom_properties);
+        self
+    }
+
     /// Add an optional extension to the `extensions` field for an object under construction, creating the field if it does not already exist.
     pub fn add_extension(
         mut self,
@@ -558,6 +663,7 @@ impl CommonPropertiesBuilder {
             defanged: properties.defanged,
             object_marking_refs: properties.object_marking_refs,
             extensions: properties.extensions,
+            custom_properties: properties.custom_properties,
         }
     }
 }

@@ -4,6 +4,7 @@ use pyo3::{create_exception, PyErr};
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
+use crate::base::CustomPropertiesHolder;
 use crate::bundles::Bundle as StixBundle;
 use crate::custom_objects::CustomObjectBuilder;
 use crate::cyber_observable_objects::sco::{CyberObject, CyberObjectBuilder, CyberObjectType};
@@ -219,6 +220,7 @@ fn build_sdo_envelope(
     type_name: &str,
     kwargs: Option<Bound<'_, PyDict>>,
     strict: bool,
+    allow_custom: bool,
 ) -> Result<DomainObjectBuilder, PyErr> {
     let id = Identifier::new(type_name).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     let mut json_obj = serde_json::json!({
@@ -247,7 +249,7 @@ fn build_sdo_envelope(
     }
     let value: serde_json::Value = serde_json::from_str(&json_obj.to_string())
         .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
-    let domain_obj: DomainObject = validate_value(value, false, strict)
+    let domain_obj: DomainObject = validate_value(value, allow_custom, strict)
         .map_err(|e| classify_top_level_type_error(e, type_name, &json_obj))
         .map_err(stix_to_pyerr)?;
     let builder = DomainObjectBuilder::from_parsed(&domain_obj).map_err(stix_to_pyerr)?;
@@ -259,6 +261,7 @@ fn build_sco_envelope(
     type_name: &str,
     kwargs: Option<Bound<'_, PyDict>>,
     strict: bool,
+    allow_custom: bool,
 ) -> Result<CyberObjectBuilder, PyErr> {
     let mut json_obj = serde_json::json!({"type": type_name});
     if let Some(kwargs) = kwargs {
@@ -276,7 +279,7 @@ fn build_sco_envelope(
     }
     let value: serde_json::Value = serde_json::from_str(&json_obj.to_string())
         .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
-    let cyber_obj: CyberObject = validate_value(value, false, strict)
+    let cyber_obj: CyberObject = validate_value(value, allow_custom, strict)
         .map_err(|e| classify_top_level_type_error(e, type_name, &json_obj))
         .map_err(stix_to_pyerr)?;
     let builder = CyberObjectBuilder::from(&cyber_obj).map_err(stix_to_pyerr)?;
@@ -288,6 +291,7 @@ fn build_sro_envelope(
     type_name: &str,
     kwargs: Option<Bound<'_, PyDict>>,
     strict: bool,
+    allow_custom: bool,
 ) -> Result<RelationshipObjectBuilder, PyErr> {
     let id = Identifier::new(type_name).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
     let now = Timestamp::now();
@@ -308,7 +312,7 @@ fn build_sro_envelope(
     }
     let value: serde_json::Value = serde_json::from_str(&json_obj.to_string())
         .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
-    let sro_obj: RelationshipObject = validate_value(value, false, strict)
+    let sro_obj: RelationshipObject = validate_value(value, allow_custom, strict)
         .map_err(|e| classify_top_level_type_error(e, type_name, &json_obj))
         .map_err(stix_to_pyerr)?;
     let builder = RelationshipObjectBuilder::from_parsed(&sro_obj).map_err(stix_to_pyerr)?;
@@ -522,15 +526,29 @@ fn dynamic_getattr(
     }
 }
 
+/// Build the Python `dict` for `obj.custom_properties` from a typed STIX object.
+fn custom_properties_dict<'py, T: CustomPropertiesHolder>(
+    py: Python<'py>,
+    obj: &T,
+) -> Result<Bound<'py, PyDict>, PyErr> {
+    let dict = PyDict::new_bound(py);
+    if let Some(props) = obj.custom_properties().as_ref() {
+        for (k, v) in props.iter() {
+            dict.set_item(k, json_value_to_py(py, v))?;
+        }
+    }
+    Ok(dict)
+}
+
 #[pyclass]
 pub struct Campaign(DomainObjectBuilder);
 
 #[pymethods]
 impl Campaign {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("campaign", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("campaign", kwargs, strict, allow_custom)?;
         Ok(Campaign(builder))
     }
 
@@ -560,6 +578,9 @@ impl Campaign {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -572,9 +593,9 @@ pub struct CourseOfAction(DomainObjectBuilder);
 #[pymethods]
 impl CourseOfAction {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("course-of-action", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("course-of-action", kwargs, strict, allow_custom)?;
         Ok(CourseOfAction(builder))
     }
 
@@ -604,6 +625,9 @@ impl CourseOfAction {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -616,9 +640,9 @@ pub struct Grouping(DomainObjectBuilder);
 #[pymethods]
 impl Grouping {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("grouping", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("grouping", kwargs, strict, allow_custom)?;
         Ok(Grouping(builder))
     }
 
@@ -648,6 +672,9 @@ impl Grouping {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -660,9 +687,9 @@ pub struct Identity(DomainObjectBuilder);
 #[pymethods]
 impl Identity {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("identity", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("identity", kwargs, strict, allow_custom)?;
         Ok(Identity(builder))
     }
 
@@ -692,6 +719,9 @@ impl Identity {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -704,9 +734,9 @@ pub struct Incident(DomainObjectBuilder);
 #[pymethods]
 impl Incident {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("incident", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("incident", kwargs, strict, allow_custom)?;
         Ok(Incident(builder))
     }
 
@@ -736,6 +766,9 @@ impl Incident {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -748,9 +781,9 @@ pub struct Infrastructure(DomainObjectBuilder);
 #[pymethods]
 impl Infrastructure {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("infrastructure", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("infrastructure", kwargs, strict, allow_custom)?;
         Ok(Infrastructure(builder))
     }
 
@@ -780,6 +813,9 @@ impl Infrastructure {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -792,9 +828,9 @@ pub struct IntrusionSet(DomainObjectBuilder);
 #[pymethods]
 impl IntrusionSet {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("intrusion-set", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("intrusion-set", kwargs, strict, allow_custom)?;
         Ok(IntrusionSet(builder))
     }
 
@@ -824,6 +860,9 @@ impl IntrusionSet {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -836,9 +875,9 @@ pub struct Location(DomainObjectBuilder);
 #[pymethods]
 impl Location {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("location", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("location", kwargs, strict, allow_custom)?;
         Ok(Location(builder))
     }
 
@@ -868,6 +907,9 @@ impl Location {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -880,9 +922,9 @@ pub struct MalwareAnalysis(DomainObjectBuilder);
 #[pymethods]
 impl MalwareAnalysis {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("malware-analysis", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("malware-analysis", kwargs, strict, allow_custom)?;
         Ok(MalwareAnalysis(builder))
     }
 
@@ -912,6 +954,9 @@ impl MalwareAnalysis {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -924,9 +969,9 @@ pub struct Note(DomainObjectBuilder);
 #[pymethods]
 impl Note {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("note", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("note", kwargs, strict, allow_custom)?;
         Ok(Note(builder))
     }
 
@@ -956,6 +1001,9 @@ impl Note {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -968,9 +1016,9 @@ pub struct ObservedData(DomainObjectBuilder);
 #[pymethods]
 impl ObservedData {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("observed-data", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("observed-data", kwargs, strict, allow_custom)?;
         Ok(ObservedData(builder))
     }
 
@@ -1000,6 +1048,9 @@ impl ObservedData {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1012,9 +1063,9 @@ pub struct Opinion(DomainObjectBuilder);
 #[pymethods]
 impl Opinion {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("opinion", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("opinion", kwargs, strict, allow_custom)?;
         Ok(Opinion(builder))
     }
 
@@ -1044,6 +1095,9 @@ impl Opinion {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1056,9 +1110,9 @@ pub struct Report(DomainObjectBuilder);
 #[pymethods]
 impl Report {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("report", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("report", kwargs, strict, allow_custom)?;
         Ok(Report(builder))
     }
 
@@ -1088,6 +1142,9 @@ impl Report {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1100,9 +1157,9 @@ pub struct ThreatActor(DomainObjectBuilder);
 #[pymethods]
 impl ThreatActor {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("threat-actor", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("threat-actor", kwargs, strict, allow_custom)?;
         Ok(ThreatActor(builder))
     }
 
@@ -1132,6 +1189,9 @@ impl ThreatActor {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1144,9 +1204,9 @@ pub struct Tool(DomainObjectBuilder);
 #[pymethods]
 impl Tool {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("tool", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("tool", kwargs, strict, allow_custom)?;
         Ok(Tool(builder))
     }
 
@@ -1176,6 +1236,9 @@ impl Tool {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1188,9 +1251,9 @@ pub struct Vulnerability(DomainObjectBuilder);
 #[pymethods]
 impl Vulnerability {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("vulnerability", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("vulnerability", kwargs, strict, allow_custom)?;
         Ok(Vulnerability(builder))
     }
 
@@ -1220,6 +1283,9 @@ impl Vulnerability {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1236,9 +1302,9 @@ pub struct Malware(DomainObjectBuilder);
 #[pymethods]
 impl Malware {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("malware", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("malware", kwargs, strict, allow_custom)?;
         Ok(Malware(builder))
     }
 
@@ -1268,6 +1334,9 @@ impl Malware {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1284,9 +1353,9 @@ pub struct AttackPattern(DomainObjectBuilder);
 #[pymethods]
 impl AttackPattern {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("attack-pattern", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("attack-pattern", kwargs, strict, allow_custom)?;
         Ok(AttackPattern(builder))
     }
 
@@ -1316,6 +1385,9 @@ impl AttackPattern {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1332,9 +1404,9 @@ pub struct Indicator(DomainObjectBuilder);
 #[pymethods]
 impl Indicator {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("indicator", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sdo_envelope("indicator", kwargs, strict, allow_custom)?;
         Ok(Indicator(builder))
     }
 
@@ -1364,6 +1436,9 @@ impl Indicator {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1376,9 +1451,9 @@ pub struct IPv4Address(CyberObjectBuilder);
 #[pymethods]
 impl IPv4Address {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("ipv4-addr", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("ipv4-addr", kwargs, strict, allow_custom)?;
         Ok(IPv4Address(builder))
     }
 
@@ -1412,6 +1487,9 @@ impl IPv4Address {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1436,9 +1514,9 @@ pub struct IPv6Address(CyberObjectBuilder);
 #[pymethods]
 impl IPv6Address {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("ipv6-addr", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("ipv6-addr", kwargs, strict, allow_custom)?;
         Ok(IPv6Address(builder))
     }
 
@@ -1472,6 +1550,9 @@ impl IPv6Address {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1496,9 +1577,9 @@ pub struct DomainName(CyberObjectBuilder);
 #[pymethods]
 impl DomainName {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("domain-name", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("domain-name", kwargs, strict, allow_custom)?;
         Ok(DomainName(builder))
     }
 
@@ -1532,6 +1613,9 @@ impl DomainName {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1556,9 +1640,9 @@ pub struct URL(CyberObjectBuilder);
 #[pymethods]
 impl URL {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("url", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("url", kwargs, strict, allow_custom)?;
         Ok(URL(builder))
     }
 
@@ -1592,6 +1676,9 @@ impl URL {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1615,9 +1702,9 @@ pub struct EmailAddress(CyberObjectBuilder);
 #[pymethods]
 impl EmailAddress {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("email-addr", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("email-addr", kwargs, strict, allow_custom)?;
         Ok(EmailAddress(builder))
     }
 
@@ -1651,6 +1738,9 @@ impl EmailAddress {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1675,9 +1765,9 @@ pub struct EmailMessage(CyberObjectBuilder);
 #[pymethods]
 impl EmailMessage {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("email-message", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("email-message", kwargs, strict, allow_custom)?;
         Ok(EmailMessage(builder))
     }
 
@@ -1711,6 +1801,9 @@ impl EmailMessage {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1739,9 +1832,9 @@ pub struct MacAddr(CyberObjectBuilder);
 #[pymethods]
 impl MacAddr {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("mac-addr", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("mac-addr", kwargs, strict, allow_custom)?;
         Ok(MacAddr(builder))
     }
 
@@ -1775,6 +1868,9 @@ impl MacAddr {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1799,9 +1895,9 @@ pub struct AutonomousSystem(CyberObjectBuilder);
 #[pymethods]
 impl AutonomousSystem {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("autonomous-system", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("autonomous-system", kwargs, strict, allow_custom)?;
         Ok(AutonomousSystem(builder))
     }
 
@@ -1835,6 +1931,9 @@ impl AutonomousSystem {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1859,9 +1958,9 @@ pub struct File(CyberObjectBuilder);
 #[pymethods]
 impl File {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("file", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("file", kwargs, strict, allow_custom)?;
         Ok(File(builder))
     }
 
@@ -1895,6 +1994,9 @@ impl File {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1918,9 +2020,9 @@ pub struct Software(CyberObjectBuilder);
 #[pymethods]
 impl Software {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("software", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("software", kwargs, strict, allow_custom)?;
         Ok(Software(builder))
     }
 
@@ -1954,6 +2056,9 @@ impl Software {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -1978,9 +2083,9 @@ pub struct Directory(CyberObjectBuilder);
 #[pymethods]
 impl Directory {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("directory", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("directory", kwargs, strict, allow_custom)?;
         Ok(Directory(builder))
     }
 
@@ -2014,6 +2119,9 @@ impl Directory {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -2038,9 +2146,9 @@ pub struct Mutex(CyberObjectBuilder);
 #[pymethods]
 impl Mutex {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("mutex", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("mutex", kwargs, strict, allow_custom)?;
         Ok(Mutex(builder))
     }
 
@@ -2074,6 +2182,9 @@ impl Mutex {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -2098,9 +2209,9 @@ pub struct Process(CyberObjectBuilder);
 #[pymethods]
 impl Process {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("process", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("process", kwargs, strict, allow_custom)?;
         Ok(Process(builder))
     }
 
@@ -2134,6 +2245,9 @@ impl Process {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -2146,9 +2260,9 @@ pub struct NetworkTraffic(CyberObjectBuilder);
 #[pymethods]
 impl NetworkTraffic {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("network-traffic", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("network-traffic", kwargs, strict, allow_custom)?;
         Ok(NetworkTraffic(builder))
     }
 
@@ -2182,6 +2296,9 @@ impl NetworkTraffic {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -2194,9 +2311,9 @@ pub struct UserAccount(CyberObjectBuilder);
 #[pymethods]
 impl UserAccount {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("user-account", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("user-account", kwargs, strict, allow_custom)?;
         Ok(UserAccount(builder))
     }
 
@@ -2230,6 +2347,9 @@ impl UserAccount {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -2254,9 +2374,9 @@ pub struct WindowsRegistryKey(CyberObjectBuilder);
 #[pymethods]
 impl WindowsRegistryKey {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("windows-registry-key", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("windows-registry-key", kwargs, strict, allow_custom)?;
         Ok(WindowsRegistryKey(builder))
     }
 
@@ -2290,6 +2410,9 @@ impl WindowsRegistryKey {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -2314,9 +2437,9 @@ pub struct X509Certificate(CyberObjectBuilder);
 #[pymethods]
 impl X509Certificate {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("x509-certificate", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("x509-certificate", kwargs, strict, allow_custom)?;
         Ok(X509Certificate(builder))
     }
 
@@ -2350,6 +2473,9 @@ impl X509Certificate {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -2374,9 +2500,9 @@ pub struct Artifact(CyberObjectBuilder);
 #[pymethods]
 impl Artifact {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("artifact", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sco_envelope("artifact", kwargs, strict, allow_custom)?;
         Ok(Artifact(builder))
     }
 
@@ -2410,6 +2536,9 @@ impl Artifact {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -2434,9 +2563,9 @@ pub struct Relationship(RelationshipObjectBuilder);
 #[pymethods]
 impl Relationship {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sro_envelope("relationship", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sro_envelope("relationship", kwargs, strict, allow_custom)?;
         Ok(Relationship(builder))
     }
 
@@ -2470,6 +2599,9 @@ impl Relationship {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -2482,9 +2614,9 @@ pub struct Sighting(RelationshipObjectBuilder);
 #[pymethods]
 impl Sighting {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
-        let builder = build_sro_envelope("sighting", kwargs, strict)?;
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+        let builder = build_sro_envelope("sighting", kwargs, strict, allow_custom)?;
         Ok(Sighting(builder))
     }
 
@@ -2518,6 +2650,9 @@ impl Sighting {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -2530,9 +2665,14 @@ pub struct MarkingDefinition(MarkingDefinitionBuilder);
 #[pymethods]
 impl MarkingDefinition {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let mut builder = MarkingDefinitionBuilder::new().map_err(stix_to_pyerr)?;
+        let mut custom_properties: BTreeMap<String, serde_json::Value> = BTreeMap::new();
 
         if let Some(kwargs) = kwargs {
             for (k, v) in kwargs.iter() {
@@ -2571,13 +2711,22 @@ impl MarkingDefinition {
                         )));
                     }
                     _ => {
-                        return Err(PyErr::new::<StixError, _>(format!(
-                            "Unknown argument for MarkingDefinition: '{}'",
-                            key
-                        )));
+                        if allow_custom {
+                            let val = py_to_json(&v)?;
+                            custom_properties.insert(key, val);
+                        } else {
+                            return Err(PyErr::new::<StixError, _>(format!(
+                                "Unknown argument for MarkingDefinition: '{}'",
+                                key
+                            )));
+                        }
                     }
                 }
             }
+        }
+
+        if !custom_properties.is_empty() {
+            builder = builder.custom_properties(custom_properties);
         }
 
         Ok(MarkingDefinition(validate_marking_builder(
@@ -2677,6 +2826,9 @@ impl MarkingDefinition {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -2689,8 +2841,12 @@ pub struct CustomObject(CustomObjectBuilder);
 #[pymethods]
 impl CustomObject {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (strict = true, allow_custom = true, **kwargs))]
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let mut type_ = None;
         let mut extension_type = None;
         let mut extension_definition_id: Option<String> = None;
@@ -2738,10 +2894,17 @@ impl CustomObject {
                         ));
                     }
                     _ => {
-                        // Any other keyword becomes a custom property, matching the SDO/SCO/SRO
-                        // envelope behaviour for arbitrary fields.
-                        let val = py_to_json(&v)?;
-                        custom_properties.insert(key, val);
+                        if allow_custom {
+                            // Any other keyword becomes a custom property, matching the SDO/SCO/SRO
+                            // envelope behaviour for arbitrary fields.
+                            let val = py_to_json(&v)?;
+                            custom_properties.insert(key, val);
+                        } else {
+                            return Err(PyErr::new::<StixError, _>(format!(
+                                "Unknown argument for CustomObject: '{}'",
+                                key
+                            )));
+                        }
                     }
                 }
             }
@@ -2913,6 +3076,9 @@ impl CustomObject {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -2925,8 +3091,12 @@ pub struct ExtensionDefinition(ExtensionDefinitionBuilder);
 #[pymethods]
 impl ExtensionDefinition {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let mut builder = if let Some(kwargs) = kwargs.as_ref() {
             if let Some(name_val) = kwargs.get_item("name")? {
                 let name: String = name_val.extract()?;
@@ -2938,6 +3108,7 @@ impl ExtensionDefinition {
             ExtensionDefinitionBuilder::new("")
         }
         .map_err(stix_to_pyerr)?;
+        let mut custom_properties: BTreeMap<String, serde_json::Value> = BTreeMap::new();
 
         if let Some(kwargs) = kwargs {
             for (k, v) in kwargs.iter() {
@@ -3008,14 +3179,24 @@ impl ExtensionDefinition {
                         // Already handled above
                     }
                     _ => {
-                        return Err(PyErr::new::<StixError, _>(format!(
-                            "Unknown argument for ExtensionDefinition: '{}'",
-                            key
-                        )));
+                        if allow_custom {
+                            let val = py_to_json(&v)?;
+                            custom_properties.insert(key, val);
+                        } else {
+                            return Err(PyErr::new::<StixError, _>(format!(
+                                "Unknown argument for ExtensionDefinition: '{}'",
+                                key
+                            )));
+                        }
                     }
                 }
             }
         }
+
+        if !custom_properties.is_empty() {
+            builder = builder.custom_properties(custom_properties);
+        }
+
         // Validate at construction time unless asked otherwise.
         if strict {
             builder.clone().build().map_err(stix_to_pyerr)?;
@@ -3159,6 +3340,9 @@ impl ExtensionDefinition {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
@@ -3171,8 +3355,12 @@ pub struct LanguageContent(LanguageContentBuilder);
 #[pymethods]
 impl LanguageContent {
     #[new]
-    #[pyo3(signature = (strict = true, **kwargs))]
-    fn new(strict: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let mut json_obj = serde_json::json!({"type": "language-content"});
         if let Some(kwargs) = kwargs {
             for (k, v) in kwargs.iter() {
@@ -3202,14 +3390,11 @@ impl LanguageContent {
         if json_obj.get("contents").is_none() {
             json_obj["contents"] = serde_json::json!({});
         }
-        // Deserialize immediately. from_parsed preserves the caller-supplied
-        // timestamps/contents, and build() runs stix_check when strict is true.
-        let lc: StixLanguageContent = serde_json::from_str(&json_obj.to_string())
-            .map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
+        // Use validate_value so unknown keys respect `allow_custom` and are stored
+        // in the custom-property bag.
+        let lc: StixLanguageContent = validate_value(json_obj, allow_custom, strict)
+            .map_err(stix_to_pyerr)?;
         let builder = LanguageContentBuilder::from_parsed(&lc).map_err(stix_to_pyerr)?;
-        if strict {
-            builder.clone().build().map_err(stix_to_pyerr)?;
-        }
         Ok(LanguageContent(builder))
     }
 
@@ -3297,6 +3482,9 @@ impl LanguageContent {
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
+        if name == "custom_properties" {
+            return custom_properties_dict(py, &obj).map(|d| d.into_py(py));
+        }
         let value =
             serde_json::to_value(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))?;
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)

@@ -124,6 +124,8 @@ impl Related for CustomObject {
     }
 }
 
+crate::impl_custom_properties_holder!(CustomObject);
+
 impl Stix for CustomObject {
     fn stix_check(&self) -> Result<(), Error> {
         let mut common_errors = Vec::new();

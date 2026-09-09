@@ -8,8 +8,10 @@ use crate::{
     validation::validate_value,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use serde_with::skip_serializing_none;
 use stix_derive::StixProperties;
+use std::collections::BTreeMap;
 
 /// An Extension Definition Stix Meta Object (SMO).
 ///
@@ -106,6 +108,8 @@ impl Related for ExtensionDefinition {
         RelationshipObjectBuilder::new(source_id, target_id, &relationship_type)
     }
 }
+
+crate::impl_custom_properties_holder!(ExtensionDefinition);
 
 impl Stix for ExtensionDefinition {
     fn stix_check(&self) -> Result<(), Error> {
@@ -383,6 +387,15 @@ impl ExtensionDefinitionBuilder {
     /// Set the optional `extension_properties` field for an Extension Definition SMO under construction
     pub fn extension_properties(mut self, extension_properties: Vec<String>) -> Self {
         self.extension_properties = Some(extension_properties);
+        self
+    }
+
+    /// Set custom properties for the extension definition under construction.
+    pub fn custom_properties(mut self, custom_properties: BTreeMap<String, Value>) -> Self {
+        self.common_properties = self
+            .common_properties
+            .clone()
+            .custom_properties(custom_properties);
         self
     }
 

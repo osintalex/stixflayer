@@ -159,6 +159,8 @@ impl Related for CyberObject {
     }
 }
 
+crate::impl_custom_properties_holder!(CyberObject);
+
 impl Stix for CyberObject {
     fn stix_check(&self) -> Result<(), Error> {
         let mut errors = Vec::new();

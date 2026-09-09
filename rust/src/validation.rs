@@ -19,7 +19,7 @@ use serde_json::Value;
 use serde_path_to_error as serde_path;
 
 use crate::{
-    base::Stix,
+    base::{validate_custom_property_name, CustomPropertiesHolder, Stix},
     error::{add_error, classify_serde_error, return_multiple_errors, StixError as Error},
     properties::type_properties,
 };
@@ -27,13 +27,16 @@ use crate::{
 /// Validates a STIX object from a JSON value and returns the typed struct.
 ///
 /// - `allow_custom: false` rejects unknown properties against the registry.
+/// - `allow_custom: true` permits unknown properties, strips them out into the
+///   object's [`CommonProperties::custom_properties`][crate::base::CommonProperties::custom_properties]
+///   bag, and validates their names against the STIX 2.1 custom-property rules.
 /// - `strict: true` adds required-property checks and runs the object-specific
 ///   `stix_check`. `strict: false` just deserializes and optionally checks unknown
 ///   properties.
 ///
 /// Multiple independent errors are returned as a single
 /// [`StixError::ValidationErrors`].
-pub fn validate_value<T: DeserializeOwned + Stix>(
+pub fn validate_value<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
     value: Value,
     allow_custom: bool,
     strict: bool,
@@ -45,18 +48,38 @@ pub fn validate_value<T: DeserializeOwned + Stix>(
     let props = type_properties(type_name);
     let mut errors: Vec<Error> = Vec::new();
 
+    let mut custom_properties: Option<std::collections::BTreeMap<String, Value>> = None;
+
     if let Some(props) = props {
         if let Some(map) = value.as_object() {
             let keys: std::collections::HashSet<&str> = map.keys().map(|s| s.as_str()).collect();
             let known: std::collections::HashSet<&str> = props.known.iter().copied().collect();
 
-            if !allow_custom {
-                let unknown: Vec<String> = keys.difference(&known).map(|k| k.to_string()).collect();
-                if !unknown.is_empty() {
+            let unknown: Vec<&str> = keys.difference(&known).map(|k| *k).collect();
+
+            if !unknown.is_empty() {
+                if !allow_custom {
                     errors.push(Error::UnknownProperties {
                         object_type: type_name.to_string(),
-                        fields: unknown,
+                        fields: unknown.into_iter().map(|k| k.to_string()).collect(),
                     });
+                } else {
+                    // Validate custom property names immediately, regardless of `strict`.
+                    for key in &unknown {
+                        add_error(&mut errors, validate_custom_property_name(key));
+                    }
+
+                    if errors.is_empty() {
+                        let mut bag = std::collections::BTreeMap::new();
+                        for key in unknown {
+                            if let Some(val) = map.get(key) {
+                                bag.insert(key.to_string(), val.clone());
+                            }
+                        }
+                        if !bag.is_empty() {
+                            custom_properties = Some(bag);
+                        }
+                    }
                 }
             }
 
@@ -71,12 +94,21 @@ pub fn validate_value<T: DeserializeOwned + Stix>(
         }
     }
 
+    // If we found custom properties, ensure they are not passed to serde so the
+    // flattened `custom_properties` field cannot accidentally capture known keys.
+    let mut value_to_deserialize = value.clone();
+    if let (Some(ref bag), Some(map)) = (&custom_properties, value_to_deserialize.as_object_mut()) {
+        for key in bag.keys() {
+            map.remove(key);
+        }
+    }
+
     // For path-aware deserialization we need a textual form. This serializes the
     // value once instead of the previous N-pass parse/serialize dance.
-    let json =
-        serde_json::to_string(&value).map_err(|e| Error::SerializationError(e.to_string()))?;
+    let json = serde_json::to_string(&value_to_deserialize)
+        .map_err(|e| Error::SerializationError(e.to_string()))?;
 
-    let typed: T = match serde_path::deserialize(&mut serde_json::Deserializer::from_str(&json)) {
+    let mut typed: T = match serde_path::deserialize(&mut serde_json::Deserializer::from_str(&json)) {
         Ok(t) => t,
         Err(e) => {
             let classified = classify_serde_error(e, type_name);
@@ -99,6 +131,9 @@ pub fn validate_value<T: DeserializeOwned + Stix>(
         }
     };
 
+    // Attach the custom-property bag explicitly, overriding the serde-default None.
+    typed.set_custom_properties(custom_properties);
+
     if strict {
         add_error(&mut errors, typed.stix_check());
     }
@@ -111,6 +146,7 @@ pub fn validate_value<T: DeserializeOwned + Stix>(
 mod tests {
     use super::*;
     use crate::domain_objects::sdo::DomainObject;
+    use std::collections::BTreeMap;
 
     #[test]
     fn valid_sdo_deserializes() {
@@ -245,5 +281,71 @@ mod tests {
             !matches!(err, Error::UnknownProperties { .. }),
             "unknown property should not be reported in non-strict mode: {err:?}"
         );
+    }
+
+    #[test]
+    fn allow_custom_true_preserves_custom_property() {
+        let value = serde_json::json!({
+            "type": "attack-pattern",
+            "id": "attack-pattern--12345678-1234-5678-1234-567812345678",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "spec_version": "2.1",
+            "name": "Spear Phishing",
+            "x_vendor_severity": 5
+        });
+        let obj = validate_value::<DomainObject>(value, true, true).unwrap();
+        assert_eq!(
+            obj.common_properties.custom_properties,
+            Some(BTreeMap::from([(
+                "x_vendor_severity".to_string(),
+                serde_json::json!(5)
+            )]))
+        );
+
+        let json = serde_json::to_string(&obj).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["x_vendor_severity"], 5);
+    }
+
+    #[test]
+    fn allow_custom_false_rejects_custom_property() {
+        let value = serde_json::json!({
+            "type": "attack-pattern",
+            "id": "attack-pattern--12345678-1234-5678-1234-567812345678",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "spec_version": "2.1",
+            "name": "Spear Phishing",
+            "x_vendor_severity": 5
+        });
+        let err = validate_value::<DomainObject>(value, false, true).unwrap_err();
+        assert!(matches!(err, Error::UnknownProperties { .. }), "got {err:?}");
+    }
+
+    #[test]
+    fn invalid_custom_property_name_is_rejected() {
+        let cases = [
+            ("1_starts_digit", "must not start with a digit"),
+            ("bad-key", "characters outside the allowed set"),
+            ("AB", "too short"),
+            ("severity", "reserved"),
+        ];
+        for (key, _msg) in cases {
+            let value = serde_json::json!({
+                "type": "attack-pattern",
+                "id": "attack-pattern--12345678-1234-5678-1234-567812345678",
+                "created": "2016-05-12T08:17:27Z",
+                "modified": "2016-05-12T08:17:27Z",
+                "spec_version": "2.1",
+                "name": "Spear Phishing",
+                key: "value"
+            });
+            let err = validate_value::<DomainObject>(value, true, true).unwrap_err();
+            assert!(
+                matches!(err, Error::ValidationError(_) | Error::ValidationErrors(_)),
+                "{key}: expected ValidationError, got {err:?}"
+            );
+        }
     }
 }
