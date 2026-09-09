@@ -16,8 +16,11 @@ use crate::{
 use language_tags::LanguageTag;
 use log::warn;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use serde_with::skip_serializing_none;
+use std::collections::BTreeMap;
 use std::str::FromStr;
+use stix_derive::StixProperties;
 use strum::{EnumString, IntoEnumIterator};
 
 /// A trait for all STIX 2.1 compliant objects and properties.
@@ -50,7 +53,7 @@ pub fn check_timestamp_ordering(
 /// This struct is intended to be nested and flattened inside of a specific STIX Object,
 /// with the validator ensuring that properties that cannot exist for that object are not included.
 #[skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Default, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Default, Deserialize, StixProperties)]
 pub struct CommonProperties {
     /// The version of the STIX specification used to represent this object (**MUST** be 2.1 in STIX 2.1).
     ///
@@ -116,6 +119,17 @@ pub struct CommonProperties {
     ///
     /// The corresponding dictionary values **MUST** contain the contents of the extension instance.
     pub extensions: Option<StixDictionary<StixDictionary<DictionaryValue>>>,
+    /// Custom properties that are not part of the STIX 2.1 specification.
+    ///
+    /// This bag is populated after deserialization by stripping unknown top-level keys from the
+    /// incoming JSON. It is flattened back out on serialization so custom keys remain as siblings
+    /// of the standard properties in the JSON output.
+    ///
+    /// `skip_deserializing` is required: a flattened map would otherwise absorb every unknown key and
+    /// duplicate the fields that serde has already assigned to object_type/common_properties. Unknown
+    /// keys are instead captured explicitly in [`crate::validation::validate_value`].
+    #[serde(default, skip_deserializing, flatten)]
+    pub custom_properties: Option<BTreeMap<String, Value>>,
 }
 
 impl Stix for CommonProperties {
@@ -285,8 +299,88 @@ impl Stix for CommonProperties {
             }
         }
 
+        if let Some(custom_properties) = &self.custom_properties {
+            if custom_properties.is_empty() {
+                errors.push(Error::ValidationError(
+                    "custom_properties cannot be empty".to_string(),
+                ));
+            }
+            for (key, value) in custom_properties.iter() {
+                add_error(&mut errors, validate_custom_property_name(key));
+                add_error(&mut errors, value.stix_check());
+            }
+        }
+
         return_multiple_errors(errors)
     }
+}
+
+/// Validates a custom property name against the STIX 2.1 rules in section 11.1.1 and
+/// the reserved property names in section 3.8.
+///
+/// - ASCII only, characters limited to `a-z`, `0-9`, and `_`.
+/// - Length between 3 and 250 inclusive.
+/// - Must not start with a digit.
+/// - Must not be a reserved name.
+pub fn validate_custom_property_name(name: &str) -> Result<(), Error> {
+    if name.len() < 3 {
+        return Err(Error::ValidationError(format!(
+            "Custom property name '{}' is too short; minimum length is 3",
+            name
+        )));
+    }
+    if name.len() > 250 {
+        return Err(Error::ValidationError(format!(
+            "Custom property name '{}' is too long; maximum length is 250",
+            name
+        )));
+    }
+    if name.starts_with(|c: char| c.is_ascii_digit()) {
+        return Err(Error::ValidationError(format!(
+            "Custom property name '{}' must not start with a digit",
+            name
+        )));
+    }
+    if !name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_') {
+        return Err(Error::ValidationError(format!(
+            "Custom property name '{}' contains characters outside the allowed set (a-z, 0-9, _)",
+            name
+        )));
+    }
+    const RESERVED: &[&str] = &["severity", "username", "phone_number", "action"];
+    if RESERVED.contains(&name) {
+        return Err(Error::ValidationError(format!(
+            "Custom property name '{}' is reserved by STIX 2.1 and cannot be used as a custom property",
+            name
+        )));
+    }
+    Ok(())
+}
+
+/// Trait implemented by top-level STIX object structs so that the central
+/// deserialization gate ([`crate::validation::validate_value`]) can store the
+/// custom-property bag separately from the serde deserialization of standard fields.
+pub trait CustomPropertiesHolder {
+    /// Access the object's custom property bag.
+    fn custom_properties(&self) -> &Option<BTreeMap<String, Value>>;
+    /// Replace the object's custom property bag.
+    fn set_custom_properties(&mut self, custom_properties: Option<BTreeMap<String, Value>>);
+}
+
+/// Implement [`CustomPropertiesHolder`] for a standard STIX object struct that
+/// carries common properties in a field named `common_properties`.
+#[macro_export]
+macro_rules! impl_custom_properties_holder {
+    ($type:ty) => {
+        impl $crate::base::CustomPropertiesHolder for $type {
+            fn custom_properties(&self) -> &Option<std::collections::BTreeMap<std::string::String, serde_json::Value>> {
+                &self.common_properties.custom_properties
+            }
+            fn set_custom_properties(&mut self, custom_properties: Option<std::collections::BTreeMap<std::string::String, serde_json::Value>>) {
+                self.common_properties.custom_properties = custom_properties;
+            }
+        }
+    };
 }
 
 /// Builder struct for common STIX properties.
@@ -334,6 +428,7 @@ impl CommonPropertiesBuilder {
             granular_markings: Default::default(),
             defanged: Default::default(),
             extensions: Default::default(),
+            custom_properties: Default::default(),
         };
 
         Ok(CommonPropertiesBuilder {
@@ -366,6 +461,7 @@ impl CommonPropertiesBuilder {
             granular_markings: old.granular_markings.clone(),
             defanged: old.defanged,
             extensions: old.extensions.clone(),
+            custom_properties: old.custom_properties.clone(),
         };
 
         Ok(CommonPropertiesBuilder {
@@ -375,14 +471,31 @@ impl CommonPropertiesBuilder {
         })
     }
 
+    /// Construct a `CommonPropertiesBuilder` by cloning an existing set of properties verbatim,
+    /// including `created` and `modified`. Used when reconstructing an already-parsed STIX
+    /// Object (as opposed to `version()`, which treats the object as the basis for a new version).
+    pub fn from_existing(
+        object_name: &str,
+        old: &CommonProperties,
+    ) -> Result<CommonPropertiesBuilder, Error> {
+        let stix_object =
+            StixObject::from_str(&stix_case(object_name)).map_err(Error::UnrecognizedObject)?;
+        Ok(CommonPropertiesBuilder {
+            stix_object,
+            builder_type: BuilderType::FromExisting,
+            properties: old.clone(),
+        })
+    }
+
     // Setter functions for common properties
 
     /// Set the `created_by_ref` field for an object under construction
-    /// This is only allowed when creating a new object, not when versioning an existing one,
+    /// This is only allowed when creating a new object or reconstructing a parsed one,
+    /// not when versioning an existing one,
     /// as only the original creator of an object can version it.
     pub fn created_by_ref(mut self, id: Identifier) -> Result<Self, Error> {
         match self.builder_type {
-            BuilderType::Creation => {
+            BuilderType::Creation | BuilderType::FromExisting => {
                 self.properties.created_by_ref = Some(id);
                 Ok(self)
             }
@@ -436,6 +549,32 @@ impl CommonPropertiesBuilder {
         self
     }
 
+    /// Set the `created` timestamp for an object under construction.
+    ///
+    /// When creating a new object this overrides the default "now" timestamp.
+    pub fn created(mut self, created: Timestamp) -> Self {
+        self.properties.created = Some(created);
+        self
+    }
+
+    /// Set the `modified` timestamp for an object under construction.
+    ///
+    /// When creating a new object this overrides the default "now" timestamp.
+    pub fn modified(mut self, modified: Timestamp) -> Self {
+        self.properties.modified = Some(modified);
+        self
+    }
+
+    /// Set the custom property bag for an object under construction.
+    ///
+    /// This is used by the Python constructors for objects whose fields are
+    /// mapped manually (e.g. `MarkingDefinition`) rather than synthesized from a
+    /// JSON envelope.
+    pub fn custom_properties(mut self, custom_properties: BTreeMap<String, Value>) -> Self {
+        self.properties.custom_properties = Some(custom_properties);
+        self
+    }
+
     /// Add an optional extension to the `extensions` field for an object under construction, creating the field if it does not already exist.
     pub fn add_extension(
         mut self,
@@ -460,27 +599,46 @@ impl CommonPropertiesBuilder {
         let (created, modified) = match self.stix_object {
             StixObject::Sco => (None, None),
             StixObject::MarkingDefinition => {
-                // Get the current datetime, for setting `modified` and conditionally `created`
-                let now = Timestamp::now();
-                // If we are creating a new object, `created` is set to the time of creation
-                // If we are versioning an existing object, `created` stays the same as before
-                let created = match self.builder_type {
-                    BuilderType::Creation => Some(now.clone()),
-                    BuilderType::Version => properties.created,
-                };
-                (created, None)
+                // If we are reconstructing a parsed object, keep its timestamps as-is
+                if self.builder_type == BuilderType::FromExisting {
+                    (properties.created, None)
+                } else {
+                    // If we are creating a new object, `created` defaults to the time of creation
+                    // but may be overridden by the caller. When versioning, `created` is preserved
+                    // and `modified` is left None (marking definitions cannot be versioned).
+                    let created = match self.builder_type {
+                        BuilderType::Creation => {
+                            Some(properties.created.unwrap_or_else(Timestamp::now))
+                        }
+                        BuilderType::Version => properties.created,
+                        BuilderType::FromExisting => unreachable!(),
+                    };
+                    (created, None)
+                }
             }
             _ => {
-                // Get the current datetime, for setting `modified` and conditionally `created`
-                let now = Timestamp::now();
-                // If we are creating a new object, `created` is set to the time of creation
-                // If we are versioning an existing object, `created` stays the same as before
-                let created = match self.builder_type {
-                    BuilderType::Creation => Some(now.clone()),
-                    BuilderType::Version => properties.created,
-                };
-                let modified = Some(now);
-                (created, modified)
+                // If we are reconstructing a parsed object, keep its timestamps as-is
+                if self.builder_type == BuilderType::FromExisting {
+                    (properties.created, properties.modified)
+                } else {
+                    // When creating a new object, the caller may override the default
+                    // "now" timestamps. When versioning, `created` is preserved and
+                    // `modified` is set to the current time.
+                    let now = Timestamp::now();
+                    let created = match self.builder_type {
+                        BuilderType::Creation => properties.created.unwrap_or_else(|| now.clone()),
+                        BuilderType::Version => properties
+                            .created
+                            .expect("versioned object must retain its original created time"),
+                        BuilderType::FromExisting => unreachable!(),
+                    };
+                    let modified = match self.builder_type {
+                        BuilderType::Creation => properties.modified.unwrap_or_else(|| now.clone()),
+                        BuilderType::Version => now,
+                        BuilderType::FromExisting => unreachable!(),
+                    };
+                    (Some(created), Some(modified))
+                }
             }
         };
 
@@ -491,8 +649,13 @@ impl CommonPropertiesBuilder {
             created,
             granular_markings: properties.granular_markings,
             modified,
-            // Since we are making a new object or new version of an object, we cannot create it already revoked
-            revoked: None,
+            // Since we are making a new object or new version of an object, we cannot create it already revoked.
+            // When reconstructing a parsed object, its revoked state is preserved as-is.
+            revoked: if self.builder_type == BuilderType::FromExisting {
+                properties.revoked
+            } else {
+                None
+            },
             labels: properties.labels,
             confidence: properties.confidence,
             lang: properties.lang,
@@ -500,6 +663,7 @@ impl CommonPropertiesBuilder {
             defanged: properties.defanged,
             object_marking_refs: properties.object_marking_refs,
             extensions: properties.extensions,
+            custom_properties: properties.custom_properties,
         }
     }
 }
@@ -517,9 +681,11 @@ pub enum StixObject {
     Custom,
 }
 
-/// Whether the object under construction is a new object or a version of an existing one.
+/// Whether the object under construction is a new object, a version of an existing one,
+/// or a faithful reconstruction of an already-parsed one.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub enum BuilderType {
     Creation,
     Version,
+    FromExisting,
 }

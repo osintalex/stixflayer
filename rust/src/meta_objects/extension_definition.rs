@@ -3,12 +3,15 @@
 use crate::{
     base::{CommonProperties, CommonPropertiesBuilder, Stix},
     error::{add_error, return_multiple_errors, StixError as Error},
-    json,
     relationship_objects::{Related, RelationshipObjectBuilder},
-    types::{ExtensionType, ExternalReference, GranularMarking, Identified, Identifier},
+    types::{ExtensionType, ExternalReference, GranularMarking, Identified, Identifier, Timestamp},
+    validation::validate_value,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use serde_with::skip_serializing_none;
+use stix_derive::StixProperties;
+use std::collections::BTreeMap;
 
 /// An Extension Definition Stix Meta Object (SMO).
 ///
@@ -31,7 +34,7 @@ use serde_with::skip_serializing_none;
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_32j232tfvtly>
 #[skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize, StixProperties)]
 pub struct ExtensionDefinition {
     #[serde(rename = "type")]
     pub object_type: String,
@@ -66,19 +69,14 @@ pub struct ExtensionDefinition {
 }
 
 impl ExtensionDefinition {
-    /// Deserializes an ExtensionDefintion SMO from a JSON String.
-    /// Checks that all fields conform to the STIX 2.1 standard
-    /// If the `allow_custom` flag is flase, checks that there are no fields in the JSON String that are not in the SDO type definition
+    /// Deserializes an ExtensionDefinition SMO from a JSON String.
+    /// Checks that all fields conform to the STIX 2.1 standard.
+    /// If the `allow_custom` flag is false, checks that there are no fields in the JSON String
+    /// that are not in the Extension Definition SMO type definition.
     pub fn from_json(json: &str, allow_custom: bool) -> Result<Self, Error> {
-        let extension_definition: Self =
+        let value: serde_json::Value =
             serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
-        extension_definition.stix_check()?;
-
-        if !allow_custom {
-            json::field_check(&extension_definition, json)?;
-        }
-
-        Ok(extension_definition)
+        validate_value(value, allow_custom, true)
     }
 
     pub fn is_revoked(&self) -> bool {
@@ -110,6 +108,8 @@ impl Related for ExtensionDefinition {
         RelationshipObjectBuilder::new(source_id, target_id, &relationship_type)
     }
 }
+
+crate::impl_custom_properties_holder!(ExtensionDefinition);
 
 impl Stix for ExtensionDefinition {
     fn stix_check(&self) -> Result<(), Error> {
@@ -275,6 +275,31 @@ impl ExtensionDefinitionBuilder {
         })
     }
 
+    /// Create a builder from an already-parsed ExtensionDefinition, preserving its
+    /// `id`, `created`, `modified`, and `revoked` properties exactly. Unlike
+    /// `version()`, this does not treat the object as the basis for a new version.
+    pub fn from_parsed(old: &ExtensionDefinition) -> Result<Self, Error> {
+        let old_properties = old.common_properties.clone();
+        let common_properties =
+            CommonPropertiesBuilder::from_existing("extension-definition", &old_properties)?;
+        let name = old.name.clone();
+        let description = old.description.clone();
+        let schema = Some(old.schema.clone());
+        let version = Some(old.version.clone());
+        let extension_types = Some(old.extension_types.clone());
+        let extension_properties = old.extension_properties.clone();
+
+        Ok(ExtensionDefinitionBuilder {
+            common_properties,
+            name,
+            description,
+            schema,
+            version,
+            extension_types,
+            extension_properties,
+        })
+    }
+
     // Setter functions for common properties
 
     /// Set the optional `created_by_ref` field for a Extension Definition SMO under construction
@@ -321,6 +346,18 @@ impl ExtensionDefinitionBuilder {
         self
     }
 
+    /// Set the `created` timestamp for an Extension Definition SMO under construction.
+    pub fn created(mut self, created: Timestamp) -> Self {
+        self.common_properties = self.common_properties.clone().created(created);
+        self
+    }
+
+    /// Set the `modified` timestamp for an Extension Definition SMO under construction.
+    pub fn modified(mut self, modified: Timestamp) -> Self {
+        self.common_properties = self.common_properties.clone().modified(modified);
+        self
+    }
+
     // Setter functions for Extension Definition specific properties
 
     /// Set the optional `description` field for an Extension Definition SMO under construction
@@ -353,10 +390,23 @@ impl ExtensionDefinitionBuilder {
         self
     }
 
-    /// Builds a new Extension Definition SMO, using the information found in the ExtensionDefinitionBuilder
+    /// Set custom properties for the extension definition under construction.
+    pub fn custom_properties(mut self, custom_properties: BTreeMap<String, Value>) -> Self {
+        self.common_properties = self
+            .common_properties
+            .clone()
+            .custom_properties(custom_properties);
+        self
+    }
+
+    /// Builds a new Extension Definition SMO without running `stix_check()`
+    /// validation.
     ///
-    /// This runs the `stick_check()` validation method on the newly constructed SMO.
-    pub fn build(self) -> Result<ExtensionDefinition, Error> {
+    /// This assembles the final `ExtensionDefinition` object from the builder,
+    /// but skips the object-specific `stix_check()`. It is intended for callers
+    /// that have already validated the object and only need its typed
+    /// representation (e.g. serialization).
+    pub fn build_no_validate(self) -> Result<ExtensionDefinition, Error> {
         let mut errors = Vec::new();
 
         // Check that required fields are included before creating the object
@@ -405,8 +455,17 @@ impl ExtensionDefinitionBuilder {
             extension_properties,
         };
 
-        extension_definition.stix_check()?;
+        Ok(extension_definition)
+    }
 
+    /// Builds a new Extension Definition SMO, using the information found in the
+    /// `ExtensionDefinitionBuilder`.
+    ///
+    /// This assembles the final `ExtensionDefinition` object from the builder and
+    /// then runs `stix_check()` on it.
+    pub fn build(self) -> Result<ExtensionDefinition, Error> {
+        let extension_definition = self.build_no_validate()?;
+        extension_definition.stix_check()?;
         Ok(extension_definition)
     }
 }

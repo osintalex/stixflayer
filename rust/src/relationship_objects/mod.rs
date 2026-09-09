@@ -7,13 +7,14 @@ pub mod types;
 use crate::{
     base::{check_timestamp_ordering, CommonProperties, CommonPropertiesBuilder, Stix},
     error::{add_error, return_multiple_errors, StixError as Error},
-    json,
     relationship_objects::types::RelationshipType,
     types::{
-        DictionaryValue, ExternalReference, GranularMarking, Identified, Identifier, ScoTypes,
-        SdoTypes, SroTypes, StixDictionary, StixMetaTypes, Timestamp, stix_case,
+        stix_case, DictionaryValue, ExternalReference, GranularMarking, Identified, Identifier,
+        ScoTypes, SdoTypes, SroTypes, StixDictionary, StixMetaTypes, Timestamp,
     },
+    validation::validate_value,
 };
+use stix_derive::StixProperties;
 
 use log::warn;
 use regex::Regex;
@@ -50,18 +51,13 @@ pub struct RelationshipObject {
 
 impl RelationshipObject {
     /// Deserializes an SRO from a JSON String.
-    /// Checks that all fields conform to the STIX 2.1 standard
-    /// If the `allow_custom` flag is flase, checks that there are no fields in the JSON String that are not in the SRO type definition
+    /// Checks that all fields conform to the STIX 2.1 standard.
+    /// If the `allow_custom` flag is false, checks that there are no fields in the JSON String
+    /// that are not in the SRO type definition.
     pub fn from_json(json: &str, allow_custom: bool) -> Result<Self, Error> {
-        let relationship_object: Self =
+        let value: serde_json::Value =
             serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
-        relationship_object.stix_check()?;
-
-        if !allow_custom {
-            json::field_check(&relationship_object, json)?;
-        }
-
-        Ok(relationship_object)
+        validate_value(value, allow_custom, true)
     }
 
     pub fn is_revoked(&self) -> bool {
@@ -127,6 +123,8 @@ impl Stix for RelationshipObject {
     }
 }
 
+crate::impl_custom_properties_holder!(RelationshipObject);
+
 // Checks that the required properties for an SRO are present and that the prohibited fields for an SRO are not present
 pub fn check_sro_properties(properties: &CommonProperties) -> Result<(), Error> {
     let mut errors = Vec::new();
@@ -160,7 +158,9 @@ pub fn check_sro_properties(properties: &CommonProperties) -> Result<(), Error> 
 }
 
 /// Whether the SRO is a standard generic or a sighting
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, AsRefStr, StrumDisplay)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, AsRefStr, StrumDisplay, StixProperties,
+)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum RelationshipObjectType {
@@ -170,7 +170,7 @@ pub enum RelationshipObjectType {
 
 /// Nested struct for properties only found in generic SROs
 #[skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Relationship {
     /// The type of relationship
     ///
@@ -234,7 +234,7 @@ impl Stix for Relationship {
 
 /// Nested struct for properties only found in Sightings
 #[skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Sighting {
     /// The beginning of the time window during which the SDO referenced by the `sighting_of_ref` property was sighted.
     pub first_seen: Option<Timestamp>,
@@ -283,20 +283,16 @@ impl Stix for Sighting {
             }
         }
 
-        if SdoTypes::iter()
-            .all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type()))
-        {
+        if SdoTypes::iter().all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type())) {
             return Err(Error::ValidationError(format!(
                 "Sighting of ref must be an SDO. Sighting of ref is type {}.",
                 self.sighting_of_ref.get_type()
             )));
         }
-        if !ScoTypes::iter()
-            .all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type()))
+        if !ScoTypes::iter().all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type()))
             || !StixMetaTypes::iter()
                 .all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type()))
-            || !SroTypes::iter()
-                .all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type()))
+            || !SroTypes::iter().all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type()))
         {
             return Err(Error::ValidationError(format!(
                 "Sighting of ref must be an SDO. Sighting of ref is type {}.",
@@ -423,6 +419,23 @@ impl RelationshipObjectBuilder {
         let description = old.description.clone();
         let old_properties = old.common_properties.clone();
         let common_properties = CommonPropertiesBuilder::version("sro", &old_properties)?;
+
+        Ok(RelationshipObjectBuilder {
+            object_type,
+            common_properties,
+            description,
+        })
+    }
+
+    /// Create a builder from an already-parsed SRO, preserving its `id`, `created`,
+    /// `modified`, and `revoked` properties exactly. Unlike `version()`, this does
+    /// not treat the object as the basis for a new version and does not reject
+    /// revoked objects.
+    pub fn from_parsed(old: &RelationshipObject) -> Result<RelationshipObjectBuilder, Error> {
+        let object_type = old.object_type.clone();
+        let description = old.description.clone();
+        let old_properties = old.common_properties.clone();
+        let common_properties = CommonPropertiesBuilder::from_existing("sro", &old_properties)?;
 
         Ok(RelationshipObjectBuilder {
             object_type,
@@ -631,11 +644,13 @@ impl RelationshipObjectBuilder {
         })
     }
 
-    /// Builds a new SRO, using the information found in the RelationshipObjectBuilder
+    /// Builds a new SRO without running `stix_check()` validation.
     ///
-    /// This performs a final check that all required fields for a given SRO type are included before construction.
-    /// This also runs the `stick_check()` validation method on the newly constructed SRO.
-    pub fn build(self) -> Result<RelationshipObject, Error> {
+    /// This assembles the final `RelationshipObject` from the builder, but skips
+    /// the object-specific `stix_check()`. It is intended for callers that have
+    /// already validated the object and only need its typed representation
+    /// (e.g. serialization).
+    pub fn build_no_validate(self) -> Result<RelationshipObject, Error> {
         let common_properties = self.common_properties.build();
 
         let sro = RelationshipObject {
@@ -644,8 +659,16 @@ impl RelationshipObjectBuilder {
             description: self.description,
         };
 
-        sro.stix_check()?;
+        Ok(sro)
+    }
 
+    /// Builds a new SRO, using the information found in the `RelationshipObjectBuilder`.
+    ///
+    /// This assembles the final `RelationshipObject` from the builder and then
+    /// runs `stix_check()` on it.
+    pub fn build(self) -> Result<RelationshipObject, Error> {
+        let sro = self.build_no_validate()?;
+        sro.stix_check()?;
         Ok(sro)
     }
 }

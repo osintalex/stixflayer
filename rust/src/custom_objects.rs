@@ -8,8 +8,9 @@ use crate::{
     relationship_objects::{check_sro_properties, Related, RelationshipObjectBuilder},
     types::{
         get_extension_type, stix_case, DictionaryValue, ExtensionType, ExternalReference,
-        Identified, Identifier, StixDictionary,
+        Identified, Identifier, StixDictionary, Timestamp,
     },
+    validation::validate_value,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -40,14 +41,12 @@ pub struct CustomObject {
 }
 
 impl CustomObject {
-    /// Deserializes a  custom object from a JSON String.
-    /// Checks that all fields conform to the STIX 2.1 standard
+    /// Deserializes a custom object from a JSON String.
+    /// Checks that all fields conform to the STIX 2.1 standard.
     pub fn from_json(json: &str) -> Result<Self, Error> {
-        let object: Self =
+        let value: serde_json::Value =
             serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
-        object.stix_check()?;
-
-        Ok(object)
+        validate_value(value, true, true)
     }
 
     /// Returns whether a custom STIX Object is an SDO, SRO, or SCO, as determined by its new object extension
@@ -124,6 +123,8 @@ impl Related for CustomObject {
         RelationshipObjectBuilder::new(source_id, target_id, &relationship_type)
     }
 }
+
+crate::impl_custom_properties_holder!(CustomObject);
 
 impl Stix for CustomObject {
     fn stix_check(&self) -> Result<(), Error> {
@@ -333,6 +334,61 @@ impl CustomObjectBuilder {
         })
     }
 
+    /// Create a new STIX 2.1 `CustomObjectBuilder` by cloning the fields from an already-parsed
+    /// `CustomObject`, preserving its `id`, `created`, `modified`, and `revoked` properties exactly.
+    /// Unlike `version()`, this does not treat the object as the basis for a new version.
+    pub fn from_parsed(old: &CustomObject) -> Result<CustomObjectBuilder, Error> {
+        let object_type = old.get_object_type()?;
+        let object_type_name = old.object_type.clone();
+        let custom_properties = old.custom_properties.clone();
+
+        // Find the extension-definition key that declares this as a custom object.
+        let ext_def_id = old
+            .common_properties
+            .extensions
+            .as_ref()
+            .and_then(|exts| {
+                for (key, ext) in exts.iter() {
+                    if Identifier::from_str(key)
+                        .map(|id| id.get_type() == "extension-definition")
+                        .unwrap_or(false)
+                    {
+                        if let Some(DictionaryValue::String(val)) = ext.get("extension_type") {
+                            if val != "property-extension" && val != "toplevel-property-extension" {
+                                return Some(key.as_str());
+                            }
+                        }
+                    }
+                }
+                None
+            })
+            .unwrap_or("extension-definition--00000000-0000-0000-0000-000000000000");
+
+        let mut builder = match object_type {
+            ExtensionType::NewSdo => {
+                CustomObjectBuilder::new_sdo(&object_type_name, custom_properties, ext_def_id)?
+            }
+            ExtensionType::NewSro => {
+                CustomObjectBuilder::new_sro(&object_type_name, custom_properties, ext_def_id)?
+            }
+            ExtensionType::NewSco => {
+                CustomObjectBuilder::new_sco(&object_type_name, custom_properties, ext_def_id)?
+            }
+            _ => unreachable!(),
+        };
+
+        let object_name = match object_type {
+            ExtensionType::NewSdo => "sdo",
+            ExtensionType::NewSro => "sro",
+            ExtensionType::NewSco => "sco",
+            _ => unreachable!(),
+        };
+        builder.common_properties =
+            CommonPropertiesBuilder::from_existing(object_name, &old.common_properties)?;
+
+        Ok(builder)
+    }
+
     /// Create a new STIX 2.1 `CustomObjectBuilder` by cloning the fields from an existing `CustomObject`
     /// When built, this will create `CustomObject` as a newer version of the original object.
     ///
@@ -393,6 +449,18 @@ impl CustomObjectBuilder {
         self
     }
 
+    /// Set the `created` timestamp for a custom object under construction.
+    pub fn created(mut self, created: Timestamp) -> Self {
+        self.common_properties = self.common_properties.clone().created(created);
+        self
+    }
+
+    /// Set the `modified` timestamp for a custom object under construction.
+    pub fn modified(mut self, modified: Timestamp) -> Self {
+        self.common_properties = self.common_properties.clone().modified(modified);
+        self
+    }
+
     /// Set the optional `external_references` field for a custom object under construction.
     pub fn external_references(mut self, references: Vec<ExternalReference>) -> Self {
         self.common_properties = self
@@ -424,11 +492,13 @@ impl CustomObjectBuilder {
         Ok(self)
     }
 
-    /// Builds a new custom STIX object, using the information found in the CustombjectBuilder
+    /// Builds a new custom STIX object without running validation.
     ///
-    /// This performs a final check that all required fields for a given object type are included before construction.
-    /// This also runs the `stick_check()` validation method on the newly constructed object.
-    pub fn build(self) -> Result<CustomObject, Error> {
+    /// This assembles the final `CustomObject` from the builder, skipping the
+    /// object-specific validation. It is intended for callers that have already
+    /// validated the object and only need its typed representation
+    /// (e.g. serialization).
+    pub fn build_no_validate(self) -> Result<CustomObject, Error> {
         let common_properties = self.common_properties.build();
 
         let object = CustomObject {
@@ -437,6 +507,15 @@ impl CustomObjectBuilder {
             custom_properties: self.custom_properties,
         };
 
+        Ok(object)
+    }
+
+    /// Builds a new custom STIX object, using the information found in the
+    /// `CustomObjectBuilder`.
+    ///
+    /// This assembles the final `CustomObject` and runs validation on it.
+    pub fn build(self) -> Result<CustomObject, Error> {
+        let object = self.build_no_validate()?;
         let mut errors = Vec::new();
 
         // Check required and prohibited fields for the object type

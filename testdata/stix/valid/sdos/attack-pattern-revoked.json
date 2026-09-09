@@ -1,0 +1,10 @@
+{
+    "type": "attack-pattern",
+    "spec_version": "2.1",
+    "id": "attack-pattern--089a0ad8-367a-4326-ba2e-35b506fa4c29",
+    "created": "2016-05-12T08:17:27.000Z",
+    "modified": "2016-05-13T09:22:01.000Z",
+    "revoked": true,
+    "name": "Spear Phishing",
+    "description": "Revoked variant of the attack-pattern fixture."
+}

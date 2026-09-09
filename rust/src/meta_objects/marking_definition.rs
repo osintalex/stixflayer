@@ -3,13 +3,16 @@
 use crate::{
     base::{CommonProperties, CommonPropertiesBuilder, Stix},
     error::{return_multiple_errors, StixError as Error},
-    json,
     relationship_objects::{Related, RelationshipObjectBuilder},
-    types::{ExternalReference, GranularMarking, Identified, Identifier},
+    types::{ExternalReference, GranularMarking, Identified, Identifier, Timestamp},
+    validation::validate_value,
 };
+use serde_json::Value;
+use std::collections::BTreeMap;
 use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use stix_derive::StixProperties;
 
 /// Type Name: marking-definition
 /// The marking-definition object represents a specific marking. Data markings typically represent
@@ -34,7 +37,7 @@ use serde_with::skip_serializing_none;
 ///
 
 #[skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct MarkingDefinition {
     #[serde(rename = "type")]
     pub object_type: String,
@@ -49,19 +52,14 @@ pub struct MarkingDefinition {
     pub definition: Option<MarkingTypes>,
 }
 impl MarkingDefinition {
-    /// Deserializes a MarkingDefintion SMO from a JSON String.
-    /// Checks that all fields conform to the STIX 2.1 standard
-    /// If the `allow_custom` flag is flase, checks that there are no fields in the JSON String that are not in the SDO type definition
-    pub fn from_json(json: &str, allow_custom: bool) -> Result<Self, Error> {
-        let marking_definition: Self =
+    /// Deserializes a MarkingDefinition SMO from a JSON String.
+    /// Checks that all fields conform to the STIX 2.1 standard.
+    /// If the `allow_custom` flag is false, checks that there are no fields in the JSON String
+    /// that are not in the Marking Definition SMO type definition.
+    pub fn from_json(json: &str, strict: bool, allow_custom: bool) -> Result<Self, Error> {
+        let value: serde_json::Value =
             serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
-        marking_definition.stix_check()?;
-
-        if !allow_custom {
-            json::field_check(&marking_definition, json)?;
-        }
-
-        Ok(marking_definition)
+        validate_value(value, allow_custom, strict)
     }
 
     pub fn is_revoked(&self) -> bool {
@@ -155,6 +153,8 @@ impl Stix for MarkingDefinition {
     }
 }
 
+crate::impl_custom_properties_holder!(MarkingDefinition);
+
 /// Builder struct for Marking Definition SMOs.
 ///
 /// This follows the "Rust builder pattern," where we  use a `new()` function to construct a Builder
@@ -225,6 +225,15 @@ impl MarkingDefinitionBuilder {
         self
     }
 
+    /// Set the `created` timestamp for a Marking Definition SMO under construction.
+    ///
+    /// Marking definitions cannot have a `modified` timestamp, so only `created`
+    /// is exposed.
+    pub fn created(mut self, created: Timestamp) -> Self {
+        self.common_properties = self.common_properties.clone().created(created);
+        self
+    }
+
     /// Set the optional `extension_properties` field for a Marking Definition SMO under construction
     pub fn definition_type(mut self, definition_type: String) -> Self {
         self.definition_type = Some(definition_type);
@@ -242,23 +251,19 @@ impl MarkingDefinitionBuilder {
         self
     }
 
-    /// Builds a new Marking Definition SMO, using the information found in the ExtensionDefinitionBuilder
+    /// Set custom properties for the marking definition under construction.
+    pub fn custom_properties(mut self, custom_properties: BTreeMap<String, Value>) -> Self {
+        self.common_properties = self.common_properties.clone().custom_properties(custom_properties);
+        self
+    }
+
+    /// Builds a new Marking Definition SMO without running `stix_check()` validation.
     ///
-    /// This runs the `stick_check()` validation method on the newly constructed SMO.
-    pub fn build(self) -> Result<MarkingDefinition, Error> {
-        // let mut errors = Vec::new();
-
-        // Check that required fields are included before cerating the object
-
-        /*if self.schema.is_none() {
-            errors.push(Error::MissingBuilderProperty {
-                object_type: "extension-definition".to_string(),
-                property: "schema".to_string(),
-            })
-        }*/
-
-        // return_multiple_errors(errors)?;
-
+    /// This assembles the final `MarkingDefinition` object from the builder, but
+    /// skips the object-specific `stix_check()`. It is intended for callers that
+    /// have already validated the object and only need its typed representation
+    /// (e.g. serialization).
+    pub fn build_no_validate(self) -> Result<MarkingDefinition, Error> {
         let common_properties = self.common_properties.build();
 
         let name = self.name;
@@ -273,8 +278,17 @@ impl MarkingDefinitionBuilder {
             definition,
         };
 
-        marking_definition.stix_check()?;
+        Ok(marking_definition)
+    }
 
+    /// Builds a new Marking Definition SMO, using the information found in the
+    /// `MarkingDefinitionBuilder`.
+    ///
+    /// This assembles the final `MarkingDefinition` object from the builder and
+    /// then runs `stix_check()` on it.
+    pub fn build(self) -> Result<MarkingDefinition, Error> {
+        let marking_definition = self.build_no_validate()?;
+        marking_definition.stix_check()?;
         Ok(marking_definition)
     }
 
@@ -283,6 +297,21 @@ impl MarkingDefinitionBuilder {
         let old_properties = old.common_properties.clone();
         let common_properties =
             CommonPropertiesBuilder::version("marking-definition", &old_properties)?;
+        Ok(Self {
+            common_properties,
+            name: old.name.clone(),
+            definition_type: old.definition_type.clone(),
+            definition: old.definition.clone(),
+        })
+    }
+
+    /// Create a builder from an already-parsed MarkingDefinition, preserving its
+    /// `id`, `created`, `modified`, and `revoked` properties exactly. Unlike
+    /// `version()`, this does not treat the object as the basis for a new version.
+    pub fn from_parsed(old: &MarkingDefinition) -> Result<Self, Error> {
+        let old_properties = old.common_properties.clone();
+        let common_properties =
+            CommonPropertiesBuilder::from_existing("marking-definition", &old_properties)?;
         Ok(Self {
             common_properties,
             name: old.name.clone(),

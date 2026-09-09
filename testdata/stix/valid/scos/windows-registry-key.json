@@ -1,7 +1,7 @@
 {
     "type": "windows-registry-key",
     "spec_version": "2.1",
-    "id": "windows-registry-key--ffa353d6-8ee4-48a0-a17c-c394d0fc56ac",
+    "id": "windows-registry-key--56b8b18e-8e4b-55e0-83ce-c8457faae61f",
     "key": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion",
     "values": [
         {
