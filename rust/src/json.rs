@@ -1,75 +1,7 @@
 //! Functions for deserializing STIX objects from JSON strings.
 
 use crate::{error::StixError as Error, types::get_object_type};
-use serde::Serialize;
 use serde_json::Value;
-
-/// Compares fields of a deserialized struct with a JSON string, returning an error for unknown fields.
-// Function that takes any *already deserialized* struct and a JSON String and compares the fields in both values.
-// If any fields are unknown it errors
-// Note: A fully initalized struct is necessary to do this comparision, which is why this function is called after
-// deserialization as a check that returns an error as a validation check.
-pub fn field_check<T: Serialize>(s: &T, json_str: &str) -> Result<(), Error> {
-    // Deserialize the JSON again as a generic JSON Value and get its keys
-    let json_value: Value =
-        serde_json::from_str(json_str).map_err(|e| Error::DeserializationError(e.to_string()))?;
-    let json_keys: Vec<String> = match &json_value {
-        Value::Object(map) => map.keys().cloned().collect(),
-        _ => return Err(Error::UnexpectedJsonFormat),
-    };
-
-    // Compare the keys of the JSON String to the keys of the provided struct after re-serializing it
-    // Note: We re-serialize the struct which applies serde(rename = "...") attributes,
-    // so the serialized keys match what appears in the JSON, not the Rust field names
-    let keys = get_keys(s).map_err(|e| Error::SerializationError(e.to_string()))?;
-    let unknown_fields = find_differences(&json_keys, &keys);
-
-    // If there are any keys in the JSON String not in the struct, return an error
-    // But first, filter out some common STIX properties that aren't in the struct but are valid
-    let filtered_unknown: Vec<String> = unknown_fields
-        .into_iter()
-        .filter(|k| {
-            !matches!(
-                k.as_str(),
-                "type"
-                    | "spec_version"
-                    | "id"
-                    | "created"
-                    | "modified"
-                    | "revoked"
-                    | "labels"
-                    | "external_references"
-            )
-        })
-        .collect();
-
-    if filtered_unknown.is_empty() {
-        Ok(())
-    } else {
-        Err(Error::UnknownFields(filtered_unknown))
-    }
-}
-
-/// Function to get the keys of any serializable struct passed in
-pub fn get_keys<T: Serialize>(s: &T) -> Result<Vec<String>, serde_json::Error> {
-    let serialized = serde_json::to_value(s)?;
-    if let Value::Object(map) = serialized {
-        Ok(map.keys().cloned().collect())
-    } else {
-        Ok(vec![])
-    }
-}
-
-/// Function to find differences in two vectors.
-pub fn find_differences(vec1: &[String], vec2: &[String]) -> Vec<String> {
-    let unknown_fields: Vec<String> = vec1
-        .iter()
-        .filter(|item| !vec2.contains(item))
-        .cloned()
-        .collect();
-
-    unknown_fields
-}
 
 /// Function to get the STIX object type from a generic STIX object JSON by matching the given type
 ///

@@ -1,7 +1,7 @@
 {
     "type": "file",
     "spec_version": "2.1",
-    "id": "file--2dccfecd-a6a3-58b6-b84c-c7f9fdd26c9a",
+    "id": "file--d0ae427a-332f-5f61-bda5-bde3805373fd",
     "name": "malware.exe",
     "size": 123456,
     "magic_number_hex": "4d5a",

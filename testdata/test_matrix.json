@@ -49,6 +49,20 @@
       "rule": "Bundle MUST contain at least one object",
       "fixture": "invalid/bundle/bundle-empty.json",
       "expected_error_substring": "Bundle must contain at least one object"
+    },
+    "revoked-sdo-parses": {
+      "category": "sdo",
+      "object_type": "attack-pattern",
+      "rule": "Revoked objects are valid STIX and MUST be parseable; only versioning a revoked object is prohibited (spec 3.3)",
+      "fixture": "valid/sdos/attack-pattern-revoked.json",
+      "expected_behavior": "parses_successfully"
+    },
+    "revoked-sdo-timestamps-preserved": {
+      "category": "sdo",
+      "object_type": "attack-pattern",
+      "rule": "Parsing a revoked object MUST NOT alter id/created/modified (parsing is not versioning)",
+      "fixture": "valid/sdos/attack-pattern-revoked.json",
+      "expected_behavior": "parses_successfully"
     }
   }
 }

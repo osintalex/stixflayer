@@ -11,13 +11,17 @@ use crate::{
     },
     error::{add_error, return_multiple_errors, StixError as Error},
     pattern::validate_pattern,
-    types::{Identifier, KillChainPhase, ScoTypes, SdoTypes, SroTypes, StixMetaTypes, Timestamp, stix_case},
+    types::{
+        stix_case, Identifier, KillChainPhase, ScoTypes, SdoTypes, SroTypes, StixMetaTypes,
+        Timestamp,
+    },
 };
 use log::warn;
 use ordered_float::OrderedFloat as ordered_float;
 use serde::{Deserialize, Serialize};
 use serde_this_or_that::as_u64;
 use serde_with::skip_serializing_none;
+use stix_derive::StixProperties;
 use strum::IntoEnumIterator;
 
 /// Attack Pattern SDOs
@@ -29,7 +33,7 @@ use strum::IntoEnumIterator;
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_axjijf603msy>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct AttackPattern {
     /// A name used to identify the Attack Pattern.
     pub name: String,
@@ -71,7 +75,7 @@ impl Stix for AttackPattern {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_pcpvfz4ik6d6>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Campaign {
     /// A name used to identify the Campaign.
     pub name: String,
@@ -118,7 +122,7 @@ impl Stix for Campaign {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_a925mpw39txn>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct CourseOfAction {
     /// A name used to identify the Course of Action.
     pub name: String,
@@ -145,7 +149,7 @@ impl Stix for CourseOfAction {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_t56pn7elv6u7>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Grouping {
     /// A name used to identify the Grouping.
     pub name: Option<String>,
@@ -184,7 +188,7 @@ impl Stix for Grouping {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_wh296fiwpklp>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Identity {
     /// The name of the Identity.
     ///
@@ -242,7 +246,7 @@ impl Stix for Identity {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_sczfhw64pjxt>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Incident {
     /// The name of the Incident.
     pub name: String,
@@ -270,7 +274,7 @@ impl Stix for Incident {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_muftrcpnf89v>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Indicator {
     /// An optional name used to identify the Indicator.
     ///
@@ -330,8 +334,7 @@ impl Stix for Indicator {
         // If the pattern is a STIX Pattern, validate it using the Rust implemtation of STIX Patterning
         if stix_case(&self.pattern_type) == "stix" {
             add_error(&mut errors, validate_pattern(&self.pattern));
-        } else if IndicatorPatternType::iter()
-            .all(|x| x.as_ref() != stix_case(&self.pattern_type))
+        } else if IndicatorPatternType::iter().all(|x| x.as_ref() != stix_case(&self.pattern_type))
         {
             errors.push(Error::ValidationError(format!(
                 "A pattern type should come from the STIX pattern type open vocabulary. Pattern type {} for is not in the vocabulary.",
@@ -341,8 +344,7 @@ impl Stix for Indicator {
         if let Some(indicator_types) = &self.indicator_types {
             add_error(&mut errors, indicator_types.stix_check());
             for indicator_type in indicator_types {
-                if IndicatorType::iter().all(|x| x.as_ref() != stix_case(&indicator_type))
-                {
+                if IndicatorType::iter().all(|x| x.as_ref() != stix_case(&indicator_type)) {
                     errors.push(Error::ValidationError(format!(
                         "A indicator Type should come from the STIX pattern type open vocabulary. Identity sector '{}' is not in the vocabulary.",
                         indicator_type,
@@ -368,7 +370,6 @@ impl Stix for Indicator {
     }
 }
 
-
 ///
 /// The Infrastructure SDO represents a type of TTP and describes any systems, software services and any associated physical or virtual resources intended to
 /// support some purpose (e.g., C2 servers used as part of an attack, device or server that are part of defense, database servers targeted by an attack, etc.).
@@ -377,7 +378,7 @@ impl Stix for Indicator {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_jo3k1o6lr9>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Infrastructure {
     /// A name used to identify the Infrastructure.
     pub name: String,
@@ -418,8 +419,7 @@ impl Stix for Infrastructure {
         if let Some(its) = &self.infrastructure_types {
             add_error(&mut errors, its.stix_check());
             for infrastructure_type in its {
-                if InfrastructureType::iter()
-                    .all(|x| x.as_ref() != stix_case(&infrastructure_type))
+                if InfrastructureType::iter().all(|x| x.as_ref() != stix_case(&infrastructure_type))
                 {
                     errors.push(Error::ValidationError(format!(
                         "An infrastructure type should come from the STIX pattern type open vocabulary. Infrastructure type {} for is not in the vocabulary.",
@@ -452,7 +452,7 @@ impl Stix for Infrastructure {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_5ol9xlbbnrdn>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct IntrusionSet {
     /// A name used to identify this Threat Actor or Threat Actor group.
     pub name: String,
@@ -514,9 +514,7 @@ impl Stix for IntrusionSet {
         }
 
         if let Some(resource_level) = self.resource_level.as_deref() {
-            if AttackResourceLevel::iter()
-                .all(|x| x.as_ref() != stix_case(&resource_level))
-            {
+            if AttackResourceLevel::iter().all(|x| x.as_ref() != stix_case(&resource_level)) {
                 errors.push(Error::ValidationError(format!(
                         "A resource_level should come from the attack resource level open vocabulary. IntrusionSet resource_level {} is not in the vocabulary.",
                         resource_level,
@@ -558,7 +556,7 @@ impl Stix for IntrusionSet {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_th8nitr8jb4k>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Location {
     /// A name used to identify the Location.
     pub name: Option<String>,
@@ -692,7 +690,7 @@ impl Stix for Location {
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_s5l7katgbp09>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 /// Represents a malware instance or family.
 pub struct Malware {
     /// A name used to identify the malware instance or family.
@@ -769,9 +767,7 @@ impl Stix for Malware {
                     )));
                     continue;
                 }
-                if MalwareType::iter()
-                    .all(|x| x.as_ref() != stix_case(&malware_type.as_str()))
-                {
+                if MalwareType::iter().all(|x| x.as_ref() != stix_case(&malware_type.as_str())) {
                     errors.push(Error::ValidationError(format!(
                         "malware_types '{}' should come from the list",
                         malware_type
@@ -826,8 +822,7 @@ impl Stix for Malware {
         if let Some(capabilities) = &self.capabilities {
             add_error(&mut errors, capabilities.stix_check());
             for capability in capabilities {
-                if MalwareCapability::iter()
-                    .all(|x| x.as_ref() != stix_case(&capability.as_str()))
+                if MalwareCapability::iter().all(|x| x.as_ref() != stix_case(&capability.as_str()))
                 {
                     errors.push(Error::ValidationError(format!(
                         "A capability should come from the STIX pattern type open vocabulary. Malware capability '{}' is not in the vocabulary.",
@@ -860,7 +855,7 @@ impl Stix for Malware {
 ///
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_6hdrixb3ua4j>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct MalwareAnalysis {
     /// The name of the analysis engine or product that was used.
     pub product: String,
@@ -964,16 +959,13 @@ impl Stix for MalwareAnalysis {
         if let Some(analysis_sco_refs) = &self.analysis_sco_refs {
             add_error(&mut errors, analysis_sco_refs.stix_check());
             for analysis_sco_ref in analysis_sco_refs {
-                if ScoTypes::iter()
-                    .all(|x| x.as_ref() != stix_case(&analysis_sco_ref.get_type()))
-                {
+                if ScoTypes::iter().all(|x| x.as_ref() != stix_case(&analysis_sco_ref.get_type())) {
                     errors.push(Error::ValidationError(format!(
                         "An analysis_sco_ref should come from STIX Cyber-observable objects. Malware is type '{}'.",
                         analysis_sco_ref,
                     )));
                 }
-                if !SroTypes::iter()
-                    .all(|x| x.as_ref() != stix_case(&analysis_sco_ref.get_type()))
+                if !SroTypes::iter().all(|x| x.as_ref() != stix_case(&analysis_sco_ref.get_type()))
                     || !SdoTypes::iter()
                         .all(|x| x.as_ref() != stix_case(&analysis_sco_ref.get_type()))
                     || !StixMetaTypes::iter()
@@ -997,10 +989,8 @@ impl Stix for MalwareAnalysis {
             }
 
             if !SroTypes::iter().all(|x| x.as_ref() != stix_case(&sample_ref.get_type()))
-                || !SdoTypes::iter()
-                    .all(|x| x.as_ref() != stix_case(&sample_ref.get_type()))
-                || !StixMetaTypes::iter()
-                    .all(|x| x.as_ref() != stix_case(&sample_ref.get_type()))
+                || !SdoTypes::iter().all(|x| x.as_ref() != stix_case(&sample_ref.get_type()))
+                || !StixMetaTypes::iter().all(|x| x.as_ref() != stix_case(&sample_ref.get_type()))
             {
                 errors.push(Error::ValidationError(format!(
                     "A sample_ref must be an SCO. Malware Analysis host_vm_ref is type '{}'.",
@@ -1026,7 +1016,7 @@ impl Stix for MalwareAnalysis {
 ///  
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_gudodcg1sbb9>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Note {
     /// An optional abstract providing a summary of the note.
     #[serde(rename = "abstract")]
@@ -1084,7 +1074,7 @@ impl Stix for Note {
 ///
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_p49j1fwoxldc>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct ObservedData {
     /// The beginning of the time window during which the data was seen.
     pub first_observed: Timestamp,
@@ -1175,7 +1165,7 @@ impl Stix for ObservedData {
 ///
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_ht1vtzfbtzda>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Opinion {
     /// An optional abstract providing a summary of the note.
     pub explanation: Option<String>,
@@ -1222,7 +1212,7 @@ impl Stix for Opinion {
 ///
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_n8bjzg1ysgdq>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Report {
     /// A name used to identify the Report.
     /// This field is required.
@@ -1265,8 +1255,7 @@ impl Stix for Report {
                 }
                 if !ScoTypes::iter().all(|x| x.as_ref() != stix_case(&report_type))
                     || !SroTypes::iter().all(|x| x.as_ref() != stix_case(&report_type))
-                    || !StixMetaTypes::iter()
-                        .all(|x| x.as_ref() != stix_case(&report_type))
+                    || !StixMetaTypes::iter().all(|x| x.as_ref() != stix_case(&report_type))
                 {
                     errors.push(Error::ValidationError(format!(
                         "A report type must be an SDO. Report is type {}.",
@@ -1292,7 +1281,7 @@ impl Stix for Report {
 ///
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_k017w16zutw>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct ThreatActor {
     /// A name used to identify this Threat Actor or Threat Actor group.
     pub name: String,
@@ -1366,8 +1355,7 @@ impl Stix for ThreatActor {
         if let Some(roles) = &self.roles {
             add_error(&mut errors, roles.stix_check());
             for role in roles {
-                if ThreatActorRole::iter().all(|x| x.as_ref() != stix_case(&role.as_str()))
-                {
+                if ThreatActorRole::iter().all(|x| x.as_ref() != stix_case(&role.as_str())) {
                     errors.push(Error::ValidationError(format!(
                         "A role should come from the STIX pattern type open vocabulary. Threat actor role '{}' is not in the vocabulary.",
                         role,
@@ -1380,9 +1368,7 @@ impl Stix for ThreatActor {
         }
 
         if let Some(resource_level) = self.resource_level.as_deref() {
-            if AttackResourceLevel::iter()
-                .all(|x| x.as_ref() != stix_case(&resource_level))
-            {
+            if AttackResourceLevel::iter().all(|x| x.as_ref() != stix_case(&resource_level)) {
                 errors.push(Error::ValidationError(format!(
                     "A resource_level should come from the attack resource level open vocabulary. ThreatActor resource_level {} is not in the vocabulary.",
                     resource_level,
@@ -1391,9 +1377,7 @@ impl Stix for ThreatActor {
         }
 
         if let Some(sophistication) = self.sophistication.as_deref() {
-            if ThreatActorSophistication::iter()
-                .all(|x| x.as_ref() != stix_case(&sophistication))
-            {
+            if ThreatActorSophistication::iter().all(|x| x.as_ref() != stix_case(&sophistication)) {
                 errors.push(Error::ValidationError(format!(
                         "A sophistication should come from the STIX pattern type open vocabulary. Threat actor sophistication {} is not in the vocabulary.",
                         sophistication,
@@ -1401,9 +1385,7 @@ impl Stix for ThreatActor {
             }
         }
         if let Some(primary_motivation) = self.primary_motivation.as_deref() {
-            if AttackMotivation::iter()
-                .all(|x| x.as_ref() != stix_case(&primary_motivation))
-            {
+            if AttackMotivation::iter().all(|x| x.as_ref() != stix_case(&primary_motivation)) {
                 errors.push(Error::ValidationError(format!(
                         "A primary_motivation should come from the STIX pattern type open vocabulary. Threat actor primary_motivation {} is not in the vocabulary.",
                         primary_motivation,
@@ -1456,7 +1438,7 @@ impl Stix for ThreatActor {
 ///
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_z4voa9ndw8v>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Tool {
     /// The name used to identify the Tool.
     pub name: String,
@@ -1513,7 +1495,7 @@ impl Stix for Tool {
 ///
 /// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_q5ytzmajn6re>
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Vulnerability {
     /// Required: The name of the Vulnerability.
     pub name: String,

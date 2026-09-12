@@ -12,10 +12,10 @@ fn main() {
         if path.extension().map(|e| e == "json").unwrap_or(false) {
             let content = fs::read_to_string(&path).unwrap();
             let data: Value = serde_json::from_str(&content).unwrap();
-            
+
             let obj_type = data["type"].as_str().unwrap();
             let mut props = HashMap::<String, Value>::new();
-            
+
             // Extract id-contributing properties based on type
             match obj_type {
                 "artifact" => {
@@ -33,11 +33,17 @@ fn main() {
                             if let Some((k, v)) = found {
                                 let mut h = HashMap::new();
                                 h.insert(k.to_string(), v);
-                                props.insert("hashes".to_string(), Value::Object(h.into_iter().collect()));
+                                props.insert(
+                                    "hashes".to_string(),
+                                    Value::Object(h.into_iter().collect()),
+                                );
                             } else if let Some((k, v)) = obj.iter().next() {
                                 let mut h = HashMap::new();
                                 h.insert(k.clone(), v.clone());
-                                props.insert("hashes".to_string(), Value::Object(h.into_iter().collect()));
+                                props.insert(
+                                    "hashes".to_string(),
+                                    Value::Object(h.into_iter().collect()),
+                                );
                             }
                         }
                     }
@@ -85,11 +91,17 @@ fn main() {
                             if let Some((k, v)) = found {
                                 let mut h = HashMap::new();
                                 h.insert(k.to_string(), v);
-                                props.insert("hashes".to_string(), Value::Object(h.into_iter().collect()));
+                                props.insert(
+                                    "hashes".to_string(),
+                                    Value::Object(h.into_iter().collect()),
+                                );
                             } else if let Some((k, v)) = obj.iter().next() {
                                 let mut h = HashMap::new();
                                 h.insert(k.clone(), v.clone());
-                                props.insert("hashes".to_string(), Value::Object(h.into_iter().collect()));
+                                props.insert(
+                                    "hashes".to_string(),
+                                    Value::Object(h.into_iter().collect()),
+                                );
                             }
                         }
                     }
@@ -141,10 +153,15 @@ fn main() {
                 }
                 _ => {}
             }
-            
+
             // Empty map means no contributing properties were found
             let canon = json_canon::to_vec(&props).unwrap();
-            println!("{}: {} -> {:?}", path.file_name().unwrap().to_str().unwrap(), obj_type, canon);
+            println!(
+                "{}: {} -> {:?}",
+                path.file_name().unwrap().to_str().unwrap(),
+                obj_type,
+                canon
+            );
         }
     }
 }

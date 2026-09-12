@@ -1,7 +1,7 @@
 {
     "type": "ipv4-addr",
     "spec_version": "2.1",
-    "id": "ipv4-addr--0dd9640b-ad4c-5b34-abcd-a925b9d41f6b",
+    "id": "ipv4-addr--8dded90c-40c0-545a-8027-5b212bb37e8e",
     "value": "192.0.2.1",
     "resolves_to_refs": [
         "mac-addr--1253fbb4-d8da-54ef-9993-855008d95c9b"
