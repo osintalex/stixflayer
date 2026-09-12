@@ -19,7 +19,10 @@ use serde_json::Value;
 use serde_path_to_error as serde_path;
 
 use crate::{
-    base::{validate_custom_property_name, CustomPropertiesHolder, Stix},
+    base::{
+        validate_custom_property_name, validate_custom_property_suffix_value,
+        CustomPropertiesHolder, Stix,
+    },
     error::{add_error, classify_serde_error, return_multiple_errors, StixError as Error},
     properties::type_properties,
 };
@@ -324,9 +327,28 @@ mod tests {
     }
 
     #[test]
+    fn custom_property_name_may_start_with_digit() {
+        let value = serde_json::json!({
+            "type": "attack-pattern",
+            "id": "attack-pattern--12345678-1234-5678-1234-567812345678",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "spec_version": "2.1",
+            "name": "Spear Phishing",
+            "1digit_custom": "allowed"
+        });
+        let obj = validate_value::<DomainObject>(value, true, true).unwrap();
+        assert!(obj
+            .common_properties
+            .custom_properties
+            .as_ref()
+            .unwrap()
+            .contains_key("1digit_custom"));
+    }
+
+    #[test]
     fn invalid_custom_property_name_is_rejected() {
         let cases = [
-            ("1_starts_digit", "must not start with a digit"),
             ("bad-key", "characters outside the allowed set"),
             ("AB", "too short"),
             ("severity", "reserved"),
@@ -347,5 +369,110 @@ mod tests {
                 "{key}: expected ValidationError, got {err:?}"
             );
         }
+    }
+
+    #[test]
+    fn custom_property_suffix_value_validation() {
+        let valid_hex = serde_json::json!({
+            "type": "attack-pattern",
+            "id": "attack-pattern--12345678-1234-5678-1234-567812345678",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "spec_version": "2.1",
+            "name": "Spear Phishing",
+            "x_bytes_hex": "deadbeef"
+        });
+        assert!(validate_value::<DomainObject>(valid_hex, true, true).is_ok());
+
+        let invalid_hex_odd = serde_json::json!({
+            "type": "attack-pattern",
+            "id": "attack-pattern--12345678-1234-5678-1234-567812345678",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "spec_version": "2.1",
+            "name": "Spear Phishing",
+            "x_bytes_hex": "deadbee"
+        });
+        assert!(validate_value::<DomainObject>(invalid_hex_odd, true, true).is_err());
+
+        let invalid_hex_upper = serde_json::json!({
+            "type": "attack-pattern",
+            "id": "attack-pattern--12345678-1234-5678-1234-567812345678",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "spec_version": "2.1",
+            "name": "Spear Phishing",
+            "x_bytes_hex": "DEADBEEF"
+        });
+        assert!(validate_value::<DomainObject>(invalid_hex_upper, true, true).is_err());
+
+        let valid_bin = serde_json::json!({
+            "type": "attack-pattern",
+            "id": "attack-pattern--12345678-1234-5678-1234-567812345678",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "spec_version": "2.1",
+            "name": "Spear Phishing",
+            "x_payload_bin": "aGVsbG8gd29ybGQ="
+        });
+        assert!(validate_value::<DomainObject>(valid_bin, true, true).is_ok());
+
+        let invalid_bin = serde_json::json!({
+            "type": "attack-pattern",
+            "id": "attack-pattern--12345678-1234-5678-1234-567812345678",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "spec_version": "2.1",
+            "name": "Spear Phishing",
+            "x_payload_bin": "not-valid-base64!!!"
+        });
+        assert!(validate_value::<DomainObject>(invalid_bin, true, true).is_err());
+
+        // Non-string values with a _hex suffix are rejected.
+        let non_string_hex = serde_json::json!({
+            "type": "attack-pattern",
+            "id": "attack-pattern--12345678-1234-5678-1234-567812345678",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "spec_version": "2.1",
+            "name": "Spear Phishing",
+            "x_bytes_hex": 12345
+        });
+        assert!(validate_value::<DomainObject>(non_string_hex, true, true).is_err());
+    }
+
+    #[test]
+    fn custom_object_custom_property_validation() {
+        use crate::custom_objects::CustomObject;
+
+        let valid = serde_json::json!({
+            "type": "x-custom",
+            "id": "x-custom--12345678-1234-5678-1234-567812345678",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "spec_version": "2.1",
+            "extensions": {
+                "extension-definition--12345678-1234-5678-1234-567812345678": {
+                    "extension_type": "new-sdo"
+                }
+            },
+            "x_bytes_hex": "deadbeef"
+        });
+        assert!(validate_value::<CustomObject>(valid, true, true).is_ok());
+
+        let invalid = serde_json::json!({
+            "type": "x-custom",
+            "id": "x-custom--12345678-1234-5678-1234-567812345678",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "spec_version": "2.1",
+            "extensions": {
+                "extension-definition--12345678-1234-5678-1234-567812345678": {
+                    "extension_type": "new-sdo"
+                }
+            },
+            "x_bytes_hex": "not-hex"
+        });
+        assert!(validate_value::<CustomObject>(invalid, true, true).is_err());
     }
 }

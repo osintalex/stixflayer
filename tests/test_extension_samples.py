@@ -90,7 +90,7 @@ class TestCustomObjectErrors:
             extension_type="new-sdo",
             custom_properties={
                 "name": "Vendor enrichment",
-                "severity": 5,
+                "x_risk_score": 5,
             },
             extension_definition_id=EXT_ID,
         )
@@ -104,7 +104,7 @@ class TestCustomObjectErrors:
         assert obj.extension_type == "new-sdo"
         assert obj.extension_definition_id == EXT_ID
         assert isinstance(obj.custom_properties, dict)
-        assert obj.custom_properties["severity"] == 5
+        assert obj.custom_properties["x_risk_score"] == 5
 
     def test_wrong_extension_type_in_extensions_is_rejected(self):
         bad_json = {
@@ -147,17 +147,26 @@ class TestCustomObjectErrors:
         print("\n[CustomObject type underscore]\n", msg)
         assert "underscore" in msg.lower()
 
-    def test_custom_property_starting_with_digit_rejected(self):
+    def test_custom_property_starting_with_digit_accepted(self):
+        obj = stixflayer.CustomObject(
+            type_="vendor-enrichment-sdo",
+            extension_type="new-sdo",
+            custom_properties={"1sev": 5},
+            extension_definition_id=EXT_ID,
+        )
+        assert obj.custom_properties["1sev"] == 5
+
+    def test_custom_property_invalid_name_rejected(self):
         msg = _dump_error(
             lambda: stixflayer.CustomObject(
                 type_="vendor-enrichment-sdo",
                 extension_type="new-sdo",
-                custom_properties={"1sev": 5},
+                custom_properties={"bad-key": 5},
                 extension_definition_id=EXT_ID,
             )
         )
-        print("\n[CustomObject digit property]\n", msg)
-        assert "digit" in msg.lower()
+        print("\n[CustomObject invalid property name]\n", msg)
+        assert "characters outside the allowed set" in msg.lower()
 
 
 class TestBundleErrors:

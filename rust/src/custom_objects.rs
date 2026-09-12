@@ -1,7 +1,10 @@
 //! Contains the implementation logic for unrecognized custom STIX Objects.
 
 use crate::{
-    base::{CommonProperties, CommonPropertiesBuilder, Stix},
+    base::{
+        validate_custom_property_name, validate_custom_property_suffix_value, CommonProperties,
+        CommonPropertiesBuilder, Stix,
+    },
     cyber_observable_objects::sco::check_sco_properties,
     domain_objects::sdo::check_sdo_properties,
     error::{add_error, return_multiple_errors, StixError as Error},
@@ -163,22 +166,13 @@ impl Stix for CustomObject {
             _ => unreachable!(),
         }
 
-        // Validate custom property names: must not start with a digit
-        for key in self.custom_properties.keys() {
-            if key
-                .chars()
-                .next()
-                .map(|c| c.is_ascii_digit())
-                .unwrap_or(false)
-            {
-                errors.push(Error::ValidationError(format!(
-                    "Custom property name '{}' must not start with a digit",
-                    key
-                )));
-            }
+        // Validate custom property names and any hex/binary suffix values.
+        for (key, value) in self.custom_properties.iter() {
+            add_error(&mut errors, validate_custom_property_name(key));
+            add_error(&mut errors, validate_custom_property_suffix_value(key, value));
         }
 
-        // Validate custom property values
+        // Validate custom property values generically as JSON STIX values.
         add_error(&mut errors, self.custom_properties.stix_check());
 
         return_multiple_errors(errors)
@@ -800,7 +794,7 @@ mod test {
     }
 
     #[test]
-    fn custom_property_starting_with_digit_rejected() {
+    fn custom_property_starting_with_digit_accepted() {
         let json = r#"{
             "type": "x-example-com-customobject",
             "spec_version": "2.1",
@@ -808,6 +802,26 @@ mod test {
             "created": "2021-02-20T09:16:08.989000Z",
             "modified": "2021-02-20T09:16:08.989000Z",
             "9ome_custom_stuff": 14,
+            "extensions": {
+                "extension-definition--1bba6c39-7ac1-40a2-819a-f33f8ea81a25": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        }"#;
+
+        let result = CustomObject::from_json(json);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn custom_object_rejects_invalid_custom_property_names() {
+        let json = r#"{
+            "type": "x-example-com-customobject",
+            "spec_version": "2.1",
+            "id": "x-example-com-customobject--4527e5de-8572-446a-a57a-706f15467461",
+            "created": "2021-02-20T09:16:08.989000Z",
+            "modified": "2021-02-20T09:16:08.989000Z",
+            "bad-key": 14,
             "extensions": {
                 "extension-definition--1bba6c39-7ac1-40a2-819a-f33f8ea81a25": {
                     "extension_type": "new-sdo"

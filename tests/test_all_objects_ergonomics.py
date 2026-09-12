@@ -140,7 +140,7 @@ def test_custom_object_ergonomics():
         extension_definition_id=EXT_ID,
         custom_properties={
             "name": "Vendor enrichment",
-            "severity": 5,
+            "x_risk_score": 5,
             "tactic": "initial-access",
         },
         created=TS_CREATED,
@@ -152,7 +152,7 @@ def test_custom_object_ergonomics():
     assert co.extension_type == "new-sdo"
     assert co.extension_definition_id == EXT_ID
     assert isinstance(co.custom_properties, dict)
-    assert co.custom_properties["severity"] == 5
+    assert co.custom_properties["x_risk_score"] == 5
     # Dynamic access to arbitrary custom properties still works.
     assert co.tactic == "initial-access"
 
@@ -183,7 +183,7 @@ def test_custom_object_from_json_round_trip():
         type_="vendor-enrichment-sdo",
         extension_type="new-sdo",
         extension_definition_id=EXT_ID,
-        custom_properties={"name": " Vendor enrichment", "severity": 5},
+        custom_properties={"name": " Vendor enrichment", "x_risk_score": 5},
     )
     recovered = stixflayer.CustomObject.from_json(original.to_json())
     assert recovered.type == original.type

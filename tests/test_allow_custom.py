@@ -85,11 +85,31 @@ def test_custom_property_name_validation():
             "pattern": "[file:name = 'evil.exe']",
             "pattern_type": "stix",
             "valid_from": "2024-01-01T00:00:00.000Z",
-            "1bad": "value",
+            "bad-key": "value",
         }
     )
     with pytest.raises(sf.ValidationError):
         sf.Indicator.from_json(bad_json, allow_custom=True)
+
+
+def test_custom_property_name_may_start_with_digit():
+    """Names starting with a digit are allowed by the STIX custom-property character set."""
+    bad_json = json.dumps(
+        {
+            "type": "indicator",
+            "spec_version": "2.1",
+            "id": "indicator--0d4a1f02-1a5b-4c9e-9a8f-3f1b2c3d4e5f",
+            "created": "2024-01-01T00:00:00.000Z",
+            "modified": "2024-01-01T00:00:00.000Z",
+            "name": "Evil indicator",
+            "pattern": "[file:name = 'evil.exe']",
+            "pattern_type": "stix",
+            "valid_from": "2024-01-01T00:00:00.000Z",
+            "1custom": "value",
+        }
+    )
+    obj = sf.Indicator.from_json(bad_json, allow_custom=True)
+    assert obj.custom_properties == {"1custom": "value"}
 
 
 def test_reserved_custom_property_name_rejected():
@@ -183,3 +203,77 @@ def test_bundle_roundtrip_preserves_custom_property():
     )
     out = json.loads(bundle.to_json())
     assert out["objects"][0]["x_foo"] == "custom-value"
+
+
+def test_custom_property_hex_suffix_validated():
+    """_hex suffix values must be strings of even length lowercase hex digits."""
+    valid = json.dumps(
+        {
+            "type": "indicator",
+            "spec_version": "2.1",
+            "id": "indicator--0d4a1f02-1a5b-4c9e-9a8f-3f1b2c3d4e5f",
+            "created": "2024-01-01T00:00:00.000Z",
+            "modified": "2024-01-01T00:00:00.000Z",
+            "name": "Evil indicator",
+            "pattern": "[file:name = 'evil.exe']",
+            "pattern_type": "stix",
+            "valid_from": "2024-01-01T00:00:00.000Z",
+            "x_hash_hex": "deadbeef",
+        }
+    )
+    obj = sf.Indicator.from_json(valid, allow_custom=True)
+    assert obj.custom_properties == {"x_hash_hex": "deadbeef"}
+
+    invalid = json.dumps(
+        {
+            "type": "indicator",
+            "spec_version": "2.1",
+            "id": "indicator--0d4a1f02-1a5b-4c9e-9a8f-3f1b2c3d4e5f",
+            "created": "2024-01-01T00:00:00.000Z",
+            "modified": "2024-01-01T00:00:00.000Z",
+            "name": "Evil indicator",
+            "pattern": "[file:name = 'evil.exe']",
+            "pattern_type": "stix",
+            "valid_from": "2024-01-01T00:00:00.000Z",
+            "x_hash_hex": "DEADBEEF",
+        }
+    )
+    with pytest.raises(sf.ValidationError):
+        sf.Indicator.from_json(invalid, allow_custom=True)
+
+
+def test_custom_property_bin_suffix_validated():
+    """_bin suffix values must be strings containing valid base64."""
+    valid = json.dumps(
+        {
+            "type": "indicator",
+            "spec_version": "2.1",
+            "id": "indicator--0d4a1f02-1a5b-4c9e-9a8f-3f1b2c3d4e5f",
+            "created": "2024-01-01T00:00:00.000Z",
+            "modified": "2024-01-01T00:00:00.000Z",
+            "name": "Evil indicator",
+            "pattern": "[file:name = 'evil.exe']",
+            "pattern_type": "stix",
+            "valid_from": "2024-01-01T00:00:00.000Z",
+            "x_payload_bin": "aGVsbG8gd29ybGQ=",
+        }
+    )
+    obj = sf.Indicator.from_json(valid, allow_custom=True)
+    assert obj.custom_properties == {"x_payload_bin": "aGVsbG8gd29ybGQ="}
+
+    invalid = json.dumps(
+        {
+            "type": "indicator",
+            "spec_version": "2.1",
+            "id": "indicator--0d4a1f02-1a5b-4c9e-9a8f-3f1b2c3d4e5f",
+            "created": "2024-01-01T00:00:00.000Z",
+            "modified": "2024-01-01T00:00:00.000Z",
+            "name": "Evil indicator",
+            "pattern": "[file:name = 'evil.exe']",
+            "pattern_type": "stix",
+            "valid_from": "2024-01-01T00:00:00.000Z",
+            "x_payload_bin": "not-valid-base64!!!",
+        }
+    )
+    with pytest.raises(sf.ValidationError):
+        sf.Indicator.from_json(invalid, allow_custom=True)
