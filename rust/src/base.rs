@@ -308,7 +308,10 @@ impl Stix for CommonProperties {
             }
             for (key, value) in custom_properties.iter() {
                 add_error(&mut errors, validate_custom_property_name(key));
-                add_error(&mut errors, validate_custom_property_suffix_value(key, value));
+                add_error(
+                    &mut errors,
+                    validate_custom_property_suffix_value(key, value),
+                );
                 add_error(&mut errors, value.stix_check());
             }
         }
@@ -337,7 +340,10 @@ pub fn validate_custom_property_name(name: &str) -> Result<(), Error> {
             name
         )));
     }
-    if !name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_') {
+    if !name
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    {
         return Err(Error::ValidationError(format!(
             "Custom property name '{}' contains characters outside the allowed set (a-z, 0-9, _)",
             name
@@ -412,10 +418,17 @@ pub trait CustomPropertiesHolder {
 macro_rules! impl_custom_properties_holder {
     ($type:ty) => {
         impl $crate::base::CustomPropertiesHolder for $type {
-            fn custom_properties(&self) -> &Option<std::collections::BTreeMap<std::string::String, serde_json::Value>> {
+            fn custom_properties(
+                &self,
+            ) -> &Option<std::collections::BTreeMap<std::string::String, serde_json::Value>> {
                 &self.common_properties.custom_properties
             }
-            fn set_custom_properties(&mut self, custom_properties: Option<std::collections::BTreeMap<std::string::String, serde_json::Value>>) {
+            fn set_custom_properties(
+                &mut self,
+                custom_properties: Option<
+                    std::collections::BTreeMap<std::string::String, serde_json::Value>,
+                >,
+            ) {
                 self.common_properties.custom_properties = custom_properties;
             }
         }

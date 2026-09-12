@@ -52,7 +52,9 @@ class TestInvalidFixtures:
     def test_invalid_indicator_bad_pattern_type(self):
         """Indicator with invalid pattern_type raises ValidationError."""
         json_str = load_fixture("invalid/sdo/indicator-bad-pattern-type.json")
-        with pytest.raises(stixflayer.ValidationError, match="pattern type should come from the STIX pattern type open vocabulary"):
+        with pytest.raises(
+            stixflayer.ValidationError, match="pattern type should come from the STIX pattern type open vocabulary"
+        ):
             stixflayer.Indicator.from_json(json_str)
 
     def test_invalid_malware_bad_types(self):

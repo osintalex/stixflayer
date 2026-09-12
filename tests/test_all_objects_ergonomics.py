@@ -36,9 +36,7 @@ def _assert_common(obj, object_type: str) -> None:
 
 def test_sdo_sro_sco_dynamic_properties():
     """SDOs, SROs and SCOs expose all wire properties through dynamic access."""
-    identity = stixflayer.Identity(
-        name="Acme", identity_class="organization", created=TS_CREATED, modified=TS_MODIFIED
-    )
+    identity = stixflayer.Identity(name="Acme", identity_class="organization", created=TS_CREATED, modified=TS_MODIFIED)
     _assert_common(identity, "identity")
     assert identity.name == "Acme"
     assert identity.created == TS_CREATED

@@ -17,9 +17,7 @@ import stixflayer
 from tests.utils import DATA_DIR
 
 ALL_FIXTURES = sorted(
-    path
-    for family in ("sdos", "scos", "sros", "meta")
-    for path in (DATA_DIR / "valid" / family).glob("*.json")
+    path for family in ("sdos", "scos", "sros", "meta") for path in (DATA_DIR / "valid" / family).glob("*.json")
 )
 
 # Type-name mapping for types whose class name is not plain title-case
@@ -39,9 +37,7 @@ UNROLLED_FAMILIES: set[str] = set()
 
 
 def _class_for(stix_type: str):
-    name = CLASS_OVERRIDES.get(stix_type) or "".join(
-        part.title() for part in stix_type.split("-")
-    )
+    name = CLASS_OVERRIDES.get(stix_type) or "".join(part.title() for part in stix_type.split("-"))
     return getattr(stixflayer, name)
 
 
@@ -57,11 +53,7 @@ def _params():
         unrolled = path.parent.name in UNROLLED_FAMILIES or (
             path.parent.name == "sdos" and fixture["type"] in UNROLLED_SDO_TYPES
         )
-        marks = (
-            (pytest.mark.xfail(strict=True, reason="__getattr__ not rolled out yet"),)
-            if unrolled
-            else ()
-        )
+        marks = (pytest.mark.xfail(strict=True, reason="__getattr__ not rolled out yet"),) if unrolled else ()
         yield pytest.param(path, id=f"{path.parent.name}/{path.stem}", marks=marks)
 
 

@@ -111,7 +111,8 @@ pub fn validate_value<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
     let json = serde_json::to_string(&value_to_deserialize)
         .map_err(|e| Error::SerializationError(e.to_string()))?;
 
-    let mut typed: T = match serde_path::deserialize(&mut serde_json::Deserializer::from_str(&json)) {
+    let mut typed: T = match serde_path::deserialize(&mut serde_json::Deserializer::from_str(&json))
+    {
         Ok(t) => t,
         Err(e) => {
             let classified = classify_serde_error(e, type_name);
@@ -323,7 +324,10 @@ mod tests {
             "x_vendor_severity": 5
         });
         let err = validate_value::<DomainObject>(value, false, true).unwrap_err();
-        assert!(matches!(err, Error::UnknownProperties { .. }), "got {err:?}");
+        assert!(
+            matches!(err, Error::UnknownProperties { .. }),
+            "got {err:?}"
+        );
     }
 
     #[test]

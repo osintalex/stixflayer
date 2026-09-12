@@ -184,9 +184,7 @@ class TestBundleErrors:
         }
 
     def test_bundle_accepts_valid_object_strings(self):
-        identity = stixflayer.Identity(
-            name="Acme", identity_class="organization", created=TS, modified=TS2
-        )
+        identity = stixflayer.Identity(name="Acme", identity_class="organization", created=TS, modified=TS2)
         bundle = stixflayer.Bundle(objects=[identity.to_json()])
         assert bundle.object_count == 1
 

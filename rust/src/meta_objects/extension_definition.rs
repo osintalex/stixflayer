@@ -10,8 +10,8 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::skip_serializing_none;
-use stix_derive::StixProperties;
 use std::collections::BTreeMap;
+use stix_derive::StixProperties;
 
 /// An Extension Definition Stix Meta Object (SMO).
 ///

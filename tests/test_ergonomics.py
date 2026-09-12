@@ -124,9 +124,7 @@ class TestTimestampOverrides:
             created="2020-01-01T00:00:00.000Z",
         )
         # jiff normalizes trailing zero fractional seconds — compare instants
-        assert datetime.fromisoformat(obj.created) == datetime.fromisoformat(
-            "2020-01-01T00:00:00.000Z"
-        )
+        assert datetime.fromisoformat(obj.created) == datetime.fromisoformat("2020-01-01T00:00:00.000Z")
 
     def test_caller_supplied_modified_preserved(self):
         obj = stixflayer.AttackPattern(
@@ -134,12 +132,8 @@ class TestTimestampOverrides:
             created="2020-01-01T00:00:00.000Z",
             modified="2021-06-01T12:00:00.000Z",
         )
-        assert datetime.fromisoformat(obj.created) == datetime.fromisoformat(
-            "2020-01-01T00:00:00.000Z"
-        )
-        assert datetime.fromisoformat(obj.modified) == datetime.fromisoformat(
-            "2021-06-01T12:00:00.000Z"
-        )
+        assert datetime.fromisoformat(obj.created) == datetime.fromisoformat("2020-01-01T00:00:00.000Z")
+        assert datetime.fromisoformat(obj.modified) == datetime.fromisoformat("2021-06-01T12:00:00.000Z")
 
 
 class TestTypeHints:

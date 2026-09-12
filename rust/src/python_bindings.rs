@@ -547,7 +547,11 @@ pub struct Campaign(DomainObjectBuilder);
 impl Campaign {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("campaign", kwargs, strict, allow_custom)?;
         Ok(Campaign(builder))
     }
@@ -594,7 +598,11 @@ pub struct CourseOfAction(DomainObjectBuilder);
 impl CourseOfAction {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("course-of-action", kwargs, strict, allow_custom)?;
         Ok(CourseOfAction(builder))
     }
@@ -641,7 +649,11 @@ pub struct Grouping(DomainObjectBuilder);
 impl Grouping {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("grouping", kwargs, strict, allow_custom)?;
         Ok(Grouping(builder))
     }
@@ -688,7 +700,11 @@ pub struct Identity(DomainObjectBuilder);
 impl Identity {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("identity", kwargs, strict, allow_custom)?;
         Ok(Identity(builder))
     }
@@ -735,7 +751,11 @@ pub struct Incident(DomainObjectBuilder);
 impl Incident {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("incident", kwargs, strict, allow_custom)?;
         Ok(Incident(builder))
     }
@@ -782,7 +802,11 @@ pub struct Infrastructure(DomainObjectBuilder);
 impl Infrastructure {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("infrastructure", kwargs, strict, allow_custom)?;
         Ok(Infrastructure(builder))
     }
@@ -829,7 +853,11 @@ pub struct IntrusionSet(DomainObjectBuilder);
 impl IntrusionSet {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("intrusion-set", kwargs, strict, allow_custom)?;
         Ok(IntrusionSet(builder))
     }
@@ -876,7 +904,11 @@ pub struct Location(DomainObjectBuilder);
 impl Location {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("location", kwargs, strict, allow_custom)?;
         Ok(Location(builder))
     }
@@ -923,7 +955,11 @@ pub struct MalwareAnalysis(DomainObjectBuilder);
 impl MalwareAnalysis {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("malware-analysis", kwargs, strict, allow_custom)?;
         Ok(MalwareAnalysis(builder))
     }
@@ -970,7 +1006,11 @@ pub struct Note(DomainObjectBuilder);
 impl Note {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("note", kwargs, strict, allow_custom)?;
         Ok(Note(builder))
     }
@@ -1017,7 +1057,11 @@ pub struct ObservedData(DomainObjectBuilder);
 impl ObservedData {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("observed-data", kwargs, strict, allow_custom)?;
         Ok(ObservedData(builder))
     }
@@ -1064,7 +1108,11 @@ pub struct Opinion(DomainObjectBuilder);
 impl Opinion {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("opinion", kwargs, strict, allow_custom)?;
         Ok(Opinion(builder))
     }
@@ -1111,7 +1159,11 @@ pub struct Report(DomainObjectBuilder);
 impl Report {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("report", kwargs, strict, allow_custom)?;
         Ok(Report(builder))
     }
@@ -1158,7 +1210,11 @@ pub struct ThreatActor(DomainObjectBuilder);
 impl ThreatActor {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("threat-actor", kwargs, strict, allow_custom)?;
         Ok(ThreatActor(builder))
     }
@@ -1205,7 +1261,11 @@ pub struct Tool(DomainObjectBuilder);
 impl Tool {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("tool", kwargs, strict, allow_custom)?;
         Ok(Tool(builder))
     }
@@ -1252,7 +1312,11 @@ pub struct Vulnerability(DomainObjectBuilder);
 impl Vulnerability {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("vulnerability", kwargs, strict, allow_custom)?;
         Ok(Vulnerability(builder))
     }
@@ -1303,7 +1367,11 @@ pub struct Malware(DomainObjectBuilder);
 impl Malware {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("malware", kwargs, strict, allow_custom)?;
         Ok(Malware(builder))
     }
@@ -1354,7 +1422,11 @@ pub struct AttackPattern(DomainObjectBuilder);
 impl AttackPattern {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("attack-pattern", kwargs, strict, allow_custom)?;
         Ok(AttackPattern(builder))
     }
@@ -1405,7 +1477,11 @@ pub struct Indicator(DomainObjectBuilder);
 impl Indicator {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sdo_envelope("indicator", kwargs, strict, allow_custom)?;
         Ok(Indicator(builder))
     }
@@ -1452,7 +1528,11 @@ pub struct IPv4Address(CyberObjectBuilder);
 impl IPv4Address {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("ipv4-addr", kwargs, strict, allow_custom)?;
         Ok(IPv4Address(builder))
     }
@@ -1515,7 +1595,11 @@ pub struct IPv6Address(CyberObjectBuilder);
 impl IPv6Address {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("ipv6-addr", kwargs, strict, allow_custom)?;
         Ok(IPv6Address(builder))
     }
@@ -1578,7 +1662,11 @@ pub struct DomainName(CyberObjectBuilder);
 impl DomainName {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("domain-name", kwargs, strict, allow_custom)?;
         Ok(DomainName(builder))
     }
@@ -1641,7 +1729,11 @@ pub struct URL(CyberObjectBuilder);
 impl URL {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("url", kwargs, strict, allow_custom)?;
         Ok(URL(builder))
     }
@@ -1703,7 +1795,11 @@ pub struct EmailAddress(CyberObjectBuilder);
 impl EmailAddress {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("email-addr", kwargs, strict, allow_custom)?;
         Ok(EmailAddress(builder))
     }
@@ -1766,7 +1862,11 @@ pub struct EmailMessage(CyberObjectBuilder);
 impl EmailMessage {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("email-message", kwargs, strict, allow_custom)?;
         Ok(EmailMessage(builder))
     }
@@ -1833,7 +1933,11 @@ pub struct MacAddr(CyberObjectBuilder);
 impl MacAddr {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("mac-addr", kwargs, strict, allow_custom)?;
         Ok(MacAddr(builder))
     }
@@ -1896,7 +2000,11 @@ pub struct AutonomousSystem(CyberObjectBuilder);
 impl AutonomousSystem {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("autonomous-system", kwargs, strict, allow_custom)?;
         Ok(AutonomousSystem(builder))
     }
@@ -1959,7 +2067,11 @@ pub struct File(CyberObjectBuilder);
 impl File {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("file", kwargs, strict, allow_custom)?;
         Ok(File(builder))
     }
@@ -2021,7 +2133,11 @@ pub struct Software(CyberObjectBuilder);
 impl Software {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("software", kwargs, strict, allow_custom)?;
         Ok(Software(builder))
     }
@@ -2084,7 +2200,11 @@ pub struct Directory(CyberObjectBuilder);
 impl Directory {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("directory", kwargs, strict, allow_custom)?;
         Ok(Directory(builder))
     }
@@ -2147,7 +2267,11 @@ pub struct Mutex(CyberObjectBuilder);
 impl Mutex {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("mutex", kwargs, strict, allow_custom)?;
         Ok(Mutex(builder))
     }
@@ -2210,7 +2334,11 @@ pub struct Process(CyberObjectBuilder);
 impl Process {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("process", kwargs, strict, allow_custom)?;
         Ok(Process(builder))
     }
@@ -2261,7 +2389,11 @@ pub struct NetworkTraffic(CyberObjectBuilder);
 impl NetworkTraffic {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("network-traffic", kwargs, strict, allow_custom)?;
         Ok(NetworkTraffic(builder))
     }
@@ -2312,7 +2444,11 @@ pub struct UserAccount(CyberObjectBuilder);
 impl UserAccount {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("user-account", kwargs, strict, allow_custom)?;
         Ok(UserAccount(builder))
     }
@@ -2375,7 +2511,11 @@ pub struct WindowsRegistryKey(CyberObjectBuilder);
 impl WindowsRegistryKey {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("windows-registry-key", kwargs, strict, allow_custom)?;
         Ok(WindowsRegistryKey(builder))
     }
@@ -2438,7 +2578,11 @@ pub struct X509Certificate(CyberObjectBuilder);
 impl X509Certificate {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("x509-certificate", kwargs, strict, allow_custom)?;
         Ok(X509Certificate(builder))
     }
@@ -2501,7 +2645,11 @@ pub struct Artifact(CyberObjectBuilder);
 impl Artifact {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sco_envelope("artifact", kwargs, strict, allow_custom)?;
         Ok(Artifact(builder))
     }
@@ -2564,7 +2712,11 @@ pub struct Relationship(RelationshipObjectBuilder);
 impl Relationship {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sro_envelope("relationship", kwargs, strict, allow_custom)?;
         Ok(Relationship(builder))
     }
@@ -2615,7 +2767,11 @@ pub struct Sighting(RelationshipObjectBuilder);
 impl Sighting {
     #[new]
     #[pyo3(signature = (strict = true, allow_custom = false, **kwargs))]
-    fn new(strict: bool, allow_custom: bool, kwargs: Option<Bound<'_, PyDict>>) -> Result<Self, PyErr> {
+    fn new(
+        strict: bool,
+        allow_custom: bool,
+        kwargs: Option<Bound<'_, PyDict>>,
+    ) -> Result<Self, PyErr> {
         let builder = build_sro_envelope("sighting", kwargs, strict, allow_custom)?;
         Ok(Sighting(builder))
     }
@@ -3392,8 +3548,8 @@ impl LanguageContent {
         }
         // Use validate_value so unknown keys respect `allow_custom` and are stored
         // in the custom-property bag.
-        let lc: StixLanguageContent = validate_value(json_obj, allow_custom, strict)
-            .map_err(stix_to_pyerr)?;
+        let lc: StixLanguageContent =
+            validate_value(json_obj, allow_custom, strict).map_err(stix_to_pyerr)?;
         let builder = LanguageContentBuilder::from_parsed(&lc).map_err(stix_to_pyerr)?;
         Ok(LanguageContent(builder))
     }

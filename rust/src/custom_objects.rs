@@ -169,7 +169,10 @@ impl Stix for CustomObject {
         // Validate custom property names and any hex/binary suffix values.
         for (key, value) in self.custom_properties.iter() {
             add_error(&mut errors, validate_custom_property_name(key));
-            add_error(&mut errors, validate_custom_property_suffix_value(key, value));
+            add_error(
+                &mut errors,
+                validate_custom_property_suffix_value(key, value),
+            );
         }
 
         // Validate custom property values generically as JSON STIX values.
