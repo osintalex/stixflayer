@@ -64,5 +64,138 @@
       "fixture": "valid/sdos/attack-pattern-revoked.json",
       "expected_behavior": "parses_successfully"
     }
+  },
+  "custom_properties": {
+    "indicator-custom-preserved": {
+      "category": "sdo",
+      "object_type": "indicator",
+      "rule": "allow_custom=True preserves custom properties on indicators",
+      "fixture": "allow_custom/valid/sdos/indicator-custom.json",
+      "allow_custom": true,
+      "expected_behavior": "parses_successfully",
+      "expected_custom": {
+        "x_foo": "custom-value"
+      }
+    },
+    "indicator-custom-rejected": {
+      "category": "sdo",
+      "object_type": "indicator",
+      "rule": "Custom properties are rejected without allow_custom=True",
+      "fixture": "allow_custom/valid/sdos/indicator-custom.json",
+      "allow_custom": false,
+      "expected_behavior": "validation_error",
+      "expected_error_substring": "x_foo"
+    },
+    "attack-pattern-custom-preserved": {
+      "category": "sdo",
+      "object_type": "attack-pattern",
+      "rule": "allow_custom=True preserves custom properties on attack-patterns",
+      "fixture": "allow_custom/valid/sdos/attack-pattern-custom.json",
+      "allow_custom": true,
+      "expected_behavior": "parses_successfully",
+      "expected_custom": {
+        "x_foo": "bar"
+      }
+    },
+    "relationship-custom-preserved": {
+      "category": "sro",
+      "object_type": "relationship",
+      "rule": "allow_custom=True preserves custom properties on relationships",
+      "fixture": "allow_custom/valid/sros/relationship-custom.json",
+      "allow_custom": true,
+      "expected_behavior": "parses_successfully",
+      "expected_custom": {
+        "x_foo": "custom-value"
+      }
+    },
+    "file-custom-preserved": {
+      "category": "sco",
+      "object_type": "file",
+      "rule": "allow_custom=True preserves custom properties on files",
+      "fixture": "allow_custom/valid/scos/file-custom.json",
+      "allow_custom": true,
+      "expected_behavior": "parses_successfully",
+      "expected_custom": {
+        "x_foo": "custom-value"
+      }
+    },
+    "indicator-custom-bad-key-rejected": {
+      "category": "sdo",
+      "object_type": "indicator",
+      "rule": "Custom property names must match the STIX allowed character set",
+      "fixture": "allow_custom/invalid/sdo/indicator-custom-bad-key.json",
+      "allow_custom": true,
+      "expected_behavior": "validation_error",
+      "expected_error_substring": "bad-key"
+    },
+    "indicator-custom-leading-digit-allowed": {
+      "category": "sdo",
+      "object_type": "indicator",
+      "rule": "Custom property names may start with a digit",
+      "fixture": "allow_custom/valid/sdos/indicator-custom-leading-digit.json",
+      "allow_custom": true,
+      "expected_behavior": "parses_successfully",
+      "expected_custom": {
+        "1custom": "value"
+      }
+    },
+    "indicator-custom-reserved-name-rejected": {
+      "category": "sdo",
+      "object_type": "indicator",
+      "rule": "Reserved property names are rejected as custom properties",
+      "fixture": "allow_custom/invalid/sdo/indicator-custom-reserved.json",
+      "allow_custom": true,
+      "expected_behavior": "validation_error",
+      "expected_error_substring": "severity"
+    },
+    "indicator-custom-hex-valid": {
+      "category": "sdo",
+      "object_type": "indicator",
+      "rule": "_hex suffix values must be lowercase even-length hex strings",
+      "fixture": "allow_custom/valid/sdos/indicator-custom-hex.json",
+      "allow_custom": true,
+      "expected_behavior": "parses_successfully",
+      "expected_custom": {
+        "x_hash_hex": "deadbeef"
+      }
+    },
+    "indicator-custom-hex-uppercase-rejected": {
+      "category": "sdo",
+      "object_type": "indicator",
+      "rule": "Uppercase _hex suffix values are rejected",
+      "fixture": "allow_custom/invalid/sdo/indicator-custom-hex-uppercase.json",
+      "allow_custom": true,
+      "expected_behavior": "validation_error",
+      "expected_error_substring": "x_hash_hex"
+    },
+    "indicator-custom-bin-valid": {
+      "category": "sdo",
+      "object_type": "indicator",
+      "rule": "_bin suffix values must be valid base64 strings",
+      "fixture": "allow_custom/valid/sdos/indicator-custom-bin.json",
+      "allow_custom": true,
+      "expected_behavior": "parses_successfully",
+      "expected_custom": {
+        "x_payload_bin": "aGVsbG8gd29ybGQ="
+      }
+    },
+    "indicator-custom-bin-bad-base64-rejected": {
+      "category": "sdo",
+      "object_type": "indicator",
+      "rule": "Invalid base64 _bin suffix values are rejected",
+      "fixture": "allow_custom/invalid/sdo/indicator-custom-bin-bad-base64.json",
+      "allow_custom": true,
+      "expected_behavior": "validation_error",
+      "expected_error_substring": "x_payload_bin"
+    },
+    "indicator-custom-does-not-disable-required-validation": {
+      "category": "sdo",
+      "object_type": "indicator",
+      "rule": "allow_custom=True does not disable required field validation",
+      "fixture": "allow_custom/invalid/sdo/indicator-custom-no-pattern.json",
+      "allow_custom": true,
+      "expected_behavior": "validation_error",
+      "expected_error_substring": "missing required property 'pattern'"
+    }
   }
 }
