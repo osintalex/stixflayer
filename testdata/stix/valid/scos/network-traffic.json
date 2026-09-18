@@ -1,7 +1,7 @@
 {
     "type": "network-traffic",
     "spec_version": "2.1",
-    "id": "network-traffic--dda1dbe1-818f-5b3b-8702-0d43fdfb2c60",
+    "id": "network-traffic--8148af1a-1c8f-5e06-b17a-3e29c1a865d4",
     "src_ref": "ipv4-addr--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
     "dst_ref": "ipv4-addr--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
     "src_port": 80,

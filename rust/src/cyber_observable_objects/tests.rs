@@ -72,6 +72,87 @@ mod test {
     }
 
     #[test]
+    fn golden_mutex_id_matches_normative_uuidv5_algorithm() {
+        // STIX 2.1 spec section 2.9 (normative): the UUIDv5 name is the RFC 8785
+        // canonical JSON of the ID contributing properties - for a Mutex with
+        // name "__CLEANSWEEP__" that is `{"name":"__CLEANSWEEP__"}`.
+        //
+        // NOTE: the example identifier shown in the spec's Mutex section
+        // (mutex--eba44954-d4e4-5d3b-814c-2b17dd8de300) does not match the
+        // spec's own normative algorithm under the defined namespace - no
+        // serialization of {name: value} reproduces it. The normative
+        // algorithm wins; this golden value was computed independently of
+        // this codebase (python uuid5 over the canonical JSON).
+        let mutex = CyberObjectBuilder::new("mutex")
+            .unwrap()
+            .name("__CLEANSWEEP__".to_string())
+            .unwrap()
+            .build()
+            .unwrap();
+
+        assert_eq!(
+            mutex.common_properties.id.to_string(),
+            "mutex--f93fe911-e545-5239-b9b0-597840d0c871"
+        );
+        assert_eq!(mutex.common_properties.id.get_uuid_version(), "UUIDv5");
+    }
+
+    #[test]
+    fn email_addr_id_is_stable_across_builds() {
+        let build = || {
+            CyberObjectBuilder::new("email-addr")
+                .unwrap()
+                .value("user@example.com".to_string())
+                .unwrap()
+                .build()
+                .unwrap()
+        };
+        let first = build();
+        let second = build();
+
+        assert_eq!(first.common_properties.id, second.common_properties.id);
+        assert_eq!(first.common_properties.id.get_uuid_version(), "UUIDv5");
+    }
+
+    #[test]
+    fn from_parsed_preserves_parsed_identifier() {
+        // Parsing is not versioning: a parsed SCO keeps its exact identifier,
+        // including the spec-sanctioned UUIDv4 case (Process).
+        let json = r#"{
+            "type": "process",
+            "spec_version": "2.1",
+            "id": "process--ffa353d6-8ee4-48a0-a17c-c394d0fc56ac",
+            "pid": 4135,
+            "command_line": "evil.exe --flag"
+        }"#;
+        let parsed = CyberObject::from_json(json, false).unwrap();
+        let rebuilt = CyberObjectBuilder::from_parsed(&parsed)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        assert_eq!(
+            parsed.common_properties.id.to_string(),
+            rebuilt.common_properties.id.to_string()
+        );
+        assert_eq!(rebuilt.common_properties.id.get_uuid_version(), "UUIDv4");
+    }
+
+    #[test]
+    fn process_uses_spec_sanctioned_uuidv4() {
+        // STIX 2.1 spec section 6.14 (Process): all properties are optional,
+        // so a UUIDv4 MUST be used for the identifier.
+        let process = CyberObjectBuilder::new("process")
+            .unwrap()
+            .command_line("evil.exe --flag".to_string())
+            .unwrap()
+            .build()
+            .unwrap();
+
+        assert_eq!(process.common_properties.id.get_uuid_version(), "UUIDv4");
+    }
+
+    #[test]
     fn u64_max_test() {
         let limit: u64 = 1 << 53;
         let autonomous_system = CyberObjectBuilder::new("autonomous-system")
@@ -416,7 +497,7 @@ mod test {
 
     #[test]
     fn serialize_emailaddress() {
-        let email_address = CyberObjectBuilder::new("email-address")
+        let email_address = CyberObjectBuilder::new("email-addr")
             .unwrap()
             .value("john@example.com".to_string())
             .unwrap()
@@ -428,9 +509,9 @@ mod test {
         let result = serde_json::to_value(&email_address).unwrap();
 
         let expected = r#"{
-            "type": "email-address",
+            "type": "email-addr",
             "spec_version": "2.1",
-            "id": "email-address--cc7fa653-c35f-53db-afdd-dce4c3a241d5",
+            "id": "email-addr--cc7fa653-c35f-53db-afdd-dce4c3a241d5",
             "value": "john@example.com"
         }"#;
 
@@ -442,13 +523,13 @@ mod test {
     #[test]
     fn deserialize_emailaddress() {
         let json = r#"{
-            "type": "email-address",
+            "type": "email-addr",
             "spec_version": "2.1",
-            "id": "email-address--cc7fa653-c35f-53db-afdd-dce4c3a241d5",
+            "id": "email-addr--cc7fa653-c35f-53db-afdd-dce4c3a241d5",
             "value": "john@example.com"
         }"#;
         let result = CyberObject::from_json(json, false).unwrap();
-        let email_address = CyberObjectBuilder::new("email-address")
+        let email_address = CyberObjectBuilder::new("email-addr")
             .unwrap()
             .value("john@example.com".to_string())
             .unwrap()
@@ -460,7 +541,7 @@ mod test {
 
     #[test]
     fn email_display_nameinvalid() {
-        let email_address = CyberObjectBuilder::new("email-address")
+        let email_address = CyberObjectBuilder::new("email-addr")
             .unwrap()
             .value("john@example.com".to_string())
             .unwrap()
@@ -472,7 +553,7 @@ mod test {
 
     #[test]
     fn email_belongs_to_ref() {
-        let email_address = CyberObjectBuilder::new("email-address")
+        let email_address = CyberObjectBuilder::new("email-addr")
             .unwrap()
             .value("john@example.com".to_string())
             .unwrap()
@@ -495,7 +576,7 @@ mod test {
         let mut all_invalid = true;
 
         for address in test_addresses {
-            let email_address = CyberObjectBuilder::new("email-address")
+            let email_address = CyberObjectBuilder::new("email-addr")
                 .unwrap()
                 .value(address.to_string())
                 .unwrap()
@@ -519,7 +600,7 @@ mod test {
         let mut all_valid = true;
 
         for address in test_addresses {
-            let email_address = CyberObjectBuilder::new("email-address")
+            let email_address = CyberObjectBuilder::new("email-addr")
                 .unwrap()
                 .value(address.to_string())
                 .unwrap()

@@ -19,8 +19,10 @@ pub mod json;
 pub mod meta_objects;
 pub mod object;
 pub mod pattern;
+pub mod properties;
 pub mod relationship_objects;
 pub mod types;
+pub mod validation;
 
 #[cfg(feature = "pyo3")]
 pub mod python_bindings;

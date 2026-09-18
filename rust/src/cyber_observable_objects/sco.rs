@@ -1,6 +1,6 @@
 //! Contains the implementation logic for STIX Cyber-observable Objects (SCOs).
 use crate::{
-    base::{CommonProperties, CommonPropertiesBuilder, Stix},
+    base::{BuilderType, CommonProperties, CommonPropertiesBuilder, Stix},
     cyber_observable_objects::{
         sco_types::{
             Artifact, AutonomousSystem, Directory, DomainName, EmailAddress, EmailMessage,
@@ -11,17 +11,18 @@ use crate::{
         vocab::EncryptionAlgorithm,
     },
     error::{add_error, return_multiple_errors, StixError as Error},
-    json,
     relationship_objects::{Related, RelationshipObjectBuilder},
     types::{
         get_field_by_name, is_sco_type_name, stix_case, DictionaryValue, ExternalReference,
         GranularMarking, Hashes, Identified, Identifier, StixDictionary, Timestamp,
     },
+    validation::validate_value,
 };
 use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{collections::HashMap, str::FromStr, sync::LazyLock};
+use stix_derive::StixProperties;
 use strum::{AsRefStr, Display as StrumDisplay, EnumString};
 use url::Url as RustUrl;
 
@@ -41,6 +42,7 @@ static REQUIRED_ID_PROPERTIES: LazyLock<HashMap<&'static str, Vec<&'static str>>
         m.insert("ipv4-addr", vec!["value"]);
         m.insert("ipv6-addr", vec!["value"]);
         m.insert("mac-addr", vec!["value"]);
+        m.insert("mutex", vec!["name"]);
         m.insert("network-traffic", vec!["protocols"]);
         m.insert("process", Vec::new());
         m.insert("software", vec!["name"]);
@@ -76,7 +78,7 @@ static OPTIONAL_ID_PROPERTIES: LazyLock<HashMap<&'static str, Vec<&'static str>>
                 "src_ref",
                 "dst_ref",
                 "src_port",
-                "dst_poart",
+                "dst_port",
                 "extensions",
             ],
         );
@@ -86,8 +88,8 @@ static OPTIONAL_ID_PROPERTIES: LazyLock<HashMap<&'static str, Vec<&'static str>>
             "user-account",
             vec!["account_type", "user_id", "account_login"],
         );
-        m.insert("windows-registry-key", vec!["key, values"]);
-        m.insert("x509-certificate", vec!["hashes, serial_number"]);
+        m.insert("windows-registry-key", vec!["key", "values"]);
+        m.insert("x509-certificate", vec!["hashes", "serial_number"]);
         m
     });
 
@@ -120,18 +122,13 @@ pub struct CyberObject {
 }
 impl CyberObject {
     /// Deserializes an SCO from a JSON String.
-    /// Checks that all fields conform to the STIX 2.1 standard
-    /// If the `allow_custom` flag is flase, checks that there are no fields in the JSON String that are not in the SRO type definition
+    /// Checks that all fields conform to the STIX 2.1 standard.
+    /// If the `allow_custom` flag is false, checks that there are no fields in the JSON String
+    /// that are not in the SCO type definition.
     pub fn from_json(json: &str, allow_custom: bool) -> Result<Self, Error> {
-        let cyber_object: Self =
+        let value: serde_json::Value =
             serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
-        cyber_object.stix_check()?;
-
-        if !allow_custom {
-            json::field_check(&cyber_object, json)?;
-        }
-
-        Ok(cyber_object)
+        validate_value(value, allow_custom, true)
     }
 
     pub fn is_revoked(&self) -> bool {
@@ -161,6 +158,8 @@ impl Related for CyberObject {
         RelationshipObjectBuilder::new(source_id, target_id, &relationship_type)
     }
 }
+
+crate::impl_custom_properties_holder!(CyberObject);
 
 impl Stix for CyberObject {
     fn stix_check(&self) -> Result<(), Error> {
@@ -351,6 +350,20 @@ impl CyberObjectBuilder {
         let object_type = cyber_object.object_type.clone();
         let common_properties =
             CommonPropertiesBuilder::version("sco", &cyber_object.common_properties)?;
+        Ok(CyberObjectBuilder {
+            object_type,
+            common_properties,
+        })
+    }
+
+    /// Create a CyberObjectBuilder from an already-parsed CyberObject, preserving
+    /// its `id` exactly. Unlike `from()`, this does not treat the object as the
+    /// basis for a new version, so `build()` keeps the parsed identifier instead
+    /// of regenerating it (parsing is not versioning).
+    pub fn from_parsed(cyber_object: &CyberObject) -> Result<CyberObjectBuilder, Error> {
+        let object_type = cyber_object.object_type.clone();
+        let common_properties =
+            CommonPropertiesBuilder::from_existing("sco", &cyber_object.common_properties)?;
         Ok(CyberObjectBuilder {
             object_type,
             common_properties,
@@ -2090,12 +2103,14 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
-    /// Builds a new SCO, using the information found in the DomainObjectBuilder
+    /// Builds a new SCO without running `stix_check()` validation.
     ///
-    /// This performs a final check that all required fields for a given SDO type are included before construction.
-    /// If possible, it generates a UUIDv5 for the SCO, in place of a UUIDv4.
-    /// This also runs the `stick_check()` validation method on the newly constructed SDO.
-    pub fn build(self) -> Result<CyberObject, Error> {
+    /// This performs the same required-field checks as [`Self::build`], generates
+    /// a UUIDv5/v4 identifier as appropriate, and assembles the final `CyberObject`,
+    /// but it skips the object-specific `stix_check()`. It is intended for callers
+    /// that have already validated the object and only need its typed representation
+    /// (e.g. serialization).
+    pub fn build_no_validate(self) -> Result<CyberObject, Error> {
         // Note: Many SCOs have all optional fields, but require that at least one such field be present.
         // This is checked as part of stix_check() to guarantee that an error will occur during building or deserialization.
         match self.object_type {
@@ -2257,9 +2272,15 @@ impl CyberObjectBuilder {
         // If no contributing properties are present, fall back to UUIDv4 per STIX 2.1 spec section 2.9:
         // "If the contributing properties are all optional, and none are present on the SCO,
         // then a UUIDv4 MUST be used."
-        if is_sco_type_name(self.object_type.as_ref()) {
+        //
+        // When reconstructing an already-parsed object (from_parsed), the parsed
+        // identifier is preserved exactly - parsing is not versioning.
+        if is_sco_type_name(self.object_type.as_ref())
+            && self.common_properties.builder_type != BuilderType::FromExisting
+        {
             if let Some(contributing_properties) = self.get_uuid5_properties()? {
-                let id_v5 = Identifier::new_v5(self.object_type.as_ref(), &contributing_properties)?;
+                let id_v5 =
+                    Identifier::new_v5(self.object_type.as_ref(), &contributing_properties)?;
                 common_properties.id = id_v5;
             } else {
                 common_properties.id = Identifier::new_v4(self.object_type.as_ref())?;
@@ -2271,8 +2292,17 @@ impl CyberObjectBuilder {
             common_properties,
         };
 
-        sco.stix_check()?;
+        Ok(sco)
+    }
 
+    /// Builds a new SCO, using the information found in the `CyberObjectBuilder`.
+    ///
+    /// This performs the same required-field checks and identifier generation as
+    /// [`Self::build_no_validate`] and then runs `stix_check()` on the newly
+    /// constructed SCO.
+    pub fn build(self) -> Result<CyberObject, Error> {
+        let sco = self.build_no_validate()?;
+        sco.stix_check()?;
         Ok(sco)
     }
 
@@ -2281,34 +2311,43 @@ impl CyberObjectBuilder {
         let object_type = self.object_type.as_ref();
         let mut properties = HashMap::new();
 
-        // First check any required properties
+        // First check any required properties.
+        // If a required contributing property is not present (builder mid-construction),
+        // return None so build() falls back to UUIDv4; the per-type required-property
+        // validation in build() reports the missing property separately.
         if let Some(required) = REQUIRED_ID_PROPERTIES.get(object_type) {
             for field in required {
-                // PANIC: Safe to unwrap Option because these fields are required
-                //
                 // Handle special cases of non-String values
                 if object_type == "autonomous-system" {
                     // AutonomousSystem.number is a u64
-                    let value = get_field_by_name::<&CyberObjectBuilder, u64>(self, field)?
-                        .unwrap()
-                        .to_string();
+                    let value = match get_field_by_name::<&CyberObjectBuilder, u64>(self, field)? {
+                        Some(v) => v.to_string(),
+                        None => return Ok(None),
+                    };
                     properties.insert(field.to_string(), IdPropertyValue::String(value));
                 } else if object_type == "network-traffic" {
                     // NetworkTraffic.protocols is a Vec<String>
                     let protocols =
-                        get_field_by_name::<&CyberObjectBuilder, Vec<String>>(self, field)?
-                            .unwrap();
+                        match get_field_by_name::<&CyberObjectBuilder, Vec<String>>(self, field)? {
+                            Some(v) => v,
+                            None => return Ok(None),
+                        };
                     properties.insert(field.to_string(), IdPropertyValue::List(protocols));
                 } else if object_type == "url" {
                     // Url.value is a url::Url
-                    let value = get_field_by_name::<&CyberObjectBuilder, RustUrl>(self, field)?
-                        .unwrap()
-                        .to_string();
+                    let value =
+                        match get_field_by_name::<&CyberObjectBuilder, RustUrl>(self, field)? {
+                            Some(v) => v.to_string(),
+                            None => return Ok(None),
+                        };
                     properties.insert(field.to_string(), IdPropertyValue::String(value));
                 } else {
                     // Everything else is a String
-                    let value =
-                        get_field_by_name::<&CyberObjectBuilder, String>(self, field)?.unwrap();
+                    let value = match get_field_by_name::<&CyberObjectBuilder, String>(self, field)?
+                    {
+                        Some(v) => v,
+                        None => return Ok(None),
+                    };
                     properties.insert(field.to_string(), IdPropertyValue::String(value));
                 }
             }
@@ -2402,22 +2441,23 @@ impl CyberObjectBuilder {
                             IdPropertyValue::String(value.to_string()),
                         );
                     }
-                } else if object_type == "windows-registry-key" {
-                    // WindowsRegistryKey.values is a Vec of a custom struct
+                } else if *field == "values" {
+                    // WindowsRegistryKey.values is a Vec of a custom struct;
+                    // all items are included per the spec's ID contributing
+                    // properties rule for windows-registry-key
                     if let Some(Some(values)) = get_field_by_name::<
                         &CyberObjectBuilder,
                         Option<Vec<WindowsRegistryKeyType>>,
                     >(self, field)?
                     {
+                        let mut canonical = Vec::new();
                         for value in values {
-                            properties.insert(
-                                field.to_string(),
-                                IdPropertyValue::String(
-                                    json_canon::to_string(&value)
-                                        .map_err(|e| Error::DeserializationError(e.to_string()))?,
-                                ),
+                            canonical.push(
+                                json_canon::to_string(&value)
+                                    .map_err(|e| Error::DeserializationError(e.to_string()))?,
                             );
                         }
+                        properties.insert(field.to_string(), IdPropertyValue::List(canonical));
                     }
                 } else if *field == "src_port" || *field == "dst_port" {
                     // NetworkTraffic.src_port and NetworkTraffic.dst_port are Integers
@@ -2448,8 +2488,14 @@ impl CyberObjectBuilder {
     }
 }
 
-// Possible collections of ID contributing property strings
+// Possible collections of ID contributing property strings.
+//
+// Untagged: these values are fed to the UUIDv5 name as the RFC 8785
+// canonical JSON of the contributing properties (spec section 2.9), so
+// they MUST serialize as plain JSON values - any enum tagging would leak
+// into the identifier and break interoperability with other producers.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
 enum IdPropertyValue {
     // A single String (whether natively or parsed to a String)
     String(String),
@@ -2476,7 +2522,16 @@ impl Stix for IdPropertyValue {
 
 /// The various SCO types represented in STIX.
 #[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, AsRefStr, EnumString, StrumDisplay,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    AsRefStr,
+    EnumString,
+    StrumDisplay,
+    StixProperties,
 )]
 #[serde(tag = "type", rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
@@ -2485,7 +2540,8 @@ pub enum CyberObjectType {
     AutonomousSystem(AutonomousSystem),
     Directory(Directory),
     DomainName(DomainName),
-    #[serde(alias = "email-addr")]
+    #[serde(rename = "email-addr", alias = "email-address")]
+    #[strum(serialize = "email-addr")]
     EmailAddress(EmailAddress),
     EmailMessage(EmailMessage),
     File(File),

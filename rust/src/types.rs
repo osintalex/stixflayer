@@ -1149,6 +1149,7 @@ pub enum ScoTypes {
     AutonomousSystem,
     Directory,
     DomainName,
+    #[strum(serialize = "email-addr")]
     EmailAddress,
     EmailMessage,
     File,
@@ -1167,12 +1168,11 @@ pub enum ScoTypes {
 
 /// Check whether a given type name is a known SCO type.
 ///
-/// Handles the `email-address` / `email-addr` alias that exists in the codebase
-/// because `CyberObjectType` serialises `EmailAddress` as `email-address` while
-/// some internal maps and ref-checks use `email-addr`.
+/// Also accepts the legacy `email-address` spelling as an alias for the
+/// spec-correct `email-addr` type.
 pub fn is_sco_type_name(name: &str) -> bool {
     let cased = stix_case(name);
-    ScoTypes::iter().any(|x| x.as_ref() == cased) || cased == "email-addr"
+    ScoTypes::iter().any(|x| x.as_ref() == cased) || cased == "email-address"
 }
 
 /// A list of all STIX Relationship Object (SRO) types found in the STIX 2.1 standard.
@@ -1198,10 +1198,11 @@ pub fn get_object_type(sub_type: &str) -> String {
     // Note: sub_type is expected to already be in kebab-case (from JSON type field)
     // Do NOT use to_case(Case::Kebab) here as it incorrectly splits numbers
     // e.g., "ipv4-addr" → "ipv-4-addr", "x509-certificate" → "x-509-certificate"
-    // Also handle "email-addr" alias since ScoTypes::EmailAddress serializes as "email-address"
+    // Also accept the legacy "email-address" spelling since
+    // ScoTypes::EmailAddress serializes as "email-addr"
     if SdoTypes::iter().any(|s| s.as_ref() == sub_type) {
         "sdo".to_string()
-    } else if ScoTypes::iter().any(|s| s.as_ref() == sub_type) || sub_type == "email-addr" {
+    } else if ScoTypes::iter().any(|s| s.as_ref() == sub_type) || sub_type == "email-address" {
         "sco".to_string()
     } else if SroTypes::iter().any(|s| s.as_ref() == sub_type) {
         "sro".to_string()
