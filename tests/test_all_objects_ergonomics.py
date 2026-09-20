@@ -19,31 +19,20 @@ import pytest
 
 import stixflayer
 
-
-TS_CREATED = "2016-05-12T08:17:27Z"
-TS_MODIFIED = "2016-05-12T08:17:27Z"
-TS_OBJECT_MODIFIED = "2017-02-08T21:31:22.007Z"
-EXT_ID = "extension-definition--9c59fd79-4215-4ba2-920d-3e4f320e1e62"
-IDENTITY_ID = "identity--f431f809-377b-45e0-aa1c-6a4751cae5ff"
-
-
-def _assert_common(obj, object_type: str) -> None:
-    """Common property assertions that should hold for every STIX object."""
-    assert obj.type == object_type
-    assert obj.id
-    assert isinstance(obj.id, str)
+from tests.constants import EXT_ID, IDENTITY_ID, TS_CREATED, TS_MODIFIED, TS_OBJECT_MODIFIED
+from tests.utils import assert_common_properties
 
 
 def test_sdo_sro_sco_dynamic_properties():
     """SDOs, SROs and SCOs expose all wire properties through dynamic access."""
     identity = stixflayer.Identity(name="Acme", identity_class="organization", created=TS_CREATED, modified=TS_MODIFIED)
-    _assert_common(identity, "identity")
+    assert_common_properties(identity, "identity")
     assert identity.name == "Acme"
     assert identity.created == TS_CREATED
     assert identity.modified == TS_MODIFIED
 
     ipv4 = stixflayer.IPv4Address(value="192.0.2.1")
-    _assert_common(ipv4, "ipv4-addr")
+    assert_common_properties(ipv4, "ipv4-addr")
     assert ipv4.value == "192.0.2.1"
 
     rel = stixflayer.Relationship(
@@ -51,7 +40,7 @@ def test_sdo_sro_sco_dynamic_properties():
         source_ref="indicator--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
         target_ref="malware--31b940d4-6f7f-459a-80ea-9c1f17b5891b",
     )
-    _assert_common(rel, "relationship")
+    assert_common_properties(rel, "relationship")
     assert rel.relationship_type == "indicates"
 
 
@@ -62,7 +51,7 @@ def test_marking_definition_ergonomics():
         definition={"tlp": "amber"},
         created=TS_CREATED,
     )
-    _assert_common(tlp, "marking-definition")
+    assert_common_properties(tlp, "marking-definition")
     assert tlp.created == TS_CREATED
     assert tlp.definition_type == "tlp"
     assert tlp.definition == {"tlp": "amber"}
@@ -90,7 +79,7 @@ def test_extension_definition_ergonomics():
         modified=TS_MODIFIED,
         created_by_ref=IDENTITY_ID,
     )
-    _assert_common(ext_def, "extension-definition")
+    assert_common_properties(ext_def, "extension-definition")
     assert ext_def.name == "Example enrichment"
     assert ext_def.schema == "https://example.com/schema.json"
     assert ext_def.version == "1.0.0"
@@ -121,7 +110,7 @@ def test_language_content_ergonomics():
         modified=TS_MODIFIED,
         contents={"de": {"name": "Bösartige Aktivität"}, "fr": {"name": "Activité malveillante"}},
     )
-    _assert_common(lc, "language-content")
+    assert_common_properties(lc, "language-content")
     assert lc.object_ref == target_id
     assert lc.object_modified == TS_OBJECT_MODIFIED
     assert lc.created == TS_CREATED
@@ -144,7 +133,7 @@ def test_custom_object_ergonomics():
         created=TS_CREATED,
         modified=TS_MODIFIED,
     )
-    _assert_common(co, "vendor-enrichment-sdo")
+    assert_common_properties(co, "vendor-enrichment-sdo")
     assert co.created == TS_CREATED
     assert co.modified == TS_MODIFIED
     assert co.extension_type == "new-sdo"
@@ -259,7 +248,7 @@ def test_bundle_contains_instantiated_objects():
         ]
     )
 
-    _assert_common(bundle, "bundle")
+    assert_common_properties(bundle, "bundle")
     assert bundle.object_count == 9
 
     objects = bundle.objects

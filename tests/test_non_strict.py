@@ -8,25 +8,17 @@ under ``strict=False``.
 """
 
 import json
-from pathlib import Path
 
 import pytest
 import stixflayer
 
-
-# Project root is one level up from tests/
-DATA_DIR = Path(__file__).parent.parent / "testdata" / "stix"
-
-
-def _load_fixture(path: str) -> dict:
-    """Load a JSON fixture and parse it into a dict."""
-    return json.loads((DATA_DIR / path).read_text())
+from tests.utils import load_fixture_json
 
 
 # Mapping of every top-level Python wrapper class to a valid fixture path.
 # We mutate the ``spec_version`` field to ``"2.0"`` to produce a semantic
 # validation failure that is still structurally parseable.
-_OBJECT_CASES = [
+OBJECT_CASES = [
     # SDOs
     (stixflayer.AttackPattern, "valid/sdos/attack-pattern.json"),
     (stixflayer.Campaign, "valid/sdos/campaign.json"),
@@ -75,11 +67,11 @@ _OBJECT_CASES = [
 ]
 
 
-@pytest.mark.parametrize("cls, fixture_path", _OBJECT_CASES)
+@pytest.mark.parametrize("cls, fixture_path", OBJECT_CASES)
 class TestNonStrictFromJsonRoundtrip:
     def test_strict_default_rejects_bad_spec_version(self, cls, fixture_path):
         """Default strict mode rejects an invalid spec_version."""
-        data = _load_fixture(fixture_path)
+        data = load_fixture_json(fixture_path)
         data["spec_version"] = "2.0"
         json_str = json.dumps(data)
 
@@ -88,7 +80,7 @@ class TestNonStrictFromJsonRoundtrip:
 
     def test_non_strict_parses_and_serializes_bad_spec_version(self, cls, fixture_path):
         """Non-strict mode parses invalid spec_version, serializes, and roundtrips."""
-        data = _load_fixture(fixture_path)
+        data = load_fixture_json(fixture_path)
         data["spec_version"] = "2.0"
         json_str = json.dumps(data)
 
@@ -106,7 +98,7 @@ class TestNonStrictFromJsonRoundtrip:
 
     def test_to_json_preserves_data_after_non_strict_parse(self, cls, fixture_path):
         """The non-strict JSON output contains the same invalid value we fed in."""
-        data = _load_fixture(fixture_path)
+        data = load_fixture_json(fixture_path)
         data["spec_version"] = "2.0"
         json_str = json.dumps(data)
 
@@ -122,7 +114,7 @@ class TestMarkingDefinitionNonStrict:
     """MarkingDefinition has its own parser; cover it separately."""
 
     def test_non_strict_roundtrips_bad_spec_version(self):
-        data = _load_fixture("valid/meta/marking-definition.json")
+        data = load_fixture_json("valid/meta/marking-definition.json")
         data["spec_version"] = "2.0"
         json_str = json.dumps(data)
 

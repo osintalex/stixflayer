@@ -16,98 +16,64 @@ from typing import Any
 import pytest
 import stixflayer as sf
 
-from tests.utils import load_fixture
+from tests.utils import class_for_type, load_fixture
 
 MATRIX_PATH = Path(__file__).parent.parent / "testdata" / "test_matrix.json"
 
-# Explicit mapping for object types whose Python class name is not a simple
-# kebab-to-PascalCase conversion.
-OBJECT_TYPE_TO_CLASS: dict[str, type] = {
-    "indicator": sf.Indicator,
-    "attack-pattern": sf.AttackPattern,
-    "malware": sf.Malware,
-    "bundle": sf.Bundle,
-    "file": sf.File,
-    "relationship": sf.Relationship,
-    "ipv4-addr": sf.IPv4Address,
-    "email-addr": sf.EmailAddress,
-    "mac-addr": sf.MacAddr,
-    "ipv6-addr": sf.IPv6Address,
-    "x509-certificate": sf.X509Certificate,
-    "autonomous-system": sf.AutonomousSystem,
-    "windows-registry-key": sf.WindowsRegistryKey,
+ERROR_CLASSES = {
+    "deserialization_error": sf.DeserializationError,
+    "validation_error": sf.ValidationError,
 }
 
 
-def _stix_class(object_type: str) -> type:
-    """Return the stixflayer class for a STIX object type string."""
-    if object_type in OBJECT_TYPE_TO_CLASS:
-        return OBJECT_TYPE_TO_CLASS[object_type]
-
-    parts = object_type.split("-")
-    conventional = "".join(part.capitalize() for part in parts)
-    cls = getattr(sf, conventional, None)
-    if cls is None:
-        pytest.exit(f"test_matrix.py: unknown object_type {object_type!r}", returncode=2)
-    return cls
-
-
-def _matrix_section(section: str) -> list:
+def matrix_section(section: str) -> list:
+    """Return pytest parameters for one section of the test matrix."""
     matrix = json.loads(MATRIX_PATH.read_text())
     return [pytest.param(key, entry, id=key) for key, entry in matrix[section].items()]
 
 
-def _call_from_json(cls: type, json_str: str, entry: dict[str, Any]) -> Any:
-    object_type = entry["object_type"]
-    kwargs: dict[str, Any] = {"version": "2.1"}
-
-    strict = entry.get("strict", True)
-    allow_custom = entry.get("allow_custom", False)
-
-    # Bundle has a narrower from_json signature.
-    if object_type == "bundle":
+def parse_fixture(cls: type, json_str: str, entry: dict[str, Any]) -> Any:
+    """Parse a fixture using the flags recorded in the matrix entry."""
+    if entry["object_type"] == "bundle":
         return cls.from_json(json_str)
 
-    kwargs["strict"] = strict
-    kwargs["allow_custom"] = allow_custom
-    return cls.from_json(json_str, **kwargs)
+    return cls.from_json(
+        json_str,
+        version="2.1",
+        strict=entry.get("strict", True),
+        allow_custom=entry.get("allow_custom", False),
+    )
 
 
-def _exc_class_for(behavior: str) -> type:
-    if behavior == "deserialization_error":
-        return sf.DeserializationError
-    return sf.ValidationError
-
-
-@pytest.mark.parametrize(("key", "entry"), _matrix_section("validation_rules"))
+@pytest.mark.parametrize(("key", "entry"), matrix_section("validation_rules"))
 def test_validation_rule(key: str, entry: dict[str, Any]) -> None:
-    cls = _stix_class(entry["object_type"])
+    cls = class_for_type(entry["object_type"])
     json_str = load_fixture(entry["fixture"])
     behavior = entry.get("expected_behavior", "validation_error")
     substring = entry.get("expected_error_substring")
 
     if behavior == "parses_successfully":
-        obj = _call_from_json(cls, json_str, entry)
+        obj = parse_fixture(cls, json_str, entry)
         assert obj.type == entry["object_type"]
     else:
-        exc_class = _exc_class_for(behavior)
+        exc_class = ERROR_CLASSES.get(behavior, sf.ValidationError)
         with pytest.raises(
             exc_class,
             match=re.escape(substring) if substring else None,
         ):
-            _call_from_json(cls, json_str, entry)
+            parse_fixture(cls, json_str, entry)
 
 
-@pytest.mark.parametrize(("key", "entry"), _matrix_section("custom_properties"))
+@pytest.mark.parametrize(("key", "entry"), matrix_section("custom_properties"))
 def test_custom_property_rule(key: str, entry: dict[str, Any]) -> None:
-    cls = _stix_class(entry["object_type"])
+    cls = class_for_type(entry["object_type"])
     json_str = load_fixture(entry["fixture"])
     behavior = entry.get("expected_behavior", "validation_error")
     substring = entry.get("expected_error_substring")
     expected_custom = entry.get("expected_custom")
 
     if behavior == "parses_successfully":
-        obj = _call_from_json(cls, json_str, entry)
+        obj = parse_fixture(cls, json_str, entry)
         assert obj.type == entry["object_type"]
 
         if expected_custom:
@@ -118,9 +84,9 @@ def test_custom_property_rule(key: str, entry: dict[str, Any]) -> None:
             for prop, value in expected_custom.items():
                 assert roundtrip[prop] == value
     else:
-        exc_class = _exc_class_for(behavior)
+        exc_class = ERROR_CLASSES.get(behavior, sf.ValidationError)
         with pytest.raises(
             exc_class,
             match=re.escape(substring) if substring else None,
         ):
-            _call_from_json(cls, json_str, entry)
+            parse_fixture(cls, json_str, entry)

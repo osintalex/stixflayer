@@ -23,13 +23,7 @@ import pytest
 
 import stixflayer
 
-TS = "2024-01-15T09:00:00Z"
-
-
-def _sha256(dummy: str) -> str:
-    """Return a syntactically valid SHA-256 hash string."""
-    # Valid hex length for SHA-256; content is arbitrary.
-    return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+from tests.constants import SHA256_DUMMY, TS
 
 
 class TestExtensionDefinitionUseCase:
@@ -83,7 +77,7 @@ class TestExtensionDefinitionUseCase:
             size=123456,
             magic_number_hex="4d5a",
             mime_type="application/x-dosexec",
-            hashes={"SHA-256": _sha256("dummy")},
+            hashes={"SHA-256": SHA256_DUMMY},
             extensions={
                 "ntfs-ext": {
                     "sid": "S-1-5-21-1234567890-1234567890-1234567890-1001",
@@ -149,34 +143,6 @@ class TestExtensionDefinitionUseCase:
 class TestCustomExtensionValidationErrors:
     """Negative tests: validation rejects non-compliant custom objects."""
 
-    def _make_ext(self, **kwargs):
-        identity = stixflayer.Identity(name="ACME", identity_class="organization")
-        defaults = {
-            "name": "rf-file-enrichment",
-            "description": "Test",
-            "schema": "https://example.com/s.json",
-            "version": "1.0.0",
-            "extension_type": "property-extension",
-            "created_by_ref": identity.id,
-        }
-        defaults.update(kwargs)
-        return stixflayer.ExtensionDefinition(**defaults)
-
-    def _make_file(self, **kwargs):
-        ext = self._make_ext()
-        ext_id = ext.id
-        defaults = {
-            "name": "x.dll",
-            "extensions": {
-                ext_id: {
-                    "extension_type": "property-extension",
-                    "malicious_count": 1,
-                },
-            },
-        }
-        defaults.update(kwargs)
-        return stixflayer.File(**defaults)
-
     def test_extension_definition_missing_created_by_ref(self):
         with pytest.raises(stixflayer.ValidationError):
             stixflayer.ExtensionDefinition(
@@ -190,15 +156,32 @@ class TestCustomExtensionValidationErrors:
 
     def test_extension_definition_property_extension_with_extension_properties(self):
         """`extension_properties` is only permitted with toplevel-property-extension."""
+        identity = stixflayer.Identity(name="ACME", identity_class="organization")
         with pytest.raises(stixflayer.ValidationError):
-            self._make_ext(extension_properties=["benign_count"])
+            stixflayer.ExtensionDefinition(
+                name="rf-file-enrichment",
+                description="Test",
+                schema="https://example.com/s.json",
+                version="1.0.0",
+                extension_type="property-extension",
+                created_by_ref=identity.id,
+                extension_properties=["benign_count"],
+            )
 
     def test_file_top_level_custom_property_rejected(self):
         with pytest.raises(stixflayer.ValidationError):
             stixflayer.File(name="x.dll", benign_count=12)
 
     def test_file_custom_extension_missing_extension_type(self):
-        ext = self._make_ext()
+        identity = stixflayer.Identity(name="ACME", identity_class="organization")
+        ext = stixflayer.ExtensionDefinition(
+            name="rf-file-enrichment",
+            description="Test",
+            schema="https://example.com/s.json",
+            version="1.0.0",
+            extension_type="property-extension",
+            created_by_ref=identity.id,
+        )
         ext_id = ext.id
         bad_file = {
             "type": "file",
