@@ -2,12 +2,18 @@
 use std::num::ParseIntError;
 
 use jiff::Error as JiffError;
-use serde::Serialize;
-use serde_path_to_error as serde_path;
 use strum::ParseError;
 use thiserror::Error;
 
 use crate::types::Identifier;
+
+pub mod classify;
+pub mod envelope;
+pub mod helpers;
+
+pub use classify::classify_serde_error;
+pub use envelope::{ErrorEntry, ErrorEnvelope};
+pub use helpers::{add_error, return_multiple_errors};
 
 /// Custom Error type for rust-stix
 #[derive(Debug, Clone, Error)]
@@ -18,7 +24,7 @@ pub enum StixError {
     // Basic parsing or validation errors
     #[error("DateTime error: {0}")]
     DateTimeError(JiffError),
-    #[error("Empty lists and dictionaries are prohibted in STIX")]
+    #[error("Empty Lists and dictionaries are prohibted in STIX")]
     EmptyList,
     #[error("The corresponding hash string for this value MUST be a valid {hash_type} message, and it is: {hash_identity} {hash_string}")]
     InvalidHash {
@@ -119,36 +125,6 @@ pub enum StixError {
     PathNotFound(String),
     #[error("Object {0} not in filesystem")]
     ObjectNotFound(Identifier),
-}
-
-/// Cross-language JSON envelope for every STIX error.
-///
-/// This is the only contract exposed to non-Rust bindings. The `error` field
-/// is the major category. The `errors` array carries per-field entries for
-/// validation-style failures and is omitted when empty.
-#[derive(Debug, Clone, Serialize)]
-pub struct ErrorEnvelope {
-    pub error: String,
-    pub message: String,
-    pub errors: Vec<ErrorEntry>,
-}
-
-/// A single structured error entry inside an [`ErrorEnvelope`].
-///
-/// Fields are sparse. `property` is a single JSON property name; `properties`
-/// is provided for entries that name a list of unknown fields.
-#[derive(Debug, Clone, Serialize)]
-pub struct ErrorEntry {
-    pub kind: String,
-    pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub property: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub properties: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub expected: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub got: Option<String>,
 }
 
 impl StixError {
@@ -278,96 +254,16 @@ impl StixError {
     }
 }
 
-/// Maps a wrapped serde_json error to the most specific structured variant.
-///
-/// - Data-category errors (missing field, invalid type) become
-///   `MissingProperty` / `InvalidPropertyType`, losing their line/column
-///   position — which is meaningless for JSON synthesized from kwargs.
-/// - Syntax/IO/EOF errors keep the full serde message (positions are real
-///   and useful for user-supplied JSON).
-///
-/// `object_type` is the STIX type name (kebab-case) being deserialized, used
-/// for the structured variants' `object_type` field.
-pub fn classify_serde_error(
-    error: serde_path::Error<serde_json::Error>,
-    object_type: &str,
-) -> StixError {
-    let path = error.path().to_string();
-    let inner = error.into_inner();
-    let message = inner.to_string();
-    if inner.classify() != serde_json::error::Category::Data {
-        return StixError::DeserializationError(message);
-    }
-
-    if let Some(rest) = message.strip_prefix("missing field ") {
-        // serde's missing-field message always names the field, with a
-        // position suffix: `missing field \`name\` at line 1 column 2`
-        let property = strip_position_suffix(rest).trim_matches('`');
-        return StixError::MissingProperty {
-            object_type: object_type.to_string(),
-            property: property.to_string(),
-        };
-    }
-
-    if let Some(rest) = message.strip_prefix("invalid type: ") {
-        // Strip the position suffix before splitting: serde messages look
-        // like `invalid type: integer \`1\`, expected a string at line 1 column 5`
-        let rest = strip_position_suffix(rest);
-        if let Some((got, expected)) = rest.split_once(", expected ") {
-            // `serde_path_to_error` reports the path of flattened struct errors
-            // as ".", which is not actionable. Fall back to a generic
-            // deserialization error in that case.
-            if path != "." {
-                return StixError::InvalidPropertyType {
-                    object_type: object_type.to_string(),
-                    property: path,
-                    expected: expected.to_string(),
-                    got: got.to_string(),
-                };
-            }
-        }
-    }
-
-    StixError::DeserializationError(message)
-}
-
-/// Removes serde's ` at line N column M` suffix from an error message.
-fn strip_position_suffix(message: &str) -> &str {
-    match message.find(" at line ") {
-        Some(pos) => &message[..pos],
-        None => message,
-    }
-}
-
-/// Checks a Result to see if it is an Error. If it is, add that Error to a Vec of StixErrors
-pub fn add_error<T>(errors: &mut Vec<StixError>, possible_error: Result<T, StixError>) {
-    if let Err(error) = possible_error {
-        errors.push(error)
-    };
-}
-
-/// Return a Vec of StixErrors as a single Error, unless the Vec is empty
-///
-/// This is useful when checking multiple possible sources of error, such as during STIX validation
-pub fn return_multiple_errors(errors: Vec<StixError>) -> Result<(), StixError> {
-    if errors.is_empty() {
-        return Ok(());
-    }
-    // If there is only one Error in the Vec, return it as itself
-    if errors.len() == 1 {
-        return Err(errors[0].clone());
-    }
-    Err(StixError::ValidationErrors(errors))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde::Deserialize;
+    use serde_path_to_error as serde_path;
 
     #[derive(Debug, Deserialize)]
     struct Probe {
-        name: String,
+        #[serde(rename = "name")]
+        _name: String,
     }
 
     fn classify(json: &str) -> StixError {
@@ -528,7 +424,7 @@ mod tests {
         assert_eq!(envelope["error"], "stix");
         assert_eq!(
             envelope["message"],
-            "Empty lists and dictionaries are prohibted in STIX"
+            "Empty Lists and dictionaries are prohibted in STIX"
         );
         assert!(envelope["errors"].as_array().unwrap().is_empty());
     }

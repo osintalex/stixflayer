@@ -20,7 +20,7 @@ use serde_path_to_error as serde_path;
 
 use crate::{
     base::{
-        validate_custom_property_name, validate_custom_property_suffix_value,
+        validate_custom_property_name,
         CustomPropertiesHolder, Stix,
     },
     error::{add_error, classify_serde_error, return_multiple_errors, StixError as Error},

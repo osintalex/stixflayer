@@ -8,19 +8,31 @@
 //! The objects and features in this library are intended to conform to the STIX 2.1 standards detailed in [this document](https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html).
 
 pub mod base;
+pub mod builder;
 pub mod bundles;
+pub mod common;
 pub mod custom_objects;
+pub mod custom_property;
 pub mod cyber_observable_objects;
 pub mod datastore;
+pub mod dictionary;
 pub mod domain_objects;
 pub mod error;
 pub mod extensions;
+pub mod external_reference;
+pub mod granular_marking;
+pub mod hashes;
+pub mod identifier;
 pub mod json;
+pub mod kill_chain;
 pub mod meta_objects;
 pub mod object;
 pub mod pattern;
 pub mod properties;
 pub mod relationship_objects;
+pub mod stix;
+pub mod taxonomy;
+pub mod timestamp;
 pub mod types;
 pub mod validation;
 
