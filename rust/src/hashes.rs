@@ -4,8 +4,15 @@ use identyhash::identify_hash;
 use log::warn;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::OnceLock};
 use strum::{AsRefStr, EnumIter, IntoEnumIterator};
+
+fn ssdeep_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r"^\d+:[A-Za-z0-9/+]{1,}:[A-Za-z0-9/+]{1,}$").expect("ssdeep regex is valid")
+    })
+}
 
 /// A STIX 2.1 compliant hash list, with a key/value pair identifying the hashing algorithm used and the hashed value.
 ///
@@ -79,8 +86,6 @@ fn check_hash_key(key: &str) -> bool {
 
 impl crate::base::Stix for Hashes {
     fn stix_check(&self) -> Result<(), Error> {
-        // Panic: Safe to unwrap as this is a valid regex string
-        let ssdeep_re = Regex::new(r"^\d+:[A-Za-z0-9/+]{1,}:[A-Za-z0-9/+]{1,}$").unwrap();
         for (key, value) in self.iter() {
             let origin_hash_str = value.as_str();
             let hash_type_identity = identify_hash(origin_hash_str).to_lowercase();
@@ -131,7 +136,7 @@ impl crate::base::Stix for Hashes {
                 });
             }
             if origin_hash_type == *LegalHashTypes::SSDEEP.as_ref()
-                && !ssdeep_re.is_match(origin_hash_str)
+                && !ssdeep_re().is_match(origin_hash_str)
             {
                 return Err(Error::InvalidHash {
                     hash_type: origin_hash_type,

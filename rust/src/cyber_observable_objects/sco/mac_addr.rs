@@ -1,9 +1,17 @@
 use crate::base::Stix;
-use crate::error::{StixError as Error};
+use crate::error::StixError as Error;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use std::sync::OnceLock;
 use stix_derive::StixProperties;
-use regex::Regex;
+
+fn mac_addr_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$").expect("MAC address regex is valid")
+    })
+}
 
 /// MAC Address
 ///
@@ -20,9 +28,7 @@ pub struct MacAddr {
 impl Stix for MacAddr {
     fn stix_check(&self) -> Result<(), Error> {
         // Check if the MAC address is in the correct format
-        // Panic: Safe to unwrap as this is a valid regex string
-        let mac_regex = Regex::new(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$").unwrap();
-        if !mac_regex.is_match(&self.value) {
+        if !mac_addr_re().is_match(&self.value) {
             return Err(Error::ValidationError(
                 "MAC address must be a valid colon-delimited, lowercase MAC-48 address with leading zeros".to_string(),
             ));

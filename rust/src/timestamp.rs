@@ -3,7 +3,7 @@ use crate::error::StixError as Error;
 use jiff::Timestamp as JiffTimestamp;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::{fmt, ops::Not, str::FromStr};
+use std::{fmt, str::FromStr, sync::OnceLock};
 
 /// A custom Timestamp struct that holds a `jiff::Timestamp`.
 ///
@@ -12,6 +12,14 @@ use std::{fmt, ops::Not, str::FromStr};
 /// A timestamp will not deserialize unless it is in the format `YYYY-MM-DDTHH:mm:ss[.s+]Z` and is not in a timezone other than UTC.
 ///
 /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_ksbm2nost85y>
+fn stix_timestamp_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$")
+            .expect("STIX timestamp regex is valid")
+    })
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Timestamp(pub JiffTimestamp);
 
@@ -23,10 +31,7 @@ impl Timestamp {
     pub fn new(timestamp_str: &str) -> Result<Self, Error> {
         // STIX 2.1 has a stricter standard for valid timestamps than the `jiff`` crate we use.
         // Before parsing a given timestamp string, check that it matches the STIX pattern.
-        //
-        // Panic: Safe to unwrap because this is a valid regex pattern
-        let re = Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$").unwrap();
-        if re.is_match(timestamp_str).not() {
+        if !stix_timestamp_re().is_match(timestamp_str) {
             return Err(Error::ParseTimestampError(timestamp_str.to_string()));
         }
 
@@ -67,10 +72,7 @@ impl<'de> Deserialize<'de> for Timestamp {
             fn visit_str<E: de::Error>(self, value: &str) -> Result<Timestamp, E> {
                 // STIX 2.1 has a stricter standard for valid timestamps than the `jiff`` crate we use.
                 // Before parsing a given timestamp string, check that it matches the STIX pattern.
-                //
-                // Panic: Safe to unwrap because this is a valid regex string
-                let re = Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$").unwrap();
-                if !re.is_match(value) {
+                if !stix_timestamp_re().is_match(value) {
                     return Err(de::Error::custom(format!(
                         "Could not parse timestamp {} as a valid STIX 2.1 Timestamp",
                         value
