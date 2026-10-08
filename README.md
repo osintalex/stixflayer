@@ -42,6 +42,15 @@ ap = AttackPattern(
 print(ap.to_json())
 ```
 
+## Performance ⚡
+
+stixflayer uses a single Rust core for validation and serialization. On
+representative public threat-intel bundles it parses and validates roughly
+**30–40× faster** than `stix2-validator`, and serializes back to JSON around
+**10–12× faster** than `stix2`.
+
+See `benchmarks/BENCHMARKING.md` for the harness and current numbers.
+
 ## Structure 🏰
 
 ```
