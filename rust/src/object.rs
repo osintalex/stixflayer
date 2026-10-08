@@ -22,7 +22,7 @@ use crate::{
     },
     relationship_objects::{Relationship, RelationshipObject, RelationshipObjectType, Sighting},
     types::{get_object_type, ExtensionType, Identified},
-    validation::validate_value,
+    validation::validate_value_from_object,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -48,6 +48,53 @@ pub enum StixObject {
     MarkingDefinition(MarkingDefinition),
     #[strum(serialize = "custom")]
     Custom(CustomObject),
+}
+
+/// Parse options carried inside a [`Envelope`].
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Options {
+    /// Run full STIX validation (`stix_check`) and required-property checks.
+    #[serde(default = "default_strict")]
+    pub strict: bool,
+    /// STIX version to accept. Currently only `"2.1"` is supported.
+    #[serde(default = "default_version")]
+    pub version: String,
+    /// Permit unknown/custom properties.
+    #[serde(default)]
+    pub allow_custom: bool,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            strict: default_strict(),
+            version: default_version(),
+            allow_custom: false,
+        }
+    }
+}
+
+fn default_strict() -> bool {
+    true
+}
+
+fn default_version() -> String {
+    "2.1".to_string()
+}
+
+/// Generic polyglot parse envelope.
+///
+/// Language bindings that cannot call typed Rust APIs directly can send a
+/// JSON envelope shaped like `{ "object": { ... }, "options": { ... } }`.
+/// The inner object is parsed and validated once; previously the envelope was
+/// re-serialized and parsed multiple times.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Envelope {
+    /// The STIX object value.
+    pub object: Value,
+    /// Parse options.
+    #[serde(default)]
+    pub options: Options,
 }
 
 impl StixObject {
@@ -145,38 +192,36 @@ impl StixObject {
             .and_then(|v| v.as_str())
             .unwrap_or_default();
         match get_object_type(type_name).as_ref() {
-            "sdo" => Ok(StixObject::Sdo(validate_value(
+            "sdo" => Ok(StixObject::Sdo(validate_value_from_object(
                 value,
                 allow_custom,
                 strict,
             )?)),
-            "sro" => Ok(StixObject::Sro(validate_value(
+            "sro" => Ok(StixObject::Sro(validate_value_from_object(
                 value,
                 allow_custom,
                 strict,
             )?)),
-            "sco" => Ok(StixObject::Sco(validate_value(
+            "sco" => Ok(StixObject::Sco(validate_value_from_object(
                 value,
                 allow_custom,
                 strict,
             )?)),
-            "language-content" => Ok(StixObject::LanguageContent(validate_value(
+            "language-content" => Ok(StixObject::LanguageContent(validate_value_from_object(
                 value,
                 allow_custom,
                 strict,
             )?)),
-            "extension-definition" => Ok(StixObject::ExtensionDefinition(validate_value(
+            "extension-definition" => Ok(StixObject::ExtensionDefinition(
+                validate_value_from_object(value, allow_custom, strict)?,
+            )),
+            "marking-definition" => Ok(StixObject::MarkingDefinition(validate_value_from_object(
                 value,
                 allow_custom,
                 strict,
             )?)),
-            "marking-definition" => Ok(StixObject::MarkingDefinition(validate_value(
-                value,
-                allow_custom,
-                strict,
-            )?)),
-            // "object-marking" => Ok(StixObject::ObjectMarking(validate_value(value, allow_custom, strict)?)),
-            "custom" | _ => Ok(StixObject::Custom(validate_value(
+            // "object-marking" => Ok(StixObject::ObjectMarking(validate_value_from_object(value, allow_custom, strict)?)),
+            "custom" | _ => Ok(StixObject::Custom(validate_value_from_object(
                 value,
                 allow_custom,
                 strict,
@@ -202,35 +247,21 @@ impl StixObject {
     /// `strict: false` skips validation but still respects `allow_custom`.
     /// `allow_custom: false` (default) rejects unknown fields.
     pub fn from_envelope(envelope_json: &str) -> Result<Self, Error> {
-        let mut envelope: Value = serde_json::from_str(envelope_json)
+        let envelope: Envelope = serde_json::from_str(envelope_json)
             .map_err(|e| Error::DeserializationError(e.to_string()))?;
 
-        let object = envelope
-            .get_mut("object")
-            .map(|v| v.take())
-            .ok_or_else(|| Error::ValidationError("Envelope missing 'object' field".to_string()))?;
-        let options = envelope.get("options").unwrap_or(&Value::Null);
-        let strict = options
-            .get("strict")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(true);
-        let version = options
-            .get("version")
-            .and_then(|v| v.as_str())
-            .unwrap_or("2.1");
-        let allow_custom = options
-            .get("allow_custom")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        if version != "2.1" {
+        if envelope.options.version != "2.1" {
             return Err(Error::ValidationError(format!(
                 "Unsupported STIX version '{}'. Only 2.1 is supported.",
-                version
+                envelope.options.version
             )));
         }
 
-        Self::from_value(object, allow_custom, strict)
+        Self::from_value(
+            envelope.object,
+            envelope.options.allow_custom,
+            envelope.options.strict,
+        )
     }
 }
 
@@ -253,7 +284,7 @@ impl Stix for StixObject {
 
 // -- Public parse helpers (used by bindings, avoids exposing StixObject) -----
 
-/// Parse an SDO from a JSON envelope.
+/// Parse a raw JSON string as a domain object (SDO).
 ///
 /// `strict` controls full validation, `version` must be "2.1", and
 /// `allow_custom` permits unknown fields.
@@ -263,26 +294,18 @@ pub fn parse_sdo(
     version: &str,
     allow_custom: bool,
 ) -> Result<DomainObject, Error> {
-    let envelope = serde_json::json!({
-        "object": serde_json::from_str::<serde_json::Value>(json_str)
-            .map_err(|e| Error::DeserializationError(e.to_string()))?,
-        "options": {
-            "strict": strict,
-            "version": version,
-            "allow_custom": allow_custom
-        }
-    });
-    let stix_obj = StixObject::from_envelope(&envelope.to_string())?;
-    match stix_obj {
-        StixObject::Sdo(sdo) => Ok(sdo),
-        _ => Err(Error::ValidationError(format!(
-            "Expected SDO, got {}",
-            stix_obj.get_type()
-        ))),
+    if version != "2.1" {
+        return Err(Error::ValidationError(format!(
+            "Unsupported STIX version '{}'. Only 2.1 is supported.",
+            version
+        )));
     }
+    let value: Value =
+        serde_json::from_str(json_str).map_err(|e| Error::DeserializationError(e.to_string()))?;
+    validate_value_from_object::<DomainObject>(value, allow_custom, strict)
 }
 
-/// Parse an SCO from a JSON envelope.
+/// Parse a raw JSON string as a cyber observable object (SCO).
 ///
 /// See [`parse_sdo`] for parameter semantics.
 pub fn parse_sco(
@@ -291,26 +314,18 @@ pub fn parse_sco(
     version: &str,
     allow_custom: bool,
 ) -> Result<CyberObject, Error> {
-    let envelope = serde_json::json!({
-        "object": serde_json::from_str::<serde_json::Value>(json_str)
-            .map_err(|e| Error::DeserializationError(e.to_string()))?,
-        "options": {
-            "strict": strict,
-            "version": version,
-            "allow_custom": allow_custom
-        }
-    });
-    let stix_obj = StixObject::from_envelope(&envelope.to_string())?;
-    match stix_obj {
-        StixObject::Sco(sco) => Ok(sco),
-        _ => Err(Error::ValidationError(format!(
-            "Expected SCO, got {}",
-            stix_obj.get_type()
-        ))),
+    if version != "2.1" {
+        return Err(Error::ValidationError(format!(
+            "Unsupported STIX version '{}'. Only 2.1 is supported.",
+            version
+        )));
     }
+    let value: Value =
+        serde_json::from_str(json_str).map_err(|e| Error::DeserializationError(e.to_string()))?;
+    validate_value_from_object::<CyberObject>(value, allow_custom, strict)
 }
 
-/// Parse an SRO from a JSON envelope.
+/// Parse a raw JSON string as a relationship object (SRO).
 ///
 /// See [`parse_sdo`] for parameter semantics.
 pub fn parse_sro(
@@ -319,23 +334,15 @@ pub fn parse_sro(
     version: &str,
     allow_custom: bool,
 ) -> Result<RelationshipObject, Error> {
-    let envelope = serde_json::json!({
-        "object": serde_json::from_str::<serde_json::Value>(json_str)
-            .map_err(|e| Error::DeserializationError(e.to_string()))?,
-        "options": {
-            "strict": strict,
-            "version": version,
-            "allow_custom": allow_custom
-        }
-    });
-    let stix_obj = StixObject::from_envelope(&envelope.to_string())?;
-    match stix_obj {
-        StixObject::Sro(sro) => Ok(sro),
-        _ => Err(Error::ValidationError(format!(
-            "Expected SRO, got {}",
-            stix_obj.get_type()
-        ))),
+    if version != "2.1" {
+        return Err(Error::ValidationError(format!(
+            "Unsupported STIX version '{}'. Only 2.1 is supported.",
+            version
+        )));
     }
+    let value: Value =
+        serde_json::from_str(json_str).map_err(|e| Error::DeserializationError(e.to_string()))?;
+    validate_value_from_object::<RelationshipObject>(value, allow_custom, strict)
 }
 
 /// Trait for parsing a concrete STIX type from a JSON string.
@@ -364,30 +371,27 @@ pub trait FromJson: Sized {
 macro_rules! impl_from_json_sdo {
     ($type:ty, $variant:path, $expected:literal) => {
         impl FromJson for $type {
-            fn from_json(json_str: &str, strict: bool, version: &str, allow_custom: bool) -> Result<Self, Error> {
-                let envelope = serde_json::json!({
-                    "object": serde_json::from_str::<serde_json::Value>(json_str)
-                        .map_err(|e| Error::DeserializationError(e.to_string()))?,
-                    "options": {
-                        "strict": strict,
-                        "version": version,
-                        "allow_custom": allow_custom
-                    }
-                });
-                let stix_obj = StixObject::from_envelope(&envelope.to_string())?;
-                match stix_obj {
-                    StixObject::Sdo(sdo) => match sdo.object_type {
-                        $variant(value) => Ok(value),
-                        _ => Err(Error::ValidationError(format!(
-                            "Expected {}, got {}",
-                            $expected,
-                            sdo.object_type.as_ref()
-                        ))),
-                    },
+            fn from_json(
+                json_str: &str,
+                strict: bool,
+                version: &str,
+                allow_custom: bool,
+            ) -> Result<Self, Error> {
+                if version != "2.1" {
+                    return Err(Error::ValidationError(format!(
+                        "Unsupported STIX version '{}'. Only 2.1 is supported.",
+                        version
+                    )));
+                }
+                let value: Value = serde_json::from_str(json_str)
+                    .map_err(|e| Error::DeserializationError(e.to_string()))?;
+                let sdo = validate_value_from_object::<DomainObject>(value, allow_custom, strict)?;
+                match sdo.object_type {
+                    $variant(value) => Ok(value),
                     _ => Err(Error::ValidationError(format!(
                         "Expected {}, got {}",
                         $expected,
-                        stix_obj.get_type()
+                        sdo.object_type.as_ref()
                     ))),
                 }
             }
@@ -398,30 +402,27 @@ macro_rules! impl_from_json_sdo {
 macro_rules! impl_from_json_sco {
     ($type:ty, $variant:path, $expected:literal) => {
         impl FromJson for $type {
-            fn from_json(json_str: &str, strict: bool, version: &str, allow_custom: bool) -> Result<Self, Error> {
-                let envelope = serde_json::json!({
-                    "object": serde_json::from_str::<serde_json::Value>(json_str)
-                        .map_err(|e| Error::DeserializationError(e.to_string()))?,
-                    "options": {
-                        "strict": strict,
-                        "version": version,
-                        "allow_custom": allow_custom
-                    }
-                });
-                let stix_obj = StixObject::from_envelope(&envelope.to_string())?;
-                match stix_obj {
-                    StixObject::Sco(sco) => match sco.object_type {
-                        $variant(value) => Ok(value),
-                        _ => Err(Error::ValidationError(format!(
-                            "Expected {}, got {}",
-                            $expected,
-                            sco.object_type.as_ref()
-                        ))),
-                    },
+            fn from_json(
+                json_str: &str,
+                strict: bool,
+                version: &str,
+                allow_custom: bool,
+            ) -> Result<Self, Error> {
+                if version != "2.1" {
+                    return Err(Error::ValidationError(format!(
+                        "Unsupported STIX version '{}'. Only 2.1 is supported.",
+                        version
+                    )));
+                }
+                let value: Value = serde_json::from_str(json_str)
+                    .map_err(|e| Error::DeserializationError(e.to_string()))?;
+                let sco = validate_value_from_object::<CyberObject>(value, allow_custom, strict)?;
+                match sco.object_type {
+                    $variant(value) => Ok(value),
                     _ => Err(Error::ValidationError(format!(
                         "Expected {}, got {}",
                         $expected,
-                        stix_obj.get_type()
+                        sco.object_type.as_ref()
                     ))),
                 }
             }
@@ -432,30 +433,28 @@ macro_rules! impl_from_json_sco {
 macro_rules! impl_from_json_sro {
     ($type:ty, $variant:path, $expected:literal) => {
         impl FromJson for $type {
-            fn from_json(json_str: &str, strict: bool, version: &str, allow_custom: bool) -> Result<Self, Error> {
-                let envelope = serde_json::json!({
-                    "object": serde_json::from_str::<serde_json::Value>(json_str)
-                        .map_err(|e| Error::DeserializationError(e.to_string()))?,
-                    "options": {
-                        "strict": strict,
-                        "version": version,
-                        "allow_custom": allow_custom
-                    }
-                });
-                let stix_obj = StixObject::from_envelope(&envelope.to_string())?;
-                match stix_obj {
-                    StixObject::Sro(sro) => match sro.object_type {
-                        $variant(value) => Ok(value),
-                        _ => Err(Error::ValidationError(format!(
-                            "Expected {}, got {}",
-                            $expected,
-                            sro.object_type.as_ref()
-                        ))),
-                    },
+            fn from_json(
+                json_str: &str,
+                strict: bool,
+                version: &str,
+                allow_custom: bool,
+            ) -> Result<Self, Error> {
+                if version != "2.1" {
+                    return Err(Error::ValidationError(format!(
+                        "Unsupported STIX version '{}'. Only 2.1 is supported.",
+                        version
+                    )));
+                }
+                let value: Value = serde_json::from_str(json_str)
+                    .map_err(|e| Error::DeserializationError(e.to_string()))?;
+                let sro =
+                    validate_value_from_object::<RelationshipObject>(value, allow_custom, strict)?;
+                match sro.object_type {
+                    $variant(value) => Ok(value),
                     _ => Err(Error::ValidationError(format!(
                         "Expected {}, got {}",
                         $expected,
-                        stix_obj.get_type()
+                        sro.object_type.as_ref()
                     ))),
                 }
             }
@@ -466,17 +465,21 @@ macro_rules! impl_from_json_sro {
 macro_rules! impl_from_json_meta {
     ($type:ty, $variant:path, $expected:literal) => {
         impl FromJson for $type {
-            fn from_json(json_str: &str, strict: bool, version: &str, allow_custom: bool) -> Result<Self, Error> {
-                let envelope = serde_json::json!({
-                    "object": serde_json::from_str::<serde_json::Value>(json_str)
-                        .map_err(|e| Error::DeserializationError(e.to_string()))?,
-                    "options": {
-                        "strict": strict,
-                        "version": version,
-                        "allow_custom": allow_custom
-                    }
-                });
-                let stix_obj = StixObject::from_envelope(&envelope.to_string())?;
+            fn from_json(
+                json_str: &str,
+                strict: bool,
+                version: &str,
+                allow_custom: bool,
+            ) -> Result<Self, Error> {
+                if version != "2.1" {
+                    return Err(Error::ValidationError(format!(
+                        "Unsupported STIX version '{}'. Only 2.1 is supported.",
+                        version
+                    )));
+                }
+                let value: Value = serde_json::from_str(json_str)
+                    .map_err(|e| Error::DeserializationError(e.to_string()))?;
+                let stix_obj = StixObject::from_value(value, allow_custom, strict)?;
                 match stix_obj {
                     $variant(value) => Ok(value),
                     _ => Err(Error::ValidationError(format!(
@@ -493,17 +496,21 @@ macro_rules! impl_from_json_meta {
 macro_rules! impl_from_json_custom {
     ($type:ty) => {
         impl FromJson for $type {
-            fn from_json(json_str: &str, strict: bool, version: &str, allow_custom: bool) -> Result<Self, Error> {
-                let envelope = serde_json::json!({
-                    "object": serde_json::from_str::<serde_json::Value>(json_str)
-                        .map_err(|e| Error::DeserializationError(e.to_string()))?,
-                    "options": {
-                        "strict": strict,
-                        "version": version,
-                        "allow_custom": allow_custom
-                    }
-                });
-                let stix_obj = StixObject::from_envelope(&envelope.to_string())?;
+            fn from_json(
+                json_str: &str,
+                strict: bool,
+                version: &str,
+                allow_custom: bool,
+            ) -> Result<Self, Error> {
+                if version != "2.1" {
+                    return Err(Error::ValidationError(format!(
+                        "Unsupported STIX version '{}'. Only 2.1 is supported.",
+                        version
+                    )));
+                }
+                let value: Value = serde_json::from_str(json_str)
+                    .map_err(|e| Error::DeserializationError(e.to_string()))?;
+                let stix_obj = StixObject::from_value(value, allow_custom, strict)?;
                 match stix_obj {
                     StixObject::Custom(value) => Ok(value),
                     _ => Err(Error::ValidationError(format!(
@@ -669,6 +676,146 @@ impl_from_json_custom!(CustomObject);
 #[cfg(test)]
 mod tests {
     use crate::object::*;
+
+    fn minimal_attack_pattern() -> serde_json::Value {
+        serde_json::json!({
+            "type": "attack-pattern",
+            "id": "attack-pattern--12345678-1234-5678-1234-567812345678",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "spec_version": "2.1",
+            "name": "Spear Phishing"
+        })
+    }
+
+    #[test]
+    fn envelope_uses_defaults_when_options_omitted() {
+        let envelope = serde_json::json!({
+            "object": minimal_attack_pattern()
+        });
+        let obj = StixObject::from_envelope(&envelope.to_string()).unwrap();
+        assert!(matches!(obj, StixObject::Sdo(_)));
+        assert_eq!(obj.get_type(), "attack-pattern");
+        assert_eq!(
+            obj.get_id(),
+            "attack-pattern--12345678-1234-5678-1234-567812345678"
+        );
+    }
+
+    #[test]
+    fn envelope_options_override_defaults() {
+        let mut object = minimal_attack_pattern();
+        object
+            .as_object_mut()
+            .unwrap()
+            .insert("spec_version".to_string(), serde_json::json!("3.0"));
+        let envelope = serde_json::json!({
+            "object": object,
+            "options": {
+                "strict": false,
+                "version": "2.1",
+                "allow_custom": false
+            }
+        });
+        let obj = StixObject::from_envelope(&envelope.to_string()).unwrap();
+        assert!(matches!(obj, StixObject::Sdo(_)));
+    }
+
+    #[test]
+    fn envelope_rejects_unsupported_version() {
+        let envelope = serde_json::json!({
+            "object": minimal_attack_pattern(),
+            "options": { "version": "2.0" }
+        });
+        let err = StixObject::from_envelope(&envelope.to_string()).unwrap_err();
+        assert!(
+            matches!(err, Error::ValidationError(_)),
+            "expected version ValidationError, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn parse_sdo_matches_stix_object_dispatch() {
+        let json = minimal_attack_pattern().to_string();
+        let stix = StixObject::from_json(&json, false).unwrap();
+        let sdo = parse_sdo(&json, true, "2.1", false).unwrap();
+        assert_eq!(stix, StixObject::Sdo(sdo));
+    }
+
+    #[test]
+    fn parse_sco_matches_stix_object_dispatch() {
+        let json = serde_json::json!({
+            "type": "ipv4-addr",
+            "id": "ipv4-addr--12345678-1234-5678-1234-567812345678",
+            "spec_version": "2.1",
+            "value": "192.168.1.1"
+        })
+        .to_string();
+        let stix = StixObject::from_json(&json, false).unwrap();
+        let sco = parse_sco(&json, true, "2.1", false).unwrap();
+        assert_eq!(stix, StixObject::Sco(sco));
+    }
+
+    #[test]
+    fn parse_sro_matches_stix_object_dispatch() {
+        let json = serde_json::json!({
+            "type": "relationship",
+            "id": "relationship--550e8400-e29b-41d4-a716-446655440000",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "spec_version": "2.1",
+            "relationship_type": "related-to",
+            "source_ref": "attack-pattern--550e8400-e29b-41d4-a716-446655440001",
+            "target_ref": "attack-pattern--550e8400-e29b-41d4-a716-446655440002"
+        })
+        .to_string();
+        let stix = StixObject::from_json(&json, false).unwrap();
+        let sro = parse_sro(&json, true, "2.1", false).unwrap();
+        assert_eq!(stix, StixObject::Sro(sro));
+    }
+
+    #[test]
+    fn parse_sdo_custom_properties_roundtrip() {
+        let mut object = minimal_attack_pattern();
+        let map = object.as_object_mut().unwrap();
+        map.insert(
+            "x_vendor_field".to_string(),
+            serde_json::json!("vendor-value"),
+        );
+        let json = object.to_string();
+        let sdo = parse_sdo(&json, true, "2.1", true).unwrap();
+        let custom = sdo
+            .common_properties
+            .custom_properties
+            .expect("custom properties should be captured");
+        assert_eq!(
+            custom.get("x_vendor_field"),
+            Some(&serde_json::json!("vendor-value"))
+        );
+    }
+
+    #[test]
+    fn parse_sdo_rejects_unknown_properties_when_not_allowed() {
+        let mut object = minimal_attack_pattern();
+        object.as_object_mut().unwrap().insert(
+            "x_vendor_field".to_string(),
+            serde_json::json!("vendor-value"),
+        );
+        let json = object.to_string();
+        let err = parse_sdo(&json, true, "2.1", false).unwrap_err();
+        assert!(
+            matches!(err, Error::UnknownProperties { .. }),
+            "expected UnknownProperties, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn from_json_trait_extracts_inner_sdo() {
+        use crate::object::FromJson;
+        let json = minimal_attack_pattern().to_string();
+        let ap = AttackPattern::from_json(&json, true, "2.1", false).unwrap();
+        assert_eq!(ap.name, "Spear Phishing");
+    }
 
     #[test]
     fn reserialize_stix_object() {

@@ -5,9 +5,8 @@ use crate::{
     cyber_observable_objects::vocab::EncryptionAlgorithm,
     error::{add_error, return_multiple_errors, StixError as Error},
     types::{
-        get_field_by_name, is_sco_type_name, stix_case, DictionaryValue,
-        ExternalReference, GranularMarking, Hashes, Identifier, StixDictionary,
-        Timestamp,
+        get_field_by_name, is_sco_type_name, stix_case, DictionaryValue, ExternalReference,
+        GranularMarking, Hashes, Identifier, StixDictionary, Timestamp,
     },
 };
 use ::url::Url as RustUrl;
@@ -15,8 +14,8 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, str::FromStr};
 
 use super::{
-    CyberObject, CyberObjectType, EmailMimeCompomentType, OPTIONAL_ID_PROPERTIES,
-    REQUIRED_ID_PROPERTIES, WindowsRegistryKeyType, X509V3Extensions,
+    CyberObject, CyberObjectType, EmailMimeCompomentType, WindowsRegistryKeyType, X509V3Extensions,
+    OPTIONAL_ID_PROPERTIES, REQUIRED_ID_PROPERTIES,
 };
 
 /// Builder struct for SCOs.

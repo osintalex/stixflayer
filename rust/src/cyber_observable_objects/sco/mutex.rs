@@ -1,5 +1,5 @@
 use crate::base::Stix;
-use crate::error::{StixError as Error};
+use crate::error::StixError as Error;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use stix_derive::StixProperties;

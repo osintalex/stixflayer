@@ -1,6 +1,6 @@
 //! Custom property name and value validation.
-use base64::{engine::general_purpose, Engine};
 use crate::error::StixError as Error;
+use base64::{engine::general_purpose, Engine};
 use serde_json::Value;
 
 /// Validates a custom property name against the STIX 2.1 rules in section 11.1.1 and

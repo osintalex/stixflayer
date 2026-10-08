@@ -1,10 +1,10 @@
 use crate::base::Stix;
-use crate::types::{Identifier};
 use crate::error::{return_multiple_errors, StixError as Error};
+use crate::types::Identifier;
+use email_address::{EmailAddress as validate_email, Options};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use stix_derive::StixProperties;
-use email_address::{EmailAddress as validate_email, Options};
 
 /// Email Address
 ///

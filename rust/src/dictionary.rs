@@ -8,11 +8,7 @@ use crate::{
 use log::warn;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::BTreeMap,
-    fmt,
-    str::FromStr,
-};
+use std::{collections::BTreeMap, fmt, str::FromStr};
 
 /// A STIX 2.1 compliant dictionary that captures an set of key/value pairs.
 ///

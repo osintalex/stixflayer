@@ -1,4 +1,3 @@
-use pyo3::prelude::*;
 use crate::custom_objects::CustomObjectBuilder;
 use crate::cyber_observable_objects::sco::{CyberObjectBuilder, CyberObjectType};
 use crate::domain_objects::sdo::{DomainObjectBuilder, DomainObjectType};
@@ -6,45 +5,45 @@ use crate::meta_objects::extension_definition::ExtensionDefinitionBuilder;
 use crate::meta_objects::language_content::LanguageContentBuilder;
 use crate::meta_objects::marking_definition::MarkingDefinitionBuilder;
 use crate::relationship_objects::{RelationshipObjectBuilder, RelationshipObjectType};
+use pyo3::prelude::*;
 
-pub mod error;
-pub mod convert;
 pub mod builder;
+pub mod convert;
+pub mod error;
+pub mod experimental;
 pub mod functions;
-pub mod vocab;
-pub mod sdo;
-pub mod sco;
-pub mod sro;
 pub mod meta;
+pub mod sco;
+pub mod sdo;
+pub mod sro;
+pub mod vocab;
 
-pub use error::{stix_to_pyerr, DeserializationError, StixError, ValidationError};
-pub use convert::{
-    classify_top_level_type_error, custom_properties_dict, dynamic_getattr, json_to_py,
-    json_value_to_py, py_to_json,
-};
 pub use builder::{
     build_sco_envelope, build_sdo_envelope, build_sro_envelope, validate_marking_builder,
     validate_sco_builder, validate_sdo_builder, validate_sro_builder,
 };
-pub use functions::{
-    create_timestamp, parse_extension_type, test_stix, validate_pattern, version,
+pub use convert::{
+    classify_top_level_type_error, custom_properties_dict, dynamic_getattr, json_to_py,
+    json_value_to_py, py_to_json,
 };
-pub use vocab::{
-    AttackMotivation, AttackResourceLevel, IdentitySectors, IndicatorType, MalwareType, ReportType,
-    ThreatActorSophistication, ThreatActorType,
+pub use error::{stix_to_pyerr, DeserializationError, StixError, ValidationError};
+pub use functions::{create_timestamp, parse_extension_type, test_stix, validate_pattern, version};
+pub use meta::{Bundle, CustomObject, ExtensionDefinition, LanguageContent, MarkingDefinition};
+pub use sco::{
+    Artifact, AutonomousSystem, Directory, DomainName, EmailAddress, EmailMessage, File,
+    IPv4Address, IPv6Address, MacAddr, Mutex, NetworkTraffic, Process, Software, UserAccount,
+    WindowsRegistryKey, X509Certificate, URL,
 };
 pub use sdo::{
     AttackPattern, Campaign, CourseOfAction, Grouping, Identity, Incident, Indicator,
     Infrastructure, IntrusionSet, Location, Malware, MalwareAnalysis, Note, ObservedData, Opinion,
     Report, ThreatActor, Tool, Vulnerability,
 };
-pub use sco::{
-    Artifact, AutonomousSystem, Directory, DomainName, EmailAddress, EmailMessage, File,
-    IPv4Address, IPv6Address, MacAddr, Mutex, NetworkTraffic, Process, Software, URL, UserAccount,
-    WindowsRegistryKey, X509Certificate,
-};
 pub use sro::{Relationship, Sighting};
-pub use meta::{Bundle, CustomObject, ExtensionDefinition, LanguageContent, MarkingDefinition};
+pub use vocab::{
+    AttackMotivation, AttackResourceLevel, IdentitySectors, IndicatorType, MalwareType, ReportType,
+    ThreatActorSophistication, ThreatActorType,
+};
 
 /// Convert a typed [`StixObject`] into its corresponding Python wrapper class.
 pub fn wrap_stix_object(py: Python<'_>, obj: crate::object::StixObject) -> Result<PyObject, PyErr> {
@@ -163,6 +162,7 @@ pub fn stixflayer_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(validate_pattern, m)?)?;
 
     m.add_class::<AttackPattern>()?;
+    m.add_class::<experimental::CachedAttackPattern>()?;
     m.add_class::<Campaign>()?;
     m.add_class::<CourseOfAction>()?;
     m.add_class::<Grouping>()?;

@@ -1,14 +1,14 @@
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
 use crate::cyber_observable_objects::sco::{CyberObject, CyberObjectBuilder};
 use crate::domain_objects::sdo::{DomainObject, DomainObjectBuilder};
 use crate::meta_objects::marking_definition::MarkingDefinitionBuilder;
+use crate::python_bindings::convert::{classify_top_level_type_error, py_to_json};
+use crate::python_bindings::error::{stix_to_pyerr, StixError};
 use crate::relationship_objects::{RelationshipObject, RelationshipObjectBuilder};
 use crate::types::Identifier;
 use crate::types::Timestamp;
 use crate::validation::validate_value;
-use crate::python_bindings::convert::{classify_top_level_type_error, py_to_json};
-use crate::python_bindings::error::{StixError, stix_to_pyerr};
+use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
 /// Helper function to validate that required fields are present in a DomainObjectBuilder.
 /// When `strict` is false the validation step is skipped.

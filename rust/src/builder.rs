@@ -3,8 +3,8 @@ use crate::{
     error::StixError as Error,
     stix::CommonProperties,
     types::{
-        DictionaryValue, ExternalReference, GranularMarking, Identifier, StixDictionary,
-        Timestamp, stix_case,
+        stix_case, DictionaryValue, ExternalReference, GranularMarking, Identifier, StixDictionary,
+        Timestamp,
     },
 };
 use serde::Serialize;
@@ -38,8 +38,8 @@ impl CommonPropertiesBuilder {
     /// Construct a `CommonPropertiesBuilder` with default values for the properties
     /// Used when building a new STIX Object.
     pub fn new(object_name: &str, type_name: &str) -> Result<CommonPropertiesBuilder, Error> {
-        let stix_object =
-            StixObjectCategory::from_str(&stix_case(object_name)).map_err(Error::UnrecognizedObject)?;
+        let stix_object = StixObjectCategory::from_str(&stix_case(object_name))
+            .map_err(Error::UnrecognizedObject)?;
         let properties = CommonProperties {
             spec_version: Some("2.1".to_string()),
             id: Identifier::new(&stix_case(type_name))?,
@@ -72,8 +72,8 @@ impl CommonPropertiesBuilder {
         object_name: &str,
         old: &CommonProperties,
     ) -> Result<CommonPropertiesBuilder, Error> {
-        let stix_object =
-            StixObjectCategory::from_str(&stix_case(object_name)).map_err(Error::UnrecognizedObject)?;
+        let stix_object = StixObjectCategory::from_str(&stix_case(object_name))
+            .map_err(Error::UnrecognizedObject)?;
         let properties = CommonProperties {
             spec_version: old.spec_version.clone(),
             id: old.id.clone(),
@@ -106,8 +106,8 @@ impl CommonPropertiesBuilder {
         object_name: &str,
         old: &CommonProperties,
     ) -> Result<CommonPropertiesBuilder, Error> {
-        let stix_object =
-            StixObjectCategory::from_str(&stix_case(object_name)).map_err(Error::UnrecognizedObject)?;
+        let stix_object = StixObjectCategory::from_str(&stix_case(object_name))
+            .map_err(Error::UnrecognizedObject)?;
         Ok(CommonPropertiesBuilder {
             stix_object,
             builder_type: BuilderType::FromExisting,
@@ -198,7 +198,10 @@ impl CommonPropertiesBuilder {
     /// This is used by the Python constructors for objects whose fields are
     /// mapped manually (e.g. `MarkingDefinition`) rather than synthesized from a
     /// JSON envelope.
-    pub fn custom_properties(mut self, custom_properties: std::collections::BTreeMap<String, serde_json::Value>) -> Self {
+    pub fn custom_properties(
+        mut self,
+        custom_properties: std::collections::BTreeMap<String, serde_json::Value>,
+    ) -> Self {
         self.properties.custom_properties = Some(custom_properties);
         self
     }

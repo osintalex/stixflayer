@@ -64,7 +64,7 @@ impl Stix for Infrastructure {
 
 #[cfg(test)]
 mod tests {
-    
+
     use crate::domain_objects::sdo::{DomainObject, DomainObjectBuilder};
     use serde_json::Value;
 

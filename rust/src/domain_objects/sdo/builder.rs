@@ -5,8 +5,8 @@ use crate::{
     domain_objects::vocab::OpinionType,
     error::StixError as Error,
     types::{
-        stix_case, DictionaryValue, ExternalReference, GranularMarking,
-        Identifier, KillChainPhase, StixDictionary, Timestamp,
+        stix_case, DictionaryValue, ExternalReference, GranularMarking, Identifier, KillChainPhase,
+        StixDictionary, Timestamp,
     },
 };
 use jiff::Timestamp as JiffTimestamp;
@@ -1679,4 +1679,3 @@ impl DomainObjectBuilder {
         Ok(sdo)
     }
 }
-

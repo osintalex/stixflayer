@@ -2,17 +2,13 @@ use crate::{
     base::{check_timestamp_ordering, Stix},
     common::validation::validate_refs_are_type,
     error::StixError as Error,
-    types::{
-        stix_case, Identifier,
-        ScoTypes, SdoTypes, SroTypes, StixMetaTypes, Timestamp,
-    },
+    types::{stix_case, Identifier, ScoTypes, SdoTypes, SroTypes, StixMetaTypes, Timestamp},
 };
 use serde::{Deserialize, Serialize};
 use serde_this_or_that::as_opt_u64;
 use serde_with::skip_serializing_none;
-use strum::IntoEnumIterator;
 use stix_derive::StixProperties;
-
+use strum::IntoEnumIterator;
 
 /// Nested struct for properties only found in Sightings
 #[skip_serializing_none]

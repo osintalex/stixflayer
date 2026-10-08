@@ -57,7 +57,7 @@ impl Stix for Identity {
 
 #[cfg(test)]
 mod tests {
-    
+
     use crate::{
         domain_objects::sdo::{DomainObject, DomainObjectBuilder},
         types::ExternalReference,

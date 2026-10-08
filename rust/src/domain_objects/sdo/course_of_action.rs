@@ -26,7 +26,7 @@ impl Stix for CourseOfAction {
 
 #[cfg(test)]
 mod tests {
-    
+
     use crate::domain_objects::sdo::{DomainObject, DomainObjectBuilder};
     use serde_json::Value;
 

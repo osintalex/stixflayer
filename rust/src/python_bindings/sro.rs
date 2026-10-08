@@ -1,9 +1,9 @@
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
-use crate::relationship_objects::RelationshipObjectBuilder;
 use crate::python_bindings::builder::build_sro_envelope;
 use crate::python_bindings::convert::{custom_properties_dict, dynamic_getattr};
-use crate::python_bindings::error::{StixError, stix_to_pyerr};
+use crate::python_bindings::error::{stix_to_pyerr, StixError};
+use crate::relationship_objects::RelationshipObjectBuilder;
+use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
 #[pyclass]
 pub struct Relationship(pub RelationshipObjectBuilder);

@@ -1,9 +1,9 @@
 //! Contains the implementation logic for STIX Bundles
 
 pub mod deserialize;
-pub mod validation;
 #[cfg(test)]
 mod tests;
+pub mod validation;
 
 pub use deserialize::deserialize_bundle_objects;
 

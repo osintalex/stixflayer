@@ -1,6 +1,6 @@
 use crate::base::Stix;
-use crate::types::{Identifier, StixDictionary, Timestamp};
 use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::types::{Identifier, StixDictionary, Timestamp};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use stix_derive::StixProperties;
@@ -165,6 +165,7 @@ impl Stix for EmailMimeCompomentType {
 #[cfg(test)]
 mod tests {
     #![allow(unused_imports)]
+    use super::EmailMimeCompomentType;
     use crate::cyber_observable_objects::sco::{CyberObject, CyberObjectBuilder};
     use crate::extensions::{
         ArchiveExtension, FileExtensions, HttpRequestExtension, IcmpExtension,
@@ -176,7 +177,6 @@ mod tests {
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;
-    use super::EmailMimeCompomentType;
 
     #[test]
     fn deserialize_emailmessage() {

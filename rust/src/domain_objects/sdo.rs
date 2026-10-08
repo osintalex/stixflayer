@@ -14,6 +14,7 @@ use crate::{
 use crate::types::Timestamp;
 
 pub mod attack_pattern;
+pub mod builder;
 pub mod campaign;
 pub mod course_of_action;
 pub mod grouping;
@@ -32,7 +33,6 @@ pub mod report;
 pub mod threat_actor;
 pub mod tool;
 pub mod vulnerability;
-pub mod builder;
 
 #[cfg(test)]
 use crate::relationship_objects::RelationshipObject;
@@ -53,10 +53,10 @@ pub use note::Note;
 pub use observed_data::ObservedData;
 pub use opinion::Opinion;
 pub use report::Report;
+use stix_derive::StixProperties;
 pub use threat_actor::ThreatActor;
 pub use tool::Tool;
 pub use vulnerability::Vulnerability;
-use stix_derive::StixProperties;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -259,7 +259,6 @@ impl Stix for DomainObjectType {
         }
     }
 }
-
 
 pub use builder::DomainObjectBuilder;
 

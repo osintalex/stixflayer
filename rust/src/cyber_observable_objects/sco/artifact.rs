@@ -1,13 +1,13 @@
 use crate::base::Stix;
-use crate::types::{Hashes};
-use crate::common::validation::{is_valid_mime_type};
-use crate::cyber_observable_objects::vocab::{EncryptionAlgorithm};
+use crate::common::validation::is_valid_mime_type;
+use crate::cyber_observable_objects::vocab::EncryptionAlgorithm;
 use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::types::Hashes;
+use base64::{engine::general_purpose, Engine};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use stix_derive::StixProperties;
 use url::Url as RustUrl;
-use base64::{engine::general_purpose, Engine};
 
 /// Artifact Object
 ///
@@ -82,13 +82,13 @@ impl Stix for Artifact {
 mod tests {
     #![allow(unused_imports)]
     use crate::cyber_observable_objects::sco::{CyberObject, CyberObjectBuilder};
+    use crate::cyber_observable_objects::vocab::EncryptionAlgorithm;
     use crate::extensions::{
         ArchiveExtension, FileExtensions, HttpRequestExtension, IcmpExtension,
         NetworkTrafficExtensions, ProcessExtensions, SocketExtenion, SpecialExtensions,
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use crate::cyber_observable_objects::vocab::EncryptionAlgorithm;
     use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};

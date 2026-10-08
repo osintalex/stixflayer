@@ -1,10 +1,9 @@
 //! Data structures and functions for implementing STIX Relationship Objects (SROs).
 #![allow(dead_code)]
 
-
+pub mod builder;
 pub mod relationship;
 pub mod sighting;
-pub mod builder;
 pub mod validation;
 
 pub use builder::RelationshipObjectBuilder;
@@ -17,9 +16,7 @@ pub mod types;
 use crate::{
     base::{CommonProperties, Stix},
     error::{add_error, return_multiple_errors, StixError as Error},
-    types::{
-        Identified, Identifier,
-    },
+    types::{Identified, Identifier},
     validation::validate_value,
 };
 use stix_derive::StixProperties;

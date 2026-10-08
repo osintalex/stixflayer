@@ -1,7 +1,7 @@
-use pyo3::prelude::*;
 use crate::pattern::validate_pattern as rust_validate_pattern;
+use crate::python_bindings::error::{stix_to_pyerr, StixError};
 use crate::types::{ExtensionType, Timestamp};
-use crate::python_bindings::error::{StixError, stix_to_pyerr};
+use pyo3::prelude::*;
 
 #[pyfunction]
 pub fn version() -> String {

@@ -1,9 +1,9 @@
 use crate::base::Stix;
-use crate::error::{StixError as Error};
+use crate::error::StixError as Error;
 use serde::{Deserialize, Serialize};
+use serde_this_or_that::as_u64;
 use serde_with::skip_serializing_none;
 use stix_derive::StixProperties;
-use serde_this_or_that::{as_u64};
 
 /// Autonomous System
 ///

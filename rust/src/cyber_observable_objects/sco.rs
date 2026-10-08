@@ -2,6 +2,7 @@
 
 pub mod artifact;
 pub mod autonomous_system;
+pub mod builder;
 pub mod directory;
 pub mod domain_name;
 pub mod email_addr;
@@ -18,7 +19,6 @@ pub mod url;
 pub mod user_account;
 pub mod windows_registry_key;
 pub mod x509_certificate;
-pub mod builder;
 
 pub use artifact::Artifact;
 pub use autonomous_system::AutonomousSystem;
@@ -48,9 +48,7 @@ use crate::{
     base::{CommonProperties, Stix},
     error::{add_error, return_multiple_errors, StixError as Error},
     relationship_objects::{Related, RelationshipObjectBuilder},
-    types::{
-        Identified, Identifier,
-    },
+    types::{Identified, Identifier},
     validation::validate_value,
 };
 use log::warn;
@@ -318,9 +316,7 @@ impl Stix for CyberObjectType {
     }
 }
 
-
 pub use builder::CyberObjectBuilder;
-
 
 /// The various SCO types represented in STIX.
 #[derive(

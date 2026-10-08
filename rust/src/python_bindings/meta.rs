@@ -1,8 +1,3 @@
-use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
-use std::collections::BTreeMap;
-use std::str::FromStr;
-use jiff::Timestamp as JiffTimestamp;
 use crate::bundles::Bundle as StixBundle;
 use crate::custom_objects::CustomObjectBuilder;
 use crate::error::StixError as RustStixError;
@@ -12,15 +7,20 @@ use crate::meta_objects::extension_definition::{
 use crate::meta_objects::language_content::LanguageContent as StixLanguageContent;
 use crate::meta_objects::language_content::LanguageContentBuilder;
 use crate::meta_objects::marking_definition::MarkingDefinitionBuilder;
-use crate::types::{DictionaryValue, ExtensionType, Identifier, Timestamp};
-use crate::validation::validate_value;
 use crate::python_bindings::builder::validate_marking_builder;
 use crate::python_bindings::convert::{
     custom_properties_dict, dynamic_getattr, json_to_py, py_to_json,
 };
-use crate::python_bindings::error::{StixError, ValidationError, stix_to_pyerr};
+use crate::python_bindings::error::{stix_to_pyerr, StixError, ValidationError};
 use crate::python_bindings::functions::parse_extension_type;
 use crate::python_bindings::wrap_stix_object;
+use crate::types::{DictionaryValue, ExtensionType, Identifier, Timestamp};
+use crate::validation::validate_value;
+use jiff::Timestamp as JiffTimestamp;
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyList};
+use std::collections::BTreeMap;
+use std::str::FromStr;
 
 #[pyclass]
 pub struct MarkingDefinition(pub MarkingDefinitionBuilder);
