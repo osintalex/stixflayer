@@ -1,13 +1,29 @@
 use crate::base::Stix;
-use crate::types::{DictionaryValue, Identifier, StixDictionary, Timestamp};
-use crate::common::validation::{validate_refs_are_type};
+use crate::common::validation::validate_refs_are_type;
 use crate::error::{add_error, return_multiple_errors, StixError as Error};
-use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
-use stix_derive::StixProperties;
-use serde_this_or_that::{as_opt_u64};
-use regex::Regex;
+use crate::types::{DictionaryValue, Identifier, StixDictionary, Timestamp};
 use log::warn;
+use regex::Regex;
+use serde::{Deserialize, Serialize};
+use serde_this_or_that::as_opt_u64;
+use serde_with::skip_serializing_none;
+use std::sync::OnceLock;
+use stix_derive::StixProperties;
+
+fn protocol_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r"^[a-zA-Z0-9-]{1,15}$").expect("protocol name regex is valid")
+    })
+}
+
+fn ipfix_key_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r"^[a-z][a-zA-Z0-9]+$")
+            .expect("IPFIX dictionary key regex is valid")
+    })
+}
 
 /// Network Traffic
 ///
@@ -125,7 +141,11 @@ impl Stix for NetworkTraffic {
             encapsulates_refs.stix_check()?;
             add_error(
                 &mut errors,
-                validate_refs_are_type(encapsulates_refs, &["network-traffic"], "encapsulates_refs"),
+                validate_refs_are_type(
+                    encapsulates_refs,
+                    &["network-traffic"],
+                    "encapsulates_refs",
+                ),
             );
         }
         if let (Some(end), Some(is_active)) = (&self.end, &self.is_active) {
@@ -175,9 +195,8 @@ impl Stix for NetworkTraffic {
                     format!("protocols {} Protocols MUST be listed in low to high order, from outer to inner in terms of packet encapsulation. That is, the protocols in the outer level of the packet, such as IP, MUST be listed first.",protocols_joined),
                 ));
         }
-        let protocol_re = Regex::new(r"^[a-zA-Z0-9-]{1,15}$").unwrap();
         for p in &self.protocols {
-            if !protocol_re.is_match(p) {
+            if !protocol_re().is_match(p) {
                 errors.push(Error::ValidationError(format!(
                 "The protocol name '{}' is not a valid IANA service name or protocol identifier.", p
             )));
@@ -185,9 +204,8 @@ impl Stix for NetworkTraffic {
         }
         if let Some(ipfix) = &self.ipfix {
             add_error(&mut errors, ipfix.stix_check());
-            let ipfix_key_re = Regex::new(r"^[a-z][a-zA-Z0-9]+$").unwrap();
             for (key, val) in ipfix.iter() {
-                if !ipfix_key_re.is_match(key) {
+                if !ipfix_key_re().is_match(key) {
                     errors.push(Error::ValidationError(format!(
                         "IPFIX key '{}' is not valid. Must start with a lowercase letter and contain only alphanumeric characters.", key
                     )));

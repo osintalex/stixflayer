@@ -8,7 +8,9 @@ use crate::{
 };
 use std::str::FromStr;
 
-use crate::relationship_objects::{Relationship, RelationshipObject, RelationshipObjectType, Sighting};
+use crate::relationship_objects::{
+    Relationship, RelationshipObject, RelationshipObjectType, Sighting,
+};
 
 /// Creates a new STIX 2.1 `RelationshipObject` of the given type
 #[derive(Clone, Debug)]

@@ -56,7 +56,7 @@ impl Stix for Tool {
 
 #[cfg(test)]
 mod tests {
-    
+
     use crate::{
         domain_objects::sdo::{DomainObject, DomainObjectBuilder},
         types::KillChainPhase,

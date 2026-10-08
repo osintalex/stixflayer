@@ -1,9 +1,9 @@
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
 use crate::cyber_observable_objects::sco::CyberObjectBuilder;
 use crate::python_bindings::builder::build_sco_envelope;
 use crate::python_bindings::convert::{custom_properties_dict, dynamic_getattr};
-use crate::python_bindings::error::{StixError, stix_to_pyerr};
+use crate::python_bindings::error::{stix_to_pyerr, StixError};
+use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
 #[pyclass]
 pub struct IPv4Address(pub CyberObjectBuilder);

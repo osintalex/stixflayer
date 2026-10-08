@@ -1,6 +1,5 @@
 //! Contains the implementation logic for unrecognized custom STIX Objects.
 
-
 #[cfg(test)]
 mod test {
     use std::collections::BTreeMap;

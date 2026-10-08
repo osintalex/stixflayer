@@ -46,12 +46,11 @@ impl Stix for AttackPattern {
 
 #[cfg(test)]
 mod tests {
-    
+
     use crate::{
         domain_objects::sdo::{DomainObject, DomainObjectBuilder},
         types::{ExternalReference, Hashes, ReferenceUrl},
     };
-    
 
     fn expected_attack_pattern() -> DomainObject {
         DomainObjectBuilder::new("attack-pattern")
@@ -76,13 +75,14 @@ mod tests {
 
     #[test]
     fn serialize_attack_pattern() {
-        let attack_pattern = DomainObjectBuilder::new("attack-pattern")
-            .unwrap()
-            .name("Spear Phishing".to_string())
-            .unwrap()
-            .description("...".to_string())
-            .unwrap()
-            .external_references(vec![ExternalReference::new(
+        let attack_pattern =
+            DomainObjectBuilder::new("attack-pattern")
+                .unwrap()
+                .name("Spear Phishing".to_string())
+                .unwrap()
+                .description("...".to_string())
+                .unwrap()
+                .external_references(vec![ExternalReference::new(
                 "capec",
                 None,
                 Some(ReferenceUrl::new(
@@ -98,11 +98,11 @@ mod tests {
                 Some("CAPEC-163".to_string()),
             )
             .unwrap()])
-            .build()
-            .unwrap()
-            .test_id()
-            .created("2016-05-12T08:17:27.000Z")
-            .modified("2016-05-12T08:17:27.000Z");
+                .build()
+                .unwrap()
+                .test_id()
+                .created("2016-05-12T08:17:27.000Z")
+                .modified("2016-05-12T08:17:27.000Z");
 
         let mut result = serde_json::to_string_pretty(&attack_pattern).unwrap();
         result.retain(|c| !c.is_whitespace());

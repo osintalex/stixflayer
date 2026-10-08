@@ -1,13 +1,22 @@
 use crate::base::Stix;
-use crate::types::{Identifier, Timestamp};
-use crate::cyber_observable_objects::vocab::{WindowsRegistryDataTypeEnum};
+use crate::common::validation::is_exact_vocab_value;
+use crate::cyber_observable_objects::vocab::WindowsRegistryDataTypeEnum;
 use crate::error::{add_error, return_multiple_errors, StixError as Error};
-use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
-use stix_derive::StixProperties;
-use serde_this_or_that::{as_opt_i64};
-use strum::IntoEnumIterator;
+use crate::types::{Identifier, Timestamp};
 use regex::Regex;
+use serde::{Deserialize, Serialize};
+use serde_this_or_that::as_opt_i64;
+use serde_with::skip_serializing_none;
+use std::sync::OnceLock;
+use stix_derive::StixProperties;
+
+fn windows_registry_key_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r"^(HKEY_LOCAL_MACHINE|HKEY_CURRENT_USER|HKEY_CLASSES_ROOT|HKEY_USERS|HKEY_CURRENT_CONFIG)(\\[a-zA-Z0-9_]+)*$")
+            .expect("Windows registry key regex is valid")
+    })
+}
 
 /// Windows Regsitry Key Open
 ///
@@ -43,9 +52,7 @@ impl Stix for WindowsRegistryKey {
             }
         }
         if let Some(key) = &self.key {
-            // Panic: Safe to unwrap as this is a valid regex string
-            let re = Regex::new(r"^(HKEY_LOCAL_MACHINE|HKEY_CURRENT_USER|HKEY_CLASSES_ROOT|HKEY_USERS|HKEY_CURRENT_CONFIG)(\\[a-zA-Z0-9_]+)*$").unwrap();
-            if !re.is_match(key) {
+            if !windows_registry_key_re().is_match(key) {
                 errors.push(Error::ValidationError(
                     "Registry key must begin with HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER, HKEY_CLASSES_ROOT, HKEY_USERS, or HKEY_CURRENT_CONFIG.".to_string(),
                 ));
@@ -81,7 +88,7 @@ pub struct WindowsRegistryKeyType {
 impl Stix for WindowsRegistryKeyType {
     fn stix_check(&self) -> Result<(), Error> {
         if let Some(data_type) = &self.data_type {
-            if WindowsRegistryDataTypeEnum::iter().all(|x| x.as_ref() != data_type) {
+            if !is_exact_vocab_value::<WindowsRegistryDataTypeEnum, _>(data_type) {
                 return Err(Error::ValidationError(
                     "data_type must come from the 'windows-registry-datatype-enum' enumeration."
                         .to_string(),

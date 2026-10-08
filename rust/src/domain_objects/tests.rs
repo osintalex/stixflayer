@@ -6,8 +6,6 @@ mod test {
         relationship_objects::{Related, RelationshipObject},
         types::Identified,
     };
-    
-    
 
     #[test]
     fn try_build_with_required_field() {

@@ -51,9 +51,8 @@ impl Stix for Campaign {
 
 #[cfg(test)]
 mod tests {
-    
+
     use crate::domain_objects::sdo::{DomainObject, DomainObjectBuilder};
-    
 
     fn expected_campaign() -> DomainObject {
         DomainObjectBuilder::new("campaign")

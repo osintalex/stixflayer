@@ -4,7 +4,18 @@ use log::warn;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use std::sync::OnceLock;
 use url::Url;
+
+fn cve_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"^CVE-\d{4}-\d{4,}$").expect("CVE regex is valid"))
+}
+
+fn capec_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"^CAPEC-\d+$").expect("CAPEC regex is valid"))
+}
 
 /// An external reference that describes pointers to information outside STIX.
 ///
@@ -60,8 +71,6 @@ impl crate::base::Stix for ExternalReference {
             url.stix_check()?;
         }
 
-        let cve_re = Regex::new(r"^CVE-\d{4}-\d{4,}$").unwrap();
-        let capec_re = Regex::new(r"^CAPEC-\d+$").unwrap();
         let source_lower = self.source_name.to_lowercase();
 
         if (source_lower == "cve" || source_lower == "capec") && self.source_name != source_lower {
@@ -73,7 +82,7 @@ impl crate::base::Stix for ExternalReference {
 
         if self.source_name == "cve" {
             if let Some(ext_id) = &self.external_id {
-                if !cve_re.is_match(ext_id) {
+                if !cve_re().is_match(ext_id) {
                     return Err(Error::ValidationError(format!(
                         "CVE external ID '{}' does not match the required format CVE-YYYY-NNNN+",
                         ext_id
@@ -82,7 +91,7 @@ impl crate::base::Stix for ExternalReference {
             }
         } else if self.source_name == "capec" {
             if let Some(ext_id) = &self.external_id {
-                if !capec_re.is_match(ext_id) {
+                if !capec_re().is_match(ext_id) {
                     return Err(Error::ValidationError(format!(
                         "CAPEC external ID '{}' does not match the required format CAPEC-NNNN+",
                         ext_id

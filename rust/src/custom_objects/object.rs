@@ -2,17 +2,15 @@
 
 use crate::{
     base::{
-        validate_custom_property_name, validate_custom_property_suffix_value, CommonProperties, Stix,
+        validate_custom_property_name, validate_custom_property_suffix_value, CommonProperties,
+        Stix,
     },
     custom_objects::validation::check_custom_object_type,
     cyber_observable_objects::sco::check_sco_properties,
     domain_objects::sdo::check_sdo_properties,
     error::{add_error, return_multiple_errors, StixError as Error},
     relationship_objects::{check_sro_properties, Related, RelationshipObjectBuilder},
-    types::{
-        get_extension_type, ExtensionType,
-        Identified, Identifier,
-    },
+    types::{get_extension_type, ExtensionType, Identified, Identifier},
     validation::validate_value,
 };
 use serde::{Deserialize, Serialize};
@@ -181,4 +179,3 @@ impl Stix for CustomObject {
         return_multiple_errors(errors)
     }
 }
-

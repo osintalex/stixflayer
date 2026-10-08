@@ -1,9 +1,5 @@
 //! STIX 2.1 compliant identifiers.
-use crate::{
-    common::string::stix_case,
-    error::StixError as Error,
-    taxonomy::is_sco_type_name,
-};
+use crate::{common::string::stix_case, error::StixError as Error, taxonomy::is_sco_type_name};
 use serde::Serialize;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 use std::{collections::HashMap, fmt, str::FromStr};

@@ -47,7 +47,7 @@ impl Stix for Opinion {
 
 #[cfg(test)]
 mod tests {
-    
+
     use crate::{
         domain_objects::{
             sdo::{DomainObject, DomainObjectBuilder},

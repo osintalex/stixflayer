@@ -1,13 +1,12 @@
 //! Contains the implementation logic for unrecognized custom STIX Objects.
 
 use crate::{
-    base::{
-        CommonPropertiesBuilder, Stix,
-    },
+    base::{CommonPropertiesBuilder, Stix},
     custom_objects::object::CustomObject,
     error::{add_error, return_multiple_errors, StixError as Error},
     types::{
-        stix_case, DictionaryValue, ExtensionType, ExternalReference, Identifier, StixDictionary, Timestamp,
+        stix_case, DictionaryValue, ExtensionType, ExternalReference, Identifier, StixDictionary,
+        Timestamp,
     },
 };
 use serde_json::Value;
@@ -372,4 +371,3 @@ impl CustomObjectBuilder {
         Ok(object)
     }
 }
-

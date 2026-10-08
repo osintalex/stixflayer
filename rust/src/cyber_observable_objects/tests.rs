@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
     #![allow(unused_imports)]
-use crate::{
+    use crate::{
         cyber_observable_objects::{
             sco::{CyberObject, CyberObjectBuilder},
             sco_types::{EmailMimeCompomentType, X509V3Extensions},
@@ -18,7 +18,7 @@ use crate::{
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;
-impl CyberObject {
+    impl CyberObject {
         pub(crate) fn test_id(mut self) -> Self {
             let object_type = self.object_type.as_ref();
             self.common_properties.id = Identifier::new_test(object_type);
@@ -26,7 +26,7 @@ impl CyberObject {
         }
     }
 
-#[test]
+    #[test]
     fn try_build_with_required_field() {
         let artifact = CyberObjectBuilder::new("artifact")
             .unwrap()
@@ -50,13 +50,13 @@ impl CyberObject {
         assert!(artifact.is_ok());
     }
 
-#[test]
+    #[test]
     fn try_build_without_required_field() {
         let artifact = CyberObjectBuilder::new("artifact").unwrap().build();
         assert!(artifact.is_err());
     }
 
-#[test]
+    #[test]
     fn create_uuidv5_with_required_field() {
         // `number` is a required ID contributing property for an AutonomuousSystem SCO
         let autonomous_system = CyberObjectBuilder::new("autonomous-system")
@@ -71,7 +71,7 @@ impl CyberObject {
         assert_eq!(uuid_version, "UUIDv5");
     }
 
-#[test]
+    #[test]
     fn from_parsed_preserves_parsed_identifier() {
         // Parsing is not versioning: a parsed SCO keeps its exact identifier,
         // including the spec-sanctioned UUIDv4 case (Process).
@@ -95,7 +95,7 @@ impl CyberObject {
         assert_eq!(rebuilt.common_properties.id.get_uuid_version(), "UUIDv4");
     }
 
-#[test]
+    #[test]
     fn u64_max_test() {
         let limit: u64 = 1 << 53;
         let autonomous_system = CyberObjectBuilder::new("autonomous-system")
@@ -112,7 +112,7 @@ impl CyberObject {
         assert!(autonomous_system.is_ok());
     }
 
-#[test]
+    #[test]
     fn create_uuidv5_with_optional_fields() {
         // `payload_bin` and `hashes` are both optional ID contributing properties for an Artifact SCO
         let artifact = CyberObjectBuilder::new("artifact")
@@ -135,7 +135,7 @@ impl CyberObject {
         assert_eq!(uuid_version, "UUIDv5");
     }
 
-#[test]
+    #[test]
     fn create_uuidv4_with_missing_optional_fields() {
         let multipart = EmailMimeCompomentType {
             body: Some("Cats are funny!".to_string()),
@@ -163,7 +163,7 @@ impl CyberObject {
         assert_eq!(uuid_version, "UUIDv4");
     }
 
-#[test]
+    #[test]
     fn cyber_object_builder_from_cyber_object() {
         let json = r#"{
             "type": "ipv4-addr",
@@ -179,4 +179,3 @@ impl CyberObject {
         assert_eq!(rebuilt.object_type.to_string(), "ipv4-addr");
     }
 }
-

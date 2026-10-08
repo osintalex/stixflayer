@@ -1,7 +1,7 @@
-use pyo3::prelude::*;
-use pyo3::{create_exception, PyErr};
 use crate::error::StixError as RustStixError;
 use crate::python_bindings::convert::json_value_to_py;
+use pyo3::prelude::*;
+use pyo3::{create_exception, PyErr};
 
 // Python-facing exception hierarchy.
 //

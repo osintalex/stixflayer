@@ -1,7 +1,7 @@
 use crate::base::Stix;
-use crate::types::{Identifier, Timestamp};
 use crate::common::validation::{is_valid_charset_name, validate_refs_are_type};
 use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::types::{Identifier, Timestamp};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use stix_derive::StixProperties;

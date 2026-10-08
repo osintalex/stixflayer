@@ -1,5 +1,5 @@
-use pyo3::prelude::*;
 use crate::python_bindings::error::StixError;
+use pyo3::prelude::*;
 use strum::IntoEnumIterator;
 
 /// Macro to generate a Python class for STIX vocabulary enums

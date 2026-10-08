@@ -2,19 +2,20 @@ use crate::{
     base::{check_timestamp_ordering, Stix},
     error::StixError as Error,
     relationship_objects::types::RelationshipType,
-    types::{
-        Identifier,
-        ScoTypes, SdoTypes, Timestamp,
-    },
+    types::{Identifier, ScoTypes, SdoTypes, Timestamp},
 };
 use log::warn;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use strum::IntoEnumIterator;
+use std::sync::OnceLock;
 use stix_derive::StixProperties;
+use strum::IntoEnumIterator;
 
-
+fn relationship_type_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"^[a-z0-9\-]+$").expect("relationship type regex is valid"))
+}
 
 /// Nested struct for properties only found in generic SROs
 #[skip_serializing_none]
@@ -54,8 +55,7 @@ impl Stix for Relationship {
 
         if let RelationshipType::Custom(custom_type) = &self.relationship_type {
             // Custom relationship types must match the STIX schema pattern
-            let re = Regex::new(r"^[a-z0-9\-]+$").unwrap();
-            if !re.is_match(custom_type) {
+            if !relationship_type_re().is_match(custom_type) {
                 return Err(Error::ValidationError(format!(
                     "Relationship type '{}' contains invalid characters. Relationship types must match the pattern '^[a-z0-9\\-]+$'.",
                     custom_type

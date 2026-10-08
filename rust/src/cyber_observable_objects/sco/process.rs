@@ -1,11 +1,11 @@
 use crate::base::Stix;
-use crate::types::{Identifier, StixDictionary, Timestamp};
-use crate::common::validation::{validate_refs_are_type};
+use crate::common::validation::validate_refs_are_type;
 use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::types::{Identifier, StixDictionary, Timestamp};
 use serde::{Deserialize, Serialize};
+use serde_this_or_that::as_opt_i64;
 use serde_with::skip_serializing_none;
 use stix_derive::StixProperties;
-use serde_this_or_that::{as_opt_i64};
 
 /// Process
 ///

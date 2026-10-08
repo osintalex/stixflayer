@@ -1,9 +1,9 @@
-use pyo3::exceptions::PyAttributeError as PyO3AttributeError;
-use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
 use crate::base::CustomPropertiesHolder;
 use crate::error::StixError as RustStixError;
 use crate::python_bindings::error::StixError;
+use pyo3::exceptions::PyAttributeError as PyO3AttributeError;
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyList};
 
 /// Recursively convert a [`serde_json::Value`] into a Python object.
 ///

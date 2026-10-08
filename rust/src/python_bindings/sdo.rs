@@ -1,9 +1,9 @@
-use pyo3::prelude::*;
-use pyo3::types::PyDict;
 use crate::domain_objects::sdo::DomainObjectBuilder;
 use crate::python_bindings::builder::build_sdo_envelope;
 use crate::python_bindings::convert::{custom_properties_dict, dynamic_getattr};
-use crate::python_bindings::error::{StixError, stix_to_pyerr};
+use crate::python_bindings::error::{stix_to_pyerr, StixError};
+use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
 #[pyclass]
 pub struct Campaign(pub DomainObjectBuilder);

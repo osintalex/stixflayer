@@ -136,12 +136,11 @@ impl Stix for ThreatActor {
 
 #[cfg(test)]
 mod tests {
-    
+
     use crate::{
         domain_objects::sdo::{DomainObject, DomainObjectBuilder},
         types::ExternalReference,
     };
-    
 
     fn expected_threat_actor() -> DomainObject {
         DomainObjectBuilder::new("threat-actor")

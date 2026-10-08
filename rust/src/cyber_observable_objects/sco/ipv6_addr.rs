@@ -1,11 +1,11 @@
 use crate::base::Stix;
-use crate::types::{Identifier};
-use crate::common::validation::{validate_refs_are_type};
+use crate::common::validation::validate_refs_are_type;
 use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::types::Identifier;
+use iptools;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use stix_derive::StixProperties;
-use iptools;
 
 /// IPv6 Address
 ///
@@ -57,11 +57,7 @@ impl Stix for Ipv6Addr {
             belongs_to_refs.stix_check()?;
             add_error(
                 &mut errors,
-                validate_refs_are_type(
-                    belongs_to_refs,
-                    &["autonomous-system"],
-                    "belongs_to_refs",
-                ),
+                validate_refs_are_type(belongs_to_refs, &["autonomous-system"], "belongs_to_refs"),
             );
         }
 

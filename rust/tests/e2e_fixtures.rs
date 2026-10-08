@@ -84,7 +84,10 @@ fn run_matrix_section(section: &str) {
         let allow_custom = rule.allow_custom.unwrap_or(false);
         let json = load_fixture(&rule.fixture);
         let result = parse(&rule.category, &rule.object_type, &json, allow_custom);
-        let expected_behavior = rule.expected_behavior.as_deref().unwrap_or("validation_error");
+        let expected_behavior = rule
+            .expected_behavior
+            .as_deref()
+            .unwrap_or("validation_error");
 
         match expected_behavior {
             "parses_successfully" => assert!(

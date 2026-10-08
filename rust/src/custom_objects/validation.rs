@@ -41,4 +41,3 @@ pub fn check_custom_object_type(object_type: &str) -> Result<(), Error> {
 
     Ok(())
 }
-
