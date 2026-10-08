@@ -1,11 +1,12 @@
 //! STIX 2.1 compliant hash lists.
+use crate::common::validation::is_vocab_value;
 use crate::error::StixError as Error;
 use identyhash::identify_hash;
 use log::warn;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::OnceLock};
-use strum::{AsRefStr, EnumIter, IntoEnumIterator};
+use strum::{AsRefStr, EnumIter};
 
 fn ssdeep_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
@@ -106,7 +107,7 @@ impl crate::base::Stix for Hashes {
             }
 
             if !origin_hash_type.starts_with("x_")
-                && LegalHashTypes::iter().all(|x| x.as_ref() != origin_hash_type)
+                && !is_vocab_value::<LegalHashTypes, _>(&origin_hash_type)
             {
                 return Err(Error::ValidationError(format!(
                     "The hash type '{}' is not from the hash-algorithm-ov open vocabulary and does not start with 'x_'.",

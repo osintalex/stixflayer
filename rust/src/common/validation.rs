@@ -5,7 +5,11 @@ use crate::{
     types::{stix_case, Identifier},
 };
 use regex::Regex;
-use std::sync::OnceLock;
+use std::{
+    any::TypeId,
+    collections::{HashMap, HashSet},
+    sync::{Mutex, OnceLock},
+};
 use strum::IntoEnumIterator;
 
 /// Checks whether `value` is a syntactically valid top-level MIME type of the
@@ -13,8 +17,10 @@ use strum::IntoEnumIterator;
 pub fn is_valid_mime_type(value: &str) -> bool {
     static MIME_RE: OnceLock<Regex> = OnceLock::new();
     let re = MIME_RE.get_or_init(|| {
-        Regex::new(r"^(application|audio|font|image|message|model|multipart|text|video)/[a-zA-Z0-9.+_-]+$")
-            .expect("hard-coded MIME regex is valid")
+        Regex::new(
+            r"^(application|audio|font|image|message|model|multipart|text|video)/[a-zA-Z0-9.+_-]+$",
+        )
+        .expect("hard-coded MIME regex is valid")
     });
     re.is_match(value)
 }
@@ -24,8 +30,7 @@ pub fn is_valid_mime_type(value: &str) -> bool {
 pub fn is_valid_charset_name(value: &str) -> bool {
     static CHARSET_RE: OnceLock<Regex> = OnceLock::new();
     let re = CHARSET_RE.get_or_init(|| {
-        Regex::new(r"^[a-zA-Z0-9_\(\)-]+$")
-            .expect("hard-coded charset regex is valid")
+        Regex::new(r"^[a-zA-Z0-9_\(\)-]+$").expect("hard-coded charset regex is valid")
     });
     re.is_match(value)
 }
@@ -35,17 +40,60 @@ pub fn is_valid_hex(value: &str) -> bool {
     hex::decode(value).is_ok()
 }
 
+/// Generic cache of pre-built vocabulary membership sets.
+///
+/// Each enum is built once via its [`IntoEnumIterator`] implementation and
+/// stored under its [`TypeId`] to give O(1) lookups on repeated validations.
+fn vocab_membership_set<V>() -> &'static HashSet<String>
+where
+    V: IntoEnumIterator + AsRef<str> + 'static,
+{
+    static CACHE: OnceLock<Mutex<HashMap<TypeId, &'static HashSet<String>>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut cache = cache.lock().expect("vocab membership cache lock poisoned");
+    *cache
+        .entry(TypeId::of::<V>())
+        .or_insert_with(|| {
+            let set: HashSet<String> = V::iter().map(|v| v.as_ref().to_string()).collect();
+            Box::leak(Box::new(set))
+        })
+}
+
+/// Returns true when `value` is a member of the vocabulary `V`.
+///
+/// The value is normalised with [`stix_case`] before comparison, matching the
+/// behaviour of [`validate_vocab_value`].
+pub fn is_vocab_value<V, S>(value: S) -> bool
+where
+    V: IntoEnumIterator + AsRef<str> + 'static,
+    S: AsRef<str>,
+{
+    let normalized = stix_case(value.as_ref());
+    vocab_membership_set::<V>().contains(normalized.as_str())
+}
+
+/// Returns true when `value` matches a vocabulary member exactly (no case
+/// normalisation). Use this for enums whose values are fixed-case constants
+/// such as `AF_INET` or `REG_DWORD`.
+pub fn is_exact_vocab_value<V, S>(value: S) -> bool
+where
+    V: IntoEnumIterator + AsRef<str> + 'static,
+    S: AsRef<str>,
+{
+    vocab_membership_set::<V>().contains(value.as_ref())
+}
+
 /// Validates that a single string value is a member of the provided
 /// STIX open-vocabulary enum.
 ///
 /// The value is normalised with [`stix_case`] before comparison.
 pub fn validate_vocab_value<V, S>(value: S, enum_display_name: &str) -> Result<(), Error>
 where
-    V: IntoEnumIterator + AsRef<str>,
+    V: IntoEnumIterator + AsRef<str> + 'static,
     S: AsRef<str>,
 {
     let normalized = stix_case(value.as_ref());
-    if V::iter().any(|variant| variant.as_ref() == normalized) {
+    if is_vocab_value::<V, _>(normalized.as_str()) {
         Ok(())
     } else {
         Err(Error::ValidationError(format!(
@@ -61,7 +109,7 @@ where
 /// Each value is normalised with [`stix_case`] before comparison.
 pub fn validate_vocab_list<V, S>(values: &[S], enum_display_name: &str) -> Result<(), Error>
 where
-    V: IntoEnumIterator + AsRef<str>,
+    V: IntoEnumIterator + AsRef<str> + 'static,
     S: AsRef<str>,
 {
     for value in values {
@@ -149,8 +197,7 @@ mod tests {
     fn validate_vocab_list_checks_every_member() {
         assert!(validate_vocab_list::<TestVocab, _>(&["foo-bar", "baz-qux"], "test-vocab").is_ok());
         assert!(
-            validate_vocab_list::<TestVocab, _>(&["foo-bar", "not-in-list"], "test-vocab")
-                .is_err()
+            validate_vocab_list::<TestVocab, _>(&["foo-bar", "not-in-list"], "test-vocab").is_err()
         );
     }
 

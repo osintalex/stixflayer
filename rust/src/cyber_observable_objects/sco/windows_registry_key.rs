@@ -1,4 +1,5 @@
 use crate::base::Stix;
+use crate::common::validation::is_exact_vocab_value;
 use crate::cyber_observable_objects::vocab::WindowsRegistryDataTypeEnum;
 use crate::error::{add_error, return_multiple_errors, StixError as Error};
 use crate::types::{Identifier, Timestamp};
@@ -8,7 +9,6 @@ use serde_this_or_that::as_opt_i64;
 use serde_with::skip_serializing_none;
 use std::sync::OnceLock;
 use stix_derive::StixProperties;
-use strum::IntoEnumIterator;
 
 fn windows_registry_key_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
@@ -88,7 +88,7 @@ pub struct WindowsRegistryKeyType {
 impl Stix for WindowsRegistryKeyType {
     fn stix_check(&self) -> Result<(), Error> {
         if let Some(data_type) = &self.data_type {
-            if WindowsRegistryDataTypeEnum::iter().all(|x| x.as_ref() != data_type) {
+            if !is_exact_vocab_value::<WindowsRegistryDataTypeEnum, _>(data_type) {
                 return Err(Error::ValidationError(
                     "data_type must come from the 'windows-registry-datatype-enum' enumeration."
                         .to_string(),

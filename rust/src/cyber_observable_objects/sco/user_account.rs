@@ -1,11 +1,11 @@
 use crate::base::Stix;
-use crate::types::{stix_case, Timestamp};
-use crate::cyber_observable_objects::vocab::{AccountTypeVocabulary};
+use crate::common::validation::is_vocab_value;
+use crate::cyber_observable_objects::vocab::AccountTypeVocabulary;
 use crate::error::{return_multiple_errors, StixError as Error};
+use crate::types::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use stix_derive::StixProperties;
-use strum::IntoEnumIterator;
 
 /// User Account
 ///
@@ -54,7 +54,7 @@ impl Stix for UserAccount {
         let mut errors = Vec::new();
 
         if let Some(account_type_str) = &self.account_type {
-            if !AccountTypeVocabulary::iter().any(|x| x.as_ref() == stix_case(&account_type_str)) {
+            if !is_vocab_value::<AccountTypeVocabulary, _>(account_type_str) {
                 errors.push(Error::ValidationError(format!(
                     "The account_type property should come from the `account-type-ov` open vocabulary. Account type '{}' is not in the vocabulary.",
                     account_type_str

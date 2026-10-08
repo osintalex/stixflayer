@@ -1,16 +1,16 @@
 use crate::{
     base::Stix,
-    common::validation::validate_refs_are_type,
+    common::validation::{is_exact_vocab_value, validate_refs_are_type},
     cyber_observable_objects::vocab::{
-        WindowsIntegrityEnum,
-        WindowsServiceStartTypeEnum, WindowsServiceStatusEnum, WindowsServiceTypeEnum,
+        WindowsIntegrityEnum, WindowsServiceStartTypeEnum, WindowsServiceStatusEnum,
+        WindowsServiceTypeEnum,
     },
     error::{add_error, return_multiple_errors, StixError as Error},
-    types::{stix_case, Identifier, StixDictionary},
+    types::{Identifier, StixDictionary},
 };
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use strum::{AsRefStr, EnumIter, IntoEnumIterator};
+use strum::{AsRefStr, EnumIter};
 
 /// Possible extensions for Process SCOs
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, AsRefStr, EnumIter)]
@@ -56,7 +56,7 @@ impl Stix for WindowsProcessExtension {
             }
         }
         if let Some(integrity_level) = &self.integrity_level {
-            if WindowsIntegrityEnum::iter().all(|x| x.as_ref() != stix_case(&integrity_level)) {
+            if !is_exact_vocab_value::<WindowsIntegrityEnum, _>(integrity_level) {
                 errors.push(Error::ValidationError(format!(
                         "The values of integrity_level MUST come from the windows-integrity-level-enum enumeration. {}.",
                         integrity_level,
@@ -109,7 +109,7 @@ impl Stix for WindowsServiceExtension {
             );
         }
         if let Some(start_type) = &self.start_type {
-            if WindowsServiceStartTypeEnum::iter().all(|x| x.as_ref() != stix_case(&start_type)) {
+            if !is_exact_vocab_value::<WindowsServiceStartTypeEnum, _>(start_type) {
                 errors.push(Error::ValidationError(format!(
                         "The values of start_type MUST come from the windows-service-start-type-enum enumeration.. {}.",
                         start_type,
@@ -117,7 +117,7 @@ impl Stix for WindowsServiceExtension {
             }
         }
         if let Some(service_status) = &self.service_status {
-            if WindowsServiceStatusEnum::iter().all(|x| x.as_ref() != stix_case(&service_status)) {
+            if !is_exact_vocab_value::<WindowsServiceStatusEnum, _>(service_status) {
                 errors.push(Error::ValidationError(format!(
                         "The values of service_status MUST come from the windows-service-status-enum enumeration.. {}.",
                         service_status,
@@ -125,7 +125,7 @@ impl Stix for WindowsServiceExtension {
             }
         }
         if let Some(service_type) = &self.service_type {
-            if WindowsServiceTypeEnum::iter().all(|x| x.as_ref() != stix_case(&service_type)) {
+            if !is_exact_vocab_value::<WindowsServiceTypeEnum, _>(service_type) {
                 errors.push(Error::ValidationError(format!(
                         "The values of service_type MUST come from the windows-service-type-enum enumeration.. {}.",
                         service_type,

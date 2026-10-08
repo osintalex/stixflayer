@@ -1,9 +1,7 @@
 use crate::{
     base::Stix,
-    common::validation::is_valid_hex,
-    cyber_observable_objects::vocab::{
-        NetworkSocketAddressFamilyEnum, NetworkSocketTypeEnum,
-    },
+    common::validation::{is_exact_vocab_value, is_valid_hex},
+    cyber_observable_objects::vocab::{NetworkSocketAddressFamilyEnum, NetworkSocketTypeEnum},
     error::{add_error, return_multiple_errors, StixError as Error},
     types::{DictionaryValue, Identifier, StixDictionary},
 };
@@ -11,7 +9,7 @@ use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_this_or_that::as_opt_u64;
 use serde_with::skip_serializing_none;
-use strum::{AsRefStr, EnumIter, IntoEnumIterator};
+use strum::{AsRefStr, EnumIter};
 
 /// Possible extensions for NetworkTraffic SCOs
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, AsRefStr, EnumIter)]
@@ -195,7 +193,7 @@ impl Stix for SocketExtenion {
             add_error(&mut errors, socket_descriptor.stix_check());
         }
         if let Some(address_family) = &self.address_family {
-            if NetworkSocketAddressFamilyEnum::iter().all(|x| x.as_ref() != address_family) {
+            if !is_exact_vocab_value::<NetworkSocketAddressFamilyEnum, _>(address_family) {
                 errors.push(Error::ValidationError(format!(
                         "The values of this property MUST come from the network-socket-address-family-enum enumeration. {}.",
                         address_family,
@@ -203,7 +201,7 @@ impl Stix for SocketExtenion {
             }
         }
         if let Some(socket_type) = &self.socket_type {
-            if NetworkSocketTypeEnum::iter().all(|x| x.as_ref() != socket_type) {
+            if !is_exact_vocab_value::<NetworkSocketTypeEnum, _>(socket_type) {
                 errors.push(Error::ValidationError(format!(
                         "The values of this property MUST come from the network-socket-type-enum enumeration. {}.",
                         socket_type,

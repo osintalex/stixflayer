@@ -6,7 +6,7 @@
 
 use crate::{
     base::{check_timestamp_ordering, Stix},
-    common::validation::validate_vocab_list,
+    common::validation::{is_vocab_value, validate_vocab_list},
     domain_objects::vocab::{IndicatorPatternType, IndicatorType},
     error::{add_error, return_multiple_errors, StixError as Error},
     pattern::validate_pattern,
@@ -15,7 +15,6 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use stix_derive::StixProperties;
-use strum::IntoEnumIterator;
 
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
@@ -58,11 +57,10 @@ impl Stix for Indicator {
         // If the pattern is a STIX Pattern, validate it using the Rust implemtation of STIX Patterning
         if stix_case(&self.pattern_type) == "stix" {
             add_error(&mut errors, validate_pattern(&self.pattern));
-        } else if IndicatorPatternType::iter().all(|x| x.as_ref() != stix_case(&self.pattern_type))
-        {
+        } else if !is_vocab_value::<IndicatorPatternType, _>(&self.pattern_type) {
             errors.push(Error::ValidationError(format!(
-                "A pattern type should come from the STIX pattern type open vocabulary. Pattern type {} for is not in the vocabulary.",
-                self.pattern_type,
+                "pattern type should come from the STIX pattern type open vocabulary; '{}' is not valid",
+                self.pattern_type
             )));
         }
         if let Some(indicator_types) = &self.indicator_types {
@@ -92,7 +90,7 @@ impl Stix for Indicator {
 
 #[cfg(test)]
 mod tests {
-    
+
     use crate::{
         domain_objects::sdo::{DomainObject, DomainObjectBuilder},
         types::{DictionaryValue, ExternalReference, StixDictionary},
