@@ -19,10 +19,7 @@ use serde_json::Value;
 use serde_path_to_error as serde_path;
 
 use crate::{
-    base::{
-        validate_custom_property_name,
-        CustomPropertiesHolder, Stix,
-    },
+    base::{validate_custom_property_name, CustomPropertiesHolder, Stix},
     error::{add_error, classify_serde_error, return_multiple_errors, StixError as Error},
     properties::type_properties,
 };
@@ -44,11 +41,24 @@ pub fn validate_value<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
     allow_custom: bool,
     strict: bool,
 ) -> Result<T, Error> {
+    validate_value_from_object(value, allow_custom, strict)
+}
+
+/// Validates a STIX object from its raw object [`Value`] without re-serializing.
+///
+/// This is the optimized implementation. The API-compatible [`validate_value`]
+/// wrapper delegates here.
+pub fn validate_value_from_object<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
+    mut value: Value,
+    allow_custom: bool,
+    strict: bool,
+) -> Result<T, Error> {
     let type_name = value
         .get("type")
         .and_then(|v| v.as_str())
-        .unwrap_or_default();
-    let props = type_properties(type_name);
+        .unwrap_or_default()
+        .to_string();
+    let props = type_properties(&type_name);
     let mut errors: Vec<Error> = Vec::new();
 
     let mut custom_properties: Option<std::collections::BTreeMap<String, Value>> = None;
@@ -97,25 +107,21 @@ pub fn validate_value<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
         }
     }
 
-    // If we found custom properties, ensure they are not passed to serde so the
-    // flattened `custom_properties` field cannot accidentally capture known keys.
-    let mut value_to_deserialize = value.clone();
-    if let (Some(ref bag), Some(map)) = (&custom_properties, value_to_deserialize.as_object_mut()) {
-        for key in bag.keys() {
-            map.remove(key);
+    // If we found custom properties, strip them from the value before passing it
+    // to serde so the flattened `custom_properties` field cannot accidentally
+    // capture known keys.
+    if let Some(bag) = custom_properties.as_ref() {
+        if let Some(map) = value.as_object_mut() {
+            for key in bag.keys() {
+                map.remove(key);
+            }
         }
     }
 
-    // For path-aware deserialization we need a textual form. This serializes the
-    // value once instead of the previous N-pass parse/serialize dance.
-    let json = serde_json::to_string(&value_to_deserialize)
-        .map_err(|e| Error::SerializationError(e.to_string()))?;
-
-    let mut typed: T = match serde_path::deserialize(&mut serde_json::Deserializer::from_str(&json))
-    {
+    let mut typed: T = match serde_path::deserialize(value) {
         Ok(t) => t,
         Err(e) => {
-            let classified = classify_serde_error(e, type_name);
+            let classified = classify_serde_error(e, &type_name);
             // Avoid reporting a missing field that the registry already listed.
             if let Error::MissingProperty { property, .. } = &classified {
                 if errors.iter().any(|err| {
