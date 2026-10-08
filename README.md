@@ -42,14 +42,19 @@ ap = AttackPattern(
 print(ap.to_json())
 ```
 
-## Performance ⚡
+## Performance 🚀⚡
 
-stixflayer uses a single Rust core for validation and serialization. On
-representative public threat-intel bundles it parses and validates roughly
-**30–40× faster** than `stix2-validator`, and serializes back to JSON around
-**10–12× faster** than `stix2`.
+stixflayer uses a single Rust core for validation and serialization, so you
+get native Rust throughput from every language binding.
 
-See `benchmarks/BENCHMARKING.md` for the harness and current numbers.
+| Operation | [`stix2-validator`](https://github.com/oasis-open/cti-stix-validator) | `stixflayer` | speedup |
+|-----------|-------------------------------|--------------|---------|
+| Parse + validate `apt1` bundle | ~47 ms | ~1.6 ms | ~**30×** 🏎️💨 |
+| Parse + validate `poisonivy` bundle | ~99 ms | ~2.3 ms | ~**40×** 🏎️💨 |
+
+Serialization back to JSON is also single-digit microseconds for these
+bundles — see `benchmarks/BENCHMARKING.md` for the harness, fixtures, and
+numbers.
 
 ## Structure 🏰
 
