@@ -42,6 +42,47 @@ ap = AttackPattern(
 print(ap.to_json())
 ```
 
+## Dev sandbox with microsandbox 🧱
+
+This project ships a [microsandbox](https://docs.microsandbox.dev/) dev setup that runs OpenCode inside an isolated microVM with Rust, Python, uv, and git ready to go.
+
+One-time setup:
+
+```bash
+# Build the image
+# (Install microsandbox first: https://docs.microsandbox.dev/)
+docker build -f Dockerfile.dev -t opencode-dev:latest .
+
+# Load it into the local microsandbox image store
+docker save opencode-dev:latest | msb load --tag opencode-dev:latest
+
+# Copy local config templates
+cp opencode.json.example opencode.json
+cp .env.example .env
+# edit .env with your Cloudflare AI Gateway credentials
+```
+
+Launch OpenCode in the sandbox:
+
+```bash
+source .env
+msb run -t --conf microsandbox.yaml
+```
+
+The real `CLOUDFLARE_API_TOKEN` stays on the host and is injected only for requests to `api.cloudflare.com` via microsandbox secrets. OpenCode is denied access to `.env` files through `opencode.json` permissions.
+
+Run headless checks:
+
+```bash
+# Rust tests
+msb run --conf microsandbox.yaml --no-tty --entrypoint sh -- -c \
+  'cd /workspace/rust && cargo test --quiet'
+
+# Python tests (also builds the pyo3 extension)
+msb run --conf microsandbox.yaml --no-tty --entrypoint sh -- -c \
+  'cd /workspace && uv run maturin develop && uv run pytest -q'
+```
+
 ## Performance 🚀⚡
 
 stixflayer uses a single Rust core for validation and serialization, so you

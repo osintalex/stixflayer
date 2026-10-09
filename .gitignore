@@ -5,6 +5,9 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
+# Local environment secrets
+.env
+
 # Rust build artifacts
 target/
 *.so
