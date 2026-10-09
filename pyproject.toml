@@ -30,7 +30,8 @@ select = ["PLC0415"]
 python-version = "3.11"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "benchmarks"]
+pythonpath = ["."]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 
@@ -39,6 +40,8 @@ dev = [
     "maturin>=1.15.0",
     "pyrefly>=0.60.2",
     "pytest>=9.0.3",
+    "pytest-benchmark>=5.0",
     "ruff>=0.15.10",
+    "stix2==3.0.2",
     "stix2-validator",
 ]

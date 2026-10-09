@@ -1,0 +1,68 @@
+# Generic dev sandbox for OpenCode + Rust + Python projects.
+# Build the image first with:
+#   docker build -f Dockerfile.dev -t opencode-dev:latest .
+# Then run OpenCode inside the sandbox with:
+#   msb run --conf microsandbox.yaml
+
+image: opencode-dev:latest
+cpus: 2
+memory: 4G
+workdir: /workspace
+entrypoint: ["/bin/sh"]
+cmd:
+  - -c
+  - "cd /workspace && uv sync && exec opencode --auto /workspace"
+
+mounts:
+  # Repo source
+  - bind: "."
+    target: "/workspace"
+
+  # Host caches (cross-platform shared directories are OK here)
+  - bind: "${HOME}/.cache/uv"
+    target: "/root/.cache/uv"
+  - bind: "${HOME}/.cargo/registry"
+    target: "/root/.cargo/registry"
+  - bind: "${HOME}/.cargo/git"
+    target: "/root/.cargo/git"
+
+  # Sandbox-owned volumes to avoid polluting/crashing the host .venv and target dirs
+  - named: opencode-dev-venv
+    target: "/workspace/.venv"
+    create: ensure-exists
+  - named: opencode-dev-target
+    target: "/workspace/rust/target"
+    create: ensure-exists
+
+  # Persist OpenCode config/session data across runs
+  - named: opencode-config
+    target: "/root/.config/opencode"
+    create: ensure-exists
+  - named: opencode-data
+    target: "/root/.local/share/opencode"
+    create: ensure-exists
+  - named: opencode-state
+    target: "/root/.local/state/opencode"
+    create: ensure-exists
+
+network: public
+
+secret_violation_action: block-and-log
+
+secrets:
+  # Real API token is replaced by the host only for api.cloudflare.com.
+  CLOUDFLARE_API_TOKEN:
+    value: ${CLOUDFLARE_API_TOKEN}
+    allow:
+      - api.cloudflare.com
+    substitution:
+      headers: true
+      query: false
+      body: false
+
+env:
+  CARGO_HOME: /root/.cargo
+  UV_CACHE_DIR: /root/.cache/uv
+  UV_LINK_MODE: copy
+  CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID}
+  CLOUDFLARE_GATEWAY_ID: ${CLOUDFLARE_GATEWAY_ID}
