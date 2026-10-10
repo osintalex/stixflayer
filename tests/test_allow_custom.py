@@ -13,7 +13,6 @@ import json
 import pytest
 
 import stixflayer as sf
-
 from tests.utils import load_fixture
 
 CUSTOM_INDICATOR_JSON = load_fixture("allow_custom/valid/sdos/indicator-custom.json")

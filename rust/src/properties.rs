@@ -60,11 +60,11 @@ pub struct TypeProperties {
 }
 
 /// The tag key every known STIX object type uses.
-const TYPE_KEY: &'static str = "type";
+const TYPE_KEY: &str = "type";
 
 /// SCOs structurally accept only this subset of the common properties
 /// (mirrors check_sco_properties).
-const SCO_COMMON: &[&'static str] = &[
+const SCO_COMMON: &[&str] = &[
     "spec_version",
     "id",
     "defanged",

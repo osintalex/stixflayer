@@ -12,7 +12,6 @@ import json
 import pytest
 
 import stixflayer
-
 from tests.constants import EXT_ID, TS, TS_LATER
 
 

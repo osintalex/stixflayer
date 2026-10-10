@@ -1,3 +1,8 @@
+// pyo3 0.22's generated trampolines convert the error side of `Result<T, PyErr>`
+// returns through a no-op `PyErr -> PyErr` conversion (pyo3-macros-backend
+// `ok_wrap`), and clippy attributes the warning span to our return types.
+// Remove this allow when pyo3 is upgraded past 0.22.
+#![allow(clippy::useless_conversion)]
 use crate::bundles::Bundle as StixBundle;
 use crate::custom_objects::CustomObjectBuilder;
 use crate::error::StixError as RustStixError;

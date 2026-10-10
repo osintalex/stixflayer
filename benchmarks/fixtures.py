@@ -9,6 +9,7 @@ from typing import Any
 
 import pytest
 import stix2validator
+
 import stixflayer
 
 
@@ -101,7 +102,7 @@ def validate_fixture(text: str, path: Path) -> tuple[bool, str]:
     obj_type = parsed.get("type")
     try:
         validator_results = stix2_validator_parse(text)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, f"stix2-validator failed on {path.name}: {exc}"
 
     if not validator_results.is_valid:
@@ -110,7 +111,7 @@ def validate_fixture(text: str, path: Path) -> tuple[bool, str]:
 
     try:
         stixflayer_obj = stixflayer_parse(text, stix_type=obj_type)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, f"stixflayer failed on {path.name}: {exc}"
 
     if obj_type == "bundle":

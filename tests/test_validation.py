@@ -8,10 +8,9 @@ new structured ``stixflayer`` exception hierarchy.
 import json
 
 import pytest
+
 import stixflayer
-
 from tests.utils import load_fixture
-
 
 # ============================================================================
 # Valid fixture acceptance tests

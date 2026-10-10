@@ -12,7 +12,6 @@ import json
 import pytest
 
 import stixflayer
-
 from tests.utils import DATA_DIR, class_for_type, parse_timestamp, to_parsed_json
 
 SDO_FIXTURES = sorted((DATA_DIR / "valid" / "sdos").glob("*.json"))

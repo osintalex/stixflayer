@@ -6,8 +6,8 @@ import json
 from typing import Any
 
 import pytest
-import stixflayer
 
+import stixflayer
 from benchmarks.fixtures import BUNDLE_FIXTURES, gc_setup
 
 

@@ -1,3 +1,8 @@
+// pyo3 0.22's generated trampolines convert the error side of `Result<T, PyErr>`
+// returns through a no-op `PyErr -> PyErr` conversion (pyo3-macros-backend
+// `ok_wrap`), and clippy attributes the warning span to our return types.
+// Remove this allow when pyo3 is upgraded past 0.22.
+#![allow(clippy::useless_conversion)]
 use crate::domain_objects::sdo::DomainObjectBuilder;
 use crate::python_bindings::builder::build_sdo_envelope;
 use crate::python_bindings::convert::{custom_properties_dict, dynamic_getattr};

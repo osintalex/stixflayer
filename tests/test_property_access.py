@@ -8,8 +8,8 @@ json_to_py type conversion.
 import json
 
 import pytest
-import stixflayer
 
+import stixflayer
 from tests.utils import DATA_DIR, class_for_type, parse_timestamp
 
 ALL_FIXTURES = sorted(
@@ -51,4 +51,4 @@ def test_unknown_attribute_raises(factory):
     """Unknown attrs raise AttributeError per class, never return None."""
     obj = factory(name="T")
     with pytest.raises(AttributeError):
-        getattr(obj, "not_a_real_property")
+        obj.not_a_real_property  # noqa: B018 -- the attribute access itself must raise

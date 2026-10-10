@@ -1,3 +1,8 @@
+// pyo3 0.22's generated trampolines convert the error side of `Result<T, PyErr>`
+// returns through a no-op `PyErr -> PyErr` conversion (pyo3-macros-backend
+// `ok_wrap`), and clippy attributes the warning span to our return types.
+// Remove this allow when pyo3 is upgraded past 0.22.
+#![allow(clippy::useless_conversion)]
 use crate::pattern::validate_pattern as rust_validate_pattern;
 use crate::python_bindings::error::{stix_to_pyerr, StixError};
 use crate::types::{ExtensionType, Timestamp};
@@ -5,12 +10,7 @@ use pyo3::prelude::*;
 
 #[pyfunction]
 pub fn version() -> String {
-    "0.1.0".to_string()
-}
-
-#[pyfunction]
-pub fn test_stix() -> String {
-    "STIX 2.1".to_string()
+    env!("CARGO_PKG_VERSION").to_string()
 }
 
 #[pyfunction]

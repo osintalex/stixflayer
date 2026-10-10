@@ -156,7 +156,7 @@ mod tests {
             ]
    }"#;
 
-        let expected_value: Value = serde_json::from_str(&expected).unwrap();
+        let expected_value: Value = serde_json::from_str(expected).unwrap();
         assert_eq!(result, expected_value);
     }
 

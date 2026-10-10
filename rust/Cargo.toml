@@ -20,7 +20,6 @@ base64 = "0.22.1"
 convert_case = "0.7.1"
 stix_derive = { path = "stix_derive" }
 email_address = "0.2"
-heck = "0.3"
 hex = "0.4.3"
 identyhash = "0.1.0"
 iptools = "0.3.0"
@@ -44,11 +43,19 @@ serde-value = "0.7.0"
 serde_with = "3.9.0"
 strum = { version = "0.26.3", features = ["derive"] }
 rust_iso3166 = "0.1.13"
-test-log = "0.2.16"
 tlsh = "0.1.0"
 thiserror = "2.0.3"
 uuid = { version = "1.10.0", features = [
     "v4", "v5", "std", "macro-diagnostics", "serde"
 ] }
 url = { version = "2.5.2", features = ["serde"] }
+
+# pyo3 0.22's exception macros check their own `gil-refs` feature inside
+# `create_exception!`; since the macro expands in this crate, rustc's
+# unexpected_cfgs lint fires here. Declare the value expected.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("gil-refs"))'] }
+
+[dev-dependencies]
+test-log = "0.2.16"
 

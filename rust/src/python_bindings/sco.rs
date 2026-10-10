@@ -1,3 +1,8 @@
+// pyo3 0.22's generated trampolines convert the error side of `Result<T, PyErr>`
+// returns through a no-op `PyErr -> PyErr` conversion (pyo3-macros-backend
+// `ok_wrap`), and clippy attributes the warning span to our return types.
+// Remove this allow when pyo3 is upgraded past 0.22.
+#![allow(clippy::useless_conversion)]
 use crate::cyber_observable_objects::sco::CyberObjectBuilder;
 use crate::python_bindings::builder::build_sco_envelope;
 use crate::python_bindings::convert::{custom_properties_dict, dynamic_getattr};
@@ -393,6 +398,9 @@ impl EmailMessage {
         dynamic_getattr(py, std::any::type_name::<Self>(), &value, name)
     }
 
+    // The getter name must match the STIX property `from_ref` on EmailMessage,
+    // so clippy's from_* naming convention cannot be satisfied.
+    #[allow(clippy::wrong_self_convention)]
     #[getter]
     fn from_ref(&self) -> String {
         if let Ok(sco) = self.0.clone().build_no_validate() {

@@ -68,7 +68,7 @@ pub fn validate_value_from_object<T: DeserializeOwned + Stix + CustomPropertiesH
             let keys: std::collections::HashSet<&str> = map.keys().map(|s| s.as_str()).collect();
             let known: std::collections::HashSet<&str> = props.known.iter().copied().collect();
 
-            let unknown: Vec<&str> = keys.difference(&known).map(|k| *k).collect();
+            let unknown: Vec<&str> = keys.difference(&known).copied().collect();
 
             if !unknown.is_empty() {
                 if !allow_custom {

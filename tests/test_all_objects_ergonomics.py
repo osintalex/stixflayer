@@ -13,12 +13,9 @@ meta objects, custom objects, and bundles. It verifies that:
 
 from __future__ import annotations
 
-import json
-
 import pytest
 
 import stixflayer
-
 from tests.constants import EXT_ID, IDENTITY_ID, TS_CREATED, TS_MODIFIED, TS_OBJECT_MODIFIED
 from tests.utils import assert_common_properties
 

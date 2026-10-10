@@ -28,4 +28,5 @@ stix-2.1-spec.html
 
 # Benchmark results are generated per run
 benchmarks/results/*.json
+.benchmarks/
 

@@ -134,7 +134,7 @@ pub fn py_to_json(obj: &Bound<'_, PyAny>) -> Result<serde_json::Value, PyErr> {
     }
     Err(PyErr::new::<StixError, _>(format!(
         "Unsupported Python type for STIX field: {}",
-        obj.get_type().name()?.to_string()
+        obj.get_type().name()?
     )))
 }
 pub fn json_to_py(py: Python<'_>, value: &serde_json::Value) -> PyResult<Py<PyAny>> {

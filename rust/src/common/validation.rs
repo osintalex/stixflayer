@@ -51,12 +51,10 @@ where
     static CACHE: OnceLock<Mutex<HashMap<TypeId, &'static HashSet<String>>>> = OnceLock::new();
     let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
     let mut cache = cache.lock().expect("vocab membership cache lock poisoned");
-    *cache
-        .entry(TypeId::of::<V>())
-        .or_insert_with(|| {
-            let set: HashSet<String> = V::iter().map(|v| v.as_ref().to_string()).collect();
-            Box::leak(Box::new(set))
-        })
+    cache.entry(TypeId::of::<V>()).or_insert_with(|| {
+        let set: HashSet<String> = V::iter().map(|v| v.as_ref().to_string()).collect();
+        Box::leak(Box::new(set))
+    })
 }
 
 /// Returns true when `value` is a member of the vocabulary `V`.

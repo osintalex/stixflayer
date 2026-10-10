@@ -1976,7 +1976,7 @@ impl CyberObjectBuilder {
                     });
                 }
             }
-            CyberObjectType::X509Certificate(ref x509_certificate) => {
+            CyberObjectType::X509Certificate(ref x509_certificate)
                 if x509_certificate.is_self_signed.is_none()
                     && x509_certificate.hashes.is_none()
                     && x509_certificate.version.is_none()
@@ -1989,13 +1989,12 @@ impl CyberObjectBuilder {
                     && x509_certificate.subject_public_key_algorithm.is_none()
                     && x509_certificate.subject_public_key_modulus.is_none()
                     && x509_certificate.subject_public_key_exponent.is_none()
-                    && x509_certificate.x509_v3_extensions.is_none()
-                {
-                    return Err(Error::MissingBuilderProperty {
+                    && x509_certificate.x509_v3_extensions.is_none() =>
+            {
+                return Err(Error::MissingBuilderProperty {
                         object_type: self.object_type.to_string(),
                         property: "is_self_signed, hashes, version, serial_number, signature_algorithm, issuer, validity_not_before, validity_not_after, subject, subject_public_key_algorithm, subject_public_key_modulus, subject_public_key_exponent, x509_v3_extensions".to_string(),
                     });
-                }
             }
             _ => {}
         }
