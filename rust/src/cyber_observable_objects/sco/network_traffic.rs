@@ -12,16 +12,13 @@ use stix_derive::StixProperties;
 
 fn protocol_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(r"^[a-zA-Z0-9-]{1,15}$").expect("protocol name regex is valid")
-    })
+    RE.get_or_init(|| Regex::new(r"^[a-zA-Z0-9-]{1,15}$").expect("protocol name regex is valid"))
 }
 
 fn ipfix_key_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r"^[a-z][a-zA-Z0-9]+$")
-            .expect("IPFIX dictionary key regex is valid")
+        Regex::new(r"^[a-z][a-zA-Z0-9]+$").expect("IPFIX dictionary key regex is valid")
     })
 }
 

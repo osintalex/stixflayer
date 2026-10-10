@@ -10,10 +10,9 @@ under ``strict=False``.
 import json
 
 import pytest
+
 import stixflayer
-
 from tests.utils import load_fixture_json
-
 
 # Mapping of every top-level Python wrapper class to a valid fixture path.
 # We mutate the ``spec_version`` field to ``"2.0"`` to produce a semantic

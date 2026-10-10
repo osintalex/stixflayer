@@ -221,7 +221,7 @@ impl StixObject {
                 strict,
             )?)),
             // "object-marking" => Ok(StixObject::ObjectMarking(validate_value_from_object(value, allow_custom, strict)?)),
-            "custom" | _ => Ok(StixObject::Custom(validate_value_from_object(
+            _ => Ok(StixObject::Custom(validate_value_from_object(
                 value,
                 allow_custom,
                 strict,

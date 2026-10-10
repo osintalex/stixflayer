@@ -22,7 +22,6 @@ import json
 import pytest
 
 import stixflayer
-
 from tests.constants import SHA256_DUMMY, TS
 
 

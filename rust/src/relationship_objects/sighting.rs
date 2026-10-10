@@ -61,16 +61,16 @@ impl Stix for Sighting {
             }
         }
 
-        if SdoTypes::iter().all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type())) {
+        if SdoTypes::iter().all(|x| x.as_ref() != stix_case(self.sighting_of_ref.get_type())) {
             return Err(Error::ValidationError(format!(
                 "Sighting of ref must be an SDO. Sighting of ref is type {}.",
                 self.sighting_of_ref.get_type()
             )));
         }
-        if !ScoTypes::iter().all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type()))
+        if !ScoTypes::iter().all(|x| x.as_ref() != stix_case(self.sighting_of_ref.get_type()))
             || !StixMetaTypes::iter()
-                .all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type()))
-            || !SroTypes::iter().all(|x| x.as_ref() != stix_case(&self.sighting_of_ref.get_type()))
+                .all(|x| x.as_ref() != stix_case(self.sighting_of_ref.get_type()))
+            || !SroTypes::iter().all(|x| x.as_ref() != stix_case(self.sighting_of_ref.get_type()))
         {
             return Err(Error::ValidationError(format!(
                 "Sighting of ref must be an SDO. Sighting of ref is type {}.",

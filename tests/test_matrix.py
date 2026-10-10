@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-import stixflayer as sf
 
+import stixflayer as sf
 from tests.utils import class_for_type, load_fixture
 
 MATRIX_PATH = Path(__file__).parent.parent / "testdata" / "test_matrix.json"

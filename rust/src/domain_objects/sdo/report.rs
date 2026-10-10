@@ -42,9 +42,9 @@ impl Stix for Report {
                 validate_vocab_list::<ReportType, _>(report_types, "report-type-ov"),
             );
             for report_type in report_types {
-                if !ScoTypes::iter().all(|x| x.as_ref() != stix_case(&report_type))
-                    || !SroTypes::iter().all(|x| x.as_ref() != stix_case(&report_type))
-                    || !StixMetaTypes::iter().all(|x| x.as_ref() != stix_case(&report_type))
+                if !ScoTypes::iter().all(|x| x.as_ref() != stix_case(report_type))
+                    || !SroTypes::iter().all(|x| x.as_ref() != stix_case(report_type))
+                    || !StixMetaTypes::iter().all(|x| x.as_ref() != stix_case(report_type))
                 {
                     errors.push(Error::ValidationError(format!(
                         "A report type must be an SDO. Report is type {}.",

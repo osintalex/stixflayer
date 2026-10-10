@@ -10,8 +10,6 @@ project-includes = [
 # Exclude build artifacts, cache, and vendored code
 project-excludes = [
     "target/**/*",
-    "old-python/**/*",
-    "poc/**/*",
     ".venv/**/*",
     "__pycache__/**/*",
 ]

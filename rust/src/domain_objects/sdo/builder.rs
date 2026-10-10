@@ -44,8 +44,8 @@ impl DomainObjectBuilder {
     pub fn new(type_name: &str) -> Result<DomainObjectBuilder, Error> {
         // Parses the passed type name to select a type for the SDO
         // The initial inner struct in the `DomainObjectType` enum will be created with default values, which may not be valid for constructing the final `DomainObject`
-        let object_type = DomainObjectType::from_str(&stix_case(&type_name))
-            .map_err(Error::UnrecognizedObject)?;
+        let object_type =
+            DomainObjectType::from_str(&stix_case(type_name)).map_err(Error::UnrecognizedObject)?;
         // Build the common properties with generated and default values
         let common_properties = CommonPropertiesBuilder::new("sdo", type_name)?;
         Ok(DomainObjectBuilder {

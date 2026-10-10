@@ -4,10 +4,11 @@ These tests validate the Pythonic API surface and do not appear in the
 language-agnostic test matrix.
 """
 
-import pytest
-import stixflayer
-
 from datetime import datetime
+
+import pytest
+
+import stixflayer
 
 
 class TestIndicatorErgonomics:

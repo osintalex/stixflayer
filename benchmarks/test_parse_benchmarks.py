@@ -51,10 +51,6 @@ def test_parse_bundle(benchmark: Any, library: str, name: str, text: str) -> Non
         "objects": len(json.loads(text)["objects"]),
     })
 
-    if library == "stix2-validator":
-        target = stix2_validator_parse
-    else:
-        target = stixflayer_parse
+    target = stix2_validator_parse if library == "stix2-validator" else stixflayer_parse
     args = (text,)
-
     benchmark.pedantic(target, args=args, setup=gc_setup, rounds=30, warmup_rounds=5)
