@@ -141,10 +141,7 @@ impl crate::base::Stix for ReferenceUrl {
         if let Some(hashes) = &self.hashes {
             hashes.stix_check()?;
         } else {
-            return Err(Error::ValidationError(
-                "An external reference URL should always come with a dictionary of hashes"
-                    .to_string(),
-            ));
+            warn!("An external reference URL should always come with a dictionary of hashes");
         }
         Ok(())
     }
