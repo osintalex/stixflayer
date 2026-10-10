@@ -1,7 +1,7 @@
 # Generic local dev sandbox image
 # Base: OpenCode CLI image with an Alpine 3.24 rootfs
 # Adds Rust + Python tooling so opencode agents can build/test polyglot projects.
-FROM ghcr.io/anomalyco/opencode:2.0.26
+FROM ghcr.io/anomalyco/opencode:latest
 
 RUN apk add --no-cache \
         bash \
@@ -19,5 +19,6 @@ RUN apk add --no-cache \
         musl-dev \
         build-base \
         patchelf
+RUN cargo install --git https://github.com/rtk-ai/rtk
 
 WORKDIR /workspace

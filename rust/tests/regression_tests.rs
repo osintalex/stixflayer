@@ -1,4 +1,5 @@
-//! Regression tests for kebab-case / vocabulary serialization correctness.
+//! Regression tests for kebab-case / vocabulary serialization correctness
+//! and other STIX 2.1 conformance fixes.
 //!
 //! STIX 2.1 vocabulary values must match the exact strings defined in the
 //! specification and JSON schemas.  The `convert_case` crate's default
@@ -7,10 +8,11 @@
 //! some compound identifiers (e.g. "PowerPC" → "power-pc" instead of
 //! "powerpc").  These tests document the required values.
 
+use stixflayer::base::Stix;
 use stixflayer::domain_objects::vocab::{
     ArchitectureExecutionEnvs, ImplementationLanguage, OpinionType,
 };
-use stixflayer::types::{stix_case, LegalHashTypes};
+use stixflayer::types::{stix_case, LegalHashTypes, ReferenceUrl};
 use strum::IntoEnumIterator;
 
 // ---------------------------------------------------------------------------
@@ -175,4 +177,15 @@ fn opinion_type_variants() {
         expected.len(),
         "new OpinionType variant added – please update test"
     );
+}
+
+// ---------------------------------------------------------------------------
+// 4.  ReferenceUrl::stix_check() with absent hashes
+// ---------------------------------------------------------------------------
+
+#[test]
+fn reference_url_no_hashes_stix_check_ok() {
+    let reference_url =
+        ReferenceUrl::new("https://example.com/report.txt", None).expect("valid reference url");
+    assert!(reference_url.stix_check().is_ok());
 }

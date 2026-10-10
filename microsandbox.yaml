@@ -11,7 +11,7 @@ workdir: /workspace
 entrypoint: ["/bin/sh"]
 cmd:
   - -c
-  - "cd /workspace && uv sync && exec opencode --auto /workspace"
+  - "cd /workspace && exec opencode --auto /workspace"
 
 mounts:
   # Repo source

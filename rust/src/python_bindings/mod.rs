@@ -10,7 +10,6 @@ use pyo3::prelude::*;
 pub mod builder;
 pub mod convert;
 pub mod error;
-pub mod experimental;
 pub mod functions;
 pub mod meta;
 pub mod sco;
@@ -162,7 +161,6 @@ pub fn stixflayer_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(validate_pattern, m)?)?;
 
     m.add_class::<AttackPattern>()?;
-    m.add_class::<experimental::CachedAttackPattern>()?;
     m.add_class::<Campaign>()?;
     m.add_class::<CourseOfAction>()?;
     m.add_class::<Grouping>()?;
