@@ -154,6 +154,9 @@ jobs:
     if: needs.gate.outputs.rust_release == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: rust
     strategy:
       fail-fast: false
       matrix:
@@ -164,6 +167,8 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
+        with:
+          workspaces: rust
       - run: cargo test --workspace
 
   rust-cross:
@@ -172,6 +177,9 @@ jobs:
     if: needs.gate.outputs.rust_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: rust
     strategy:
       fail-fast: false
       matrix:
@@ -186,6 +194,8 @@ jobs:
         with:
           tool: cross
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
+        with:
+          workspaces: rust
       - run: cross build --workspace --target ${{ matrix.target }}
 
   rust-publish:
@@ -202,6 +212,8 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
+        with:
+          workspaces: rust
       - name: Check whether stixflayer_derive is already on crates.io
         id: derive
         working-directory: rust

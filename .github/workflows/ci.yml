@@ -25,6 +25,9 @@ jobs:
     name: Rust / format
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: rust
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
       - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # stable (rustfmt + clippy included)
@@ -36,24 +39,34 @@ jobs:
     name: Rust / lint
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: rust
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
       - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
+        with:
+          workspaces: rust
       - run: cargo clippy --workspace --all-targets -- -D warnings
 
   rust-build:
     name: Rust / compile
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: rust
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
       - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
+        with:
+          workspaces: rust
       - run: cargo build --workspace
 
   py-format:
@@ -104,6 +117,9 @@ jobs:
     needs: [rust-fmt, rust-clippy, rust-build, py-format, py-lint, py-typecheck]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: rust
     strategy:
       fail-fast: false
       matrix:
@@ -114,6 +130,8 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
+        with:
+          workspaces: rust
       - run: cargo test --workspace
 
   rust-cross:
@@ -121,6 +139,9 @@ jobs:
     needs: [rust-fmt, rust-clippy, rust-build, py-format, py-lint, py-typecheck]
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: rust
     strategy:
       fail-fast: false
       matrix:
@@ -135,6 +156,8 @@ jobs:
         with:
           tool: cross
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
+        with:
+          workspaces: rust
       - run: cross build --workspace --target ${{ matrix.target }}
 
   py-test:
@@ -153,6 +176,8 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
+        with:
+          workspaces: rust
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.7.0
         with:
           python-version: "3.13"
