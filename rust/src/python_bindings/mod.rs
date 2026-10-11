@@ -26,7 +26,7 @@ pub use convert::{
     json_value_to_py, py_to_json,
 };
 pub use error::{stix_to_pyerr, DeserializationError, StixError, ValidationError};
-pub use functions::{create_timestamp, parse_extension_type, validate_pattern, version};
+pub use functions::{parse_extension_type, validate_pattern, version};
 pub use meta::{Bundle, CustomObject, ExtensionDefinition, LanguageContent, MarkingDefinition};
 pub use sco::{
     Artifact, AutonomousSystem, Directory, DomainName, EmailAddress, EmailMessage, File,
@@ -156,7 +156,6 @@ pub fn stixflayer_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let py = m.py();
 
     m.add_function(wrap_pyfunction!(version, m)?)?;
-    m.add_function(wrap_pyfunction!(create_timestamp, m)?)?;
     m.add_function(wrap_pyfunction!(validate_pattern, m)?)?;
 
     m.add_class::<AttackPattern>()?;

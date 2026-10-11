@@ -150,14 +150,16 @@ impl Stix for DomainObject {
         // Check specific SDO type constraints
         add_error(
             &mut errors,
-            self.object_type.stix_check().map_err(|e| {
-                Error::ValidationError(format!(
-                    "Domain Object {} is not a valid {}: {}",
-                    self.get_id(),
-                    self.object_type.as_ref(),
-                    e
-                ))
-            }),
+            self.object_type
+                .stix_check()
+                .map_err(|e| Error::InvalidNestedObject {
+                    context: format!(
+                        "Domain Object {} is not a valid {}",
+                        self.get_id(),
+                        self.object_type.as_ref()
+                    ),
+                    source: Box::new(e),
+                }),
         );
 
         return_multiple_errors(errors)

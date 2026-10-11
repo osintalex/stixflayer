@@ -5,20 +5,12 @@
 #![allow(clippy::useless_conversion)]
 use crate::pattern::validate_pattern as rust_validate_pattern;
 use crate::python_bindings::error::{stix_to_pyerr, StixError};
-use crate::types::{ExtensionType, Timestamp};
+use crate::types::ExtensionType;
 use pyo3::prelude::*;
 
 #[pyfunction]
 pub fn version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
-}
-
-#[pyfunction]
-pub fn create_timestamp(value: &str) -> String {
-    match Timestamp::new(value) {
-        Ok(t) => t.to_string(),
-        Err(_) => value.to_string(),
-    }
 }
 
 /// Validate a STIX Pattern string against the STIX 2.1 pattern grammar

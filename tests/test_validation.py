@@ -145,8 +145,89 @@ class TestInvalidFixtures:
         assert any(e["kind"] == "missing_property" and e["property"] == "name" for e in errors)
         assert any(e["kind"] == "unknown_property" and e["properties"] == ["y"] for e in errors)
 
-    def test_deserialization_error_has_empty_errors(self):
-        """DeserializationError that can't be broken down has an empty .errors list."""
+    def test_deserialization_error_carries_entry(self):
+        """Even unclassifiable deserialization failures carry a structured entry.
+
+        The `.errors` contract is total: every exception carries at least one
+        entry (the catch-all `deserialization_error` entry here).
+        """
         with pytest.raises(stixflayer.DeserializationError) as exc_info:
             stixflayer.Indicator.from_json("not json")
-        assert exc_info.value.errors == []
+        errs = exc_info.value.errors
+        assert len(errs) == 1
+        assert errs[0]["kind"] == "deserialization_error"
+        assert errs[0]["message"]
+
+
+# ============================================================================
+# Error-reporting fixes (change: fix-python-release-gaps)
+# ============================================================================
+
+
+class TestNestedValidationMessages:
+    def test_invalid_vocab_threat_actor_single_prefix(self):
+        """A vocab failure nested in an object-level failure keeps the prefix once."""
+        with pytest.raises(stixflayer.ValidationError) as exc_info:
+            stixflayer.ThreatActor(name="Bogus Actor", sophistication="not-a-real-level")
+
+        message = str(exc_info.value)
+        assert message.count("STIX validation error:") == 1, f"message: {message}"
+        assert "not-a-real-level" in message
+        assert "threat-actor-sophistication-ov" in message
+
+        # The structured entries carry the vocabulary context even through the
+        # object-level nesting.
+        entries = exc_info.value.errors
+        vocab_entries = [e for e in entries if e["kind"] == "invalid_vocab_value"]
+        assert vocab_entries, f"no vocab entry: {entries}"
+        assert vocab_entries[0]["value"] == "not-a-real-level"
+        assert vocab_entries[0]["vocabulary"] == "threat-actor-sophistication-ov"
+
+
+class TestPatternErrorReporting:
+    def test_invalid_pattern_raises_validation_error(self):
+        """A syntactically invalid pattern raises ValidationError, not the base StixError."""
+        with pytest.raises(stixflayer.ValidationError):
+            stixflayer.validate_pattern("AND OR [ipv4-addr:value = '198.51.100.1']")
+
+    def test_pattern_message_has_no_parser_internals(self):
+        """Pattern failure messages describe the problem without parser debug structures."""
+        with pytest.raises(stixflayer.ValidationError) as exc_info:
+            stixflayer.validate_pattern("[ipv4-addr:value = ]")
+        message = str(exc_info.value)
+        assert "Error {" not in message, f"parser debug leaked: {message}"
+        assert "ErrorKind" not in message, f"parser debug leaked: {message}"
+        assert " at: '" not in message, f"parser debug leaked: {message}"
+        assert "ipv4-addr" in message
+
+
+class TestNonObjectJsonInput:
+    def test_from_json_array_reports_clear_message(self):
+        """A JSON array reports that a STIX object was expected, naming the array."""
+        with pytest.raises(
+            stixflayer.DeserializationError,
+            match=r"Expected a STIX object \(JSON object\), got array\.",
+        ):
+            stixflayer.Indicator.from_json("[1,2,3]")
+
+    def test_from_json_scalar_reports_received_kind(self):
+        """Scalar JSON inputs name the received kind, with no Rust type names."""
+        for json_str, kind in [
+            ("42", "number"),
+            ('"just a string"', "string"),
+            ("true", "boolean"),
+            ("null", "null"),
+        ]:
+            with pytest.raises(
+                stixflayer.DeserializationError,
+                match=rf"Expected a STIX object \(JSON object\), got {kind}\.",
+            ):
+                stixflayer.Indicator.from_json(json_str)
+
+    def test_non_object_message_has_no_rust_type_names(self):
+        """The message references no Rust internal type names."""
+        with pytest.raises(stixflayer.DeserializationError) as exc_info:
+            stixflayer.Indicator.from_json("[1,2,3]")
+        message = str(exc_info.value)
+        assert "DomainObject" not in message
+        assert "struct" not in message.lower()

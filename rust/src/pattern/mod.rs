@@ -27,7 +27,7 @@ use util::*;
 pub fn validate_pattern(pattern: &str) -> Result<(), StixError> {
     // Parse the string into a STIX Pattern data structure, or else error it the pattern does not follow the grammar
     let (remains, observation) = parse_observation(pattern)
-        .map_err(|e| StixError::ParsePatternError(pattern.to_string(), e.to_string()))?;
+        .map_err(|e| StixError::ParsePatternError(pattern.to_string(), describe_parse_error(e)))?;
     if remains.is_empty().not() {
         return Err(StixError::ParsePatternError(
             pattern.to_string(),
@@ -37,6 +37,40 @@ pub fn validate_pattern(pattern: &str) -> Result<(), StixError> {
 
     // Check that the STIX Pattern does not violate any additional rules
     observation.stix_check()
+}
+
+/// Describes a nom parse failure in plain language.
+///
+/// nom's own `Display` prints its internal error kind and the raw remaining
+/// input (`error Tag at: "..."`), which leaks parser internals into user-facing
+/// messages. This maps the error kinds produced by this grammar to readable
+/// text; the input at the point of failure is always included so users can
+/// locate the problem in their pattern.
+fn describe_parse_error(err: nom::Err<nom::error::Error<&str>>) -> String {
+    use nom::error::ErrorKind;
+
+    let (input, code) = match err {
+        nom::Err::Error(e) | nom::Err::Failure(e) => (e.input, e.code),
+        nom::Err::Incomplete(_) => {
+            return "the pattern ended in the middle of a value".to_string();
+        }
+    };
+    let expectation = match code {
+        ErrorKind::Digit => "expected a number",
+        ErrorKind::HexDigit => "expected a hexadecimal value",
+        ErrorKind::AlphaNumeric => "expected a name or keyword",
+        ErrorKind::Tag => "expected a keyword or symbol",
+        ErrorKind::TakeUntil => "expected a closing quote or delimiter",
+        ErrorKind::Alt => "expected a valid pattern element",
+        ErrorKind::Char => "expected a specific character",
+        ErrorKind::Eof => "expected the end of the pattern",
+        _ => "syntax error",
+    };
+    if input.is_empty() {
+        format!("{expectation}, but the pattern ended")
+    } else {
+        format!("{expectation} near '{input}'")
+    }
 }
 
 fn parse_observation(input: &str) -> IResult<&str, ObservationExpression> {
@@ -569,5 +603,53 @@ mod test {
         let pattern = "[ipv4-addr:value = \'198.51.100.1/32\' AND ipv6-addr:value = \'2001:0db8:dead:beef:dead:beef:dead:0001/128\']";
         let observation = parse_observation(pattern).unwrap().1.stix_check();
         assert!(observation.is_err());
+    }
+}
+
+#[cfg(test)]
+mod error_tests {
+    use super::*;
+
+    /// Parse failures are described in plain language with the failing input,
+    /// never nom's internal debug structures.
+    #[test]
+    fn bad_pattern_message_is_humanized() {
+        for pattern in [
+            "[ipv4-addr:value = ]",
+            "[ipv4-addr:value = 'x' AND]",
+            "AND [ipv4-addr:value = '198.51.100.1']",
+            "[ipv4-addr:value = 'x' OR ]",
+        ] {
+            let err = validate_pattern(pattern).unwrap_err();
+            match err {
+                StixError::ParsePatternError(actual_pattern, detail) => {
+                    assert_eq!(actual_pattern, pattern);
+                    assert!(
+                        !detail.contains("Error {") && !detail.contains("error "),
+                        "debug text leaked: {detail}"
+                    );
+                    assert!(!detail.is_empty(), "empty detail for {pattern}");
+                }
+                other => panic!("expected ParsePatternError for {pattern}, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn describer_names_expected_constructs() {
+        let detail = describe_parse_error(nom::Err::Error(nom::error::Error::new(
+            "abc",
+            nom::error::ErrorKind::Digit,
+        )));
+        assert_eq!(detail, "expected a number near 'abc'");
+
+        let detail = describe_parse_error(nom::Err::Error(nom::error::Error::new(
+            "",
+            nom::error::ErrorKind::Tag,
+        )));
+        assert_eq!(
+            detail,
+            "expected a keyword or symbol, but the pattern ended"
+        );
     }
 }

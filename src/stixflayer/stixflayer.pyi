@@ -31,7 +31,6 @@ class DeserializationError(StixError):
 # =============================================================================
 
 def version() -> str: ...
-def create_timestamp(value: str) -> str: ...
 def validate_pattern(pattern: str) -> None: ...
 
 # =============================================================================
@@ -571,6 +570,13 @@ class LanguageContent(_SdoBase):
     def contents(self) -> dict[str, Any]: ...
 
 class CustomObject:
+    """A user-defined STIX object carrying custom properties.
+
+    Named arguments and the ``custom_properties`` dictionary write the same
+    object properties, so every property may be set exactly once: supplying
+    the same property through both channels raises ``ValidationError``.
+    """
+
     def __init__(
         self,
         type_: str,
