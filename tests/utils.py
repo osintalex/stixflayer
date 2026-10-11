@@ -47,9 +47,7 @@ def load_fixture_json(path: str) -> dict:
 
 def class_for_type(stix_type: str) -> type:
     """Return the stixflayer Python class for a STIX object type string."""
-    class_name = _CLASS_NAME_OVERRIDES.get(stix_type) or "".join(
-        part.capitalize() for part in stix_type.split("-")
-    )
+    class_name = _CLASS_NAME_OVERRIDES.get(stix_type) or "".join(part.capitalize() for part in stix_type.split("-"))
     return getattr(stixflayer, class_name)
 
 

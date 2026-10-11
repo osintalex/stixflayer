@@ -4,7 +4,7 @@ use crate::types::Identifier;
 use email_address::{EmailAddress as validate_email, Options};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use stix_derive::StixProperties;
+use stixflayer_derive::StixProperties;
 
 /// Email Address
 ///

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::skip_serializing_none;
 use std::collections::BTreeMap;
-use stix_derive::StixProperties;
+use stixflayer_derive::StixProperties;
 
 /// Type Name: marking-definition
 /// The marking-definition object represents a specific marking. Data markings typically represent

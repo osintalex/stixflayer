@@ -24,11 +24,13 @@ def test_parse_single_object(benchmark: Any, library: str, fixture: tuple[str, s
     stix_type = json.loads(text)["type"]
 
     benchmark.group = "parse_single_object"
-    benchmark.extra_info.update({
-        "library": library,
-        "fixture": name,
-        "type": stix_type,
-    })
+    benchmark.extra_info.update(
+        {
+            "library": library,
+            "fixture": name,
+            "type": stix_type,
+        }
+    )
 
     if library == "stix2-validator":
         target = stix2_validator_parse
@@ -45,11 +47,13 @@ def test_parse_single_object(benchmark: Any, library: str, fixture: tuple[str, s
 def test_parse_bundle(benchmark: Any, library: str, name: str, text: str) -> None:
     """Parse / validate a full STIX bundle."""
     benchmark.group = "parse_bundle"
-    benchmark.extra_info.update({
-        "library": library,
-        "fixture": name,
-        "objects": len(json.loads(text)["objects"]),
-    })
+    benchmark.extra_info.update(
+        {
+            "library": library,
+            "fixture": name,
+            "objects": len(json.loads(text)["objects"]),
+        }
+    )
 
     target = stix2_validator_parse if library == "stix2-validator" else stixflayer_parse
     args = (text,)

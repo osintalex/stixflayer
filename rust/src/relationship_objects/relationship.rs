@@ -9,7 +9,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::sync::OnceLock;
-use stix_derive::StixProperties;
+use stixflayer_derive::StixProperties;
 use strum::IntoEnumIterator;
 
 fn relationship_type_re() -> &'static Regex {

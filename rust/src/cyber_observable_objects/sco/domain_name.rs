@@ -5,7 +5,7 @@ use crate::types::Identifier;
 use addr::parse_domain_name;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use stix_derive::StixProperties;
+use stixflayer_derive::StixProperties;
 
 /// Domain Name
 ///

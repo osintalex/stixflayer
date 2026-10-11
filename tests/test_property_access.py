@@ -13,9 +13,7 @@ import stixflayer
 from tests.utils import DATA_DIR, class_for_type, parse_timestamp
 
 ALL_FIXTURES = sorted(
-    path
-    for family in ("sdos", "scos", "sros", "meta")
-    for path in (DATA_DIR / "valid" / family).glob("*.json")
+    path for family in ("sdos", "scos", "sros", "meta") for path in (DATA_DIR / "valid" / family).glob("*.json")
 )
 
 

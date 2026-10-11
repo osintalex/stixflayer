@@ -1,5 +1,7 @@
 # 🧠 Stixflayer 🦑
 
+[![CI](https://github.com/osintalex/stixflayer/actions/workflows/ci.yml/badge.svg)](https://github.com/osintalex/stixflayer/actions/workflows/ci.yml)
+
 Rust-native STIX 2.1 engine. One spec-compliant core, consumed by many.
 
 ## Performance 🚀⚡
@@ -73,8 +75,8 @@ pip install -e .
 from stixflayer import Bundle
 
 bundle = Bundle.from_json(open("bundle.json").read())
-print(bundle.object_count)      # number of objects
-for obj in bundle.objects:      # live Python wrappers, not raw dicts
+print(bundle.object_count)  # number of objects
+for obj in bundle.objects:  # live Python wrappers, not raw dicts
     print(obj.type, obj.id)
 ```
 
@@ -97,7 +99,9 @@ ap = AttackPattern(
 from stixflayer import AttackPattern, ValidationError
 
 try:
-    AttackPattern.from_json('{"type": "attack-pattern", "spec_version": "2.1", "id": "attack-pattern--d3046a90-580c-4004-8208-66915bc29830", "created": "2019-04-24T15:12:36.609Z", "modified": "2023-03-24T15:14:15.637Z"}')
+    AttackPattern.from_json(
+        '{"type": "attack-pattern", "spec_version": "2.1", "id": "attack-pattern--d3046a90-580c-4004-8208-66915bc29830", "created": "2019-04-24T15:12:36.609Z", "modified": "2023-03-24T15:14:15.637Z"}'
+    )
 except ValidationError as e:
     print(e.errors)  # [{'kind': 'missing_property', 'message': "...", 'property': 'name'}]
 ```
@@ -127,6 +131,51 @@ tests/        Python test suite
 benchmarks/   Speed benchmarks vs stix2-validator (see BENCHMARKING.md)
 testdata/     STIX fixtures used by tests and benchmarks
 ```
+
+## Continuous integration ⚙️
+
+Every pull request and every push to `main` runs a two-stage pipeline
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
+
+1. **Quality gate** — six parallel jobs that must all pass:
+   `cargo fmt --check`, `cargo clippy -D warnings`, and `cargo build` for the
+   Rust workspace; `ruff format --check`, `ruff check`, and `pyrefly check`
+   for the Python code.
+2. **Tests** — only once the whole gate is green: the Rust test suite on
+   Linux, macOS, and Windows, cross-compile builds for
+   `aarch64-linux` and `x86_64-musl` targets, and the Python test suite
+   against the freshly built extension on all three operating systems.
+
+## Releasing 🚀
+
+Releases happen automatically on merge to `main`
+([`.github/workflows/release.yml`](.github/workflows/release.yml)) — but only
+if you bumped a version:
+
+- **Python package**: raise the version in `pyproject.toml` → the release
+  pipeline builds one `abi3` wheel per platform (Linux x86_64 + aarch64, both
+  glibc and musl; macOS arm64; Windows x86_64), smoke-tests each wheel, and
+  publishes all of them to PyPI in a single release.
+- **Rust library**: raise the version in `rust/Cargo.toml` → the pipeline
+  verifies tests and cross-compiles on all supported targets, then publishes
+  to crates.io.
+
+A version that hasn't changed since its last release tag (`py-v*` /
+`rust-v*`) publishes nothing — a merge without a bump is just a merge.
+
+**Bump both Rust crates together.** The release gate keys on the main
+crate's version in `rust/Cargo.toml`; `stixflayer_derive` (the proc-macro
+crate) must be published before `stixflayer` can be, so when you bump, raise
+both crates' versions in the same change and the pipeline handles the
+publish order.
+
+**One-time setup prerequisites:**
+
+- Register the [PyPI trusted publisher](https://docs.pypi.org/trusted-publishers/)
+  for `osintalex/stixflayer`, workflow `release.yml`, environment `pypi`.
+- Add the crates.io API token as the `CARGO_REGISTRY_TOKEN` repository secret.
+- Set the `ci.yml` jobs as required status checks on `main` (GitHub branch
+  protection settings).
 
 ## Development 🛠️
 
