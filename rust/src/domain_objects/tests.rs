@@ -438,3 +438,41 @@ mod test {
         assert!(result.is_err());
     }
 }
+
+#[cfg(test)]
+mod nesting_tests {
+    use crate::domain_objects::sdo::DomainObject;
+
+    /// A nested validation failure (vocab check inside the SDO check) must
+    /// render the `STIX validation error:` prefix exactly once.
+    #[test]
+    fn nested_vocab_failure_keeps_single_prefix() {
+        let json = serde_json::json!({
+            "type": "threat-actor",
+            "id": "threat-actor--12345678-1234-5678-1234-567812345678",
+            "spec_version": "2.1",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "name": "Bogus Actor",
+            "sophistication": "definitely-not-a-level",
+        });
+        let error =
+            crate::validation::validate_value::<DomainObject>(json, false, true).unwrap_err();
+        let message = error.to_string();
+        assert!(
+            message.contains("sophistication") || message.contains("threat-actor"),
+            "message: {message}"
+        );
+        assert_eq!(
+            message.matches("STIX validation error:").count(),
+            1,
+            "prefix repeated: {message}"
+        );
+        // The structured entries carry the vocab context.
+        let entries = error.errors();
+        assert!(
+            entries.iter().any(|e| e.kind == "invalid_vocab_value"),
+            "no invalid_vocab_value entry: {entries:?}"
+        );
+    }
+}

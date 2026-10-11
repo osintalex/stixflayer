@@ -11,12 +11,20 @@ pub mod classify;
 pub mod envelope;
 pub mod helpers;
 
-pub use classify::classify_serde_error;
+pub use classify::{classify_serde_error, json_kind, non_object_json_message};
 pub use envelope::{ErrorEntry, ErrorEnvelope};
 pub use helpers::{add_error, return_multiple_errors};
 
 /// Custom Error type for rust-stix
-#[derive(Debug, Clone, Error)]
+///
+/// Every variant yields at least one structured [`ErrorEntry`] via
+/// [`StixError::errors`]; variants with natural structure produce rich entries
+/// (see `to_entry`), all others fall back to a catch-all entry whose `kind` is
+/// the variant name in snake_case. Kind strings are cross-language API surface:
+/// adding variants is additive, renaming kinds is breaking and avoided.
+#[derive(Debug, Clone, Error, strum::EnumDiscriminants)]
+#[strum_discriminants(derive(strum::AsRefStr))]
+#[strum_discriminants(strum(serialize_all = "snake_case"))]
 pub enum StixError {
     // For retunning multiple errors at once, e.g. during validation
     #[error("Validation errors: {0:?}")]
@@ -26,7 +34,7 @@ pub enum StixError {
     DateTimeError(JiffError),
     #[error("Empty Lists and dictionaries are prohibted in STIX")]
     EmptyList,
-    #[error("The corresponding hash string for this value MUST be a valid {hash_type} message, and it is: {hash_identity} {hash_string}")]
+    #[error("The hash value '{hash_string}' is not a valid {hash_type} hash (detected format: {hash_identity}).")]
     InvalidHash {
         hash_type: String,
         hash_identity: String,
@@ -64,6 +72,19 @@ pub enum StixError {
     // General validation error
     #[error("STIX validation error: {0}")]
     ValidationError(String),
+    /// An object-level check (SDO/SCO/SRO) failed because of an inner error.
+    ///
+    /// `context` names the object and the failed check; the display message
+    /// embeds the inner message without repeating the `STIX validation error:`
+    /// prefix, and the inner error's structured entries are preserved so
+    /// field-level detail (e.g. vocabulary context) survives nesting.
+    #[error("STIX validation error: {context}: {}", .source.embedded_message())]
+    InvalidNestedObject {
+        context: String,
+        source: Box<StixError>,
+    },
+    #[error("STIX validation error: Value '{value}' is not a valid {vocabulary} value.")]
+    InvalidVocabValue { value: String, vocabulary: String },
     // Extension errors
     #[error("Extension key is not a known predefined extension")]
     UnknownExtension,
@@ -138,6 +159,9 @@ impl StixError {
             | StixError::UnknownProperties { .. }
             | StixError::InvalidPropertyType { .. }
             | StixError::ValidationError(_)
+            | StixError::InvalidNestedObject { .. }
+            | StixError::InvalidVocabValue { .. }
+            | StixError::ParsePatternError(_, _)
             | StixError::WrongExtension
             | StixError::CustomMissingExtension
             | StixError::UnknownExtension => "validation",
@@ -149,45 +173,102 @@ impl StixError {
         }
     }
 
+    /// Returns this error's message without the leading `STIX validation error: `
+    /// prefix, so a larger validation message can embed it without repeating
+    /// the prefix. Errors that never carry the prefix are returned unchanged.
+    pub fn embedded_message(&self) -> String {
+        let message = self.to_string();
+        message
+            .strip_prefix("STIX validation error: ")
+            .unwrap_or(&message)
+            .to_string()
+    }
+
     /// Converts a structured validation variant into an [`ErrorEntry`].
     fn to_entry(&self) -> Option<ErrorEntry> {
         match self {
-            StixError::MissingProperty {
-                object_type: _,
-                property,
-            } => Some(ErrorEntry {
+            StixError::MissingProperty { property, .. } => Some(ErrorEntry {
                 kind: "missing_property".to_string(),
                 message: self.to_string(),
                 property: Some(property.clone()),
-                properties: None,
-                expected: None,
-                got: None,
+                ..Default::default()
             }),
-            StixError::UnknownProperties {
-                object_type: _,
-                fields,
-            } => Some(ErrorEntry {
+            StixError::UnknownProperties { fields, .. } => Some(ErrorEntry {
                 kind: "unknown_property".to_string(),
                 message: self.to_string(),
-                property: None,
                 properties: Some(fields.clone()),
-                expected: None,
-                got: None,
+                ..Default::default()
             }),
             StixError::InvalidPropertyType {
-                object_type: _,
                 property,
                 expected,
                 got,
+                ..
             } => Some(ErrorEntry {
                 kind: "invalid_property_type".to_string(),
                 message: self.to_string(),
                 property: Some(property.clone()),
-                properties: None,
                 expected: Some(expected.clone()),
                 got: Some(got.clone()),
+                ..Default::default()
+            }),
+            StixError::InvalidNestedObject { source, .. } => source.to_entry().map(|mut entry| {
+                // Keep the composed, context-aware message on the entry while
+                // preserving the inner error's structured fields.
+                entry.message = self.to_string();
+                entry
+            }),
+            StixError::InvalidVocabValue { value, vocabulary } => Some(ErrorEntry {
+                kind: "invalid_vocab_value".to_string(),
+                message: self.to_string(),
+                value: Some(value.clone()),
+                vocabulary: Some(vocabulary.clone()),
+                ..Default::default()
+            }),
+            StixError::InvalidHash {
+                hash_type,
+                hash_identity,
+                hash_string,
+            } => Some(ErrorEntry {
+                kind: "invalid_hash".to_string(),
+                message: self.to_string(),
+                value: Some(hash_string.clone()),
+                expected: Some(hash_type.clone()),
+                got: Some(hash_identity.clone()),
+                ..Default::default()
+            }),
+            StixError::ParseTimestampError(timestamp) => Some(ErrorEntry {
+                kind: "invalid_timestamp".to_string(),
+                message: self.to_string(),
+                value: Some(timestamp.clone()),
+                ..Default::default()
+            }),
+            StixError::ParseIdentifierError(identifier) => Some(ErrorEntry {
+                kind: "invalid_identifier".to_string(),
+                message: self.to_string(),
+                value: Some(identifier.clone()),
+                ..Default::default()
+            }),
+            StixError::ParsePatternError(pattern, detail) => Some(ErrorEntry {
+                kind: "invalid_pattern".to_string(),
+                message: self.to_string(),
+                value: Some(pattern.clone()),
+                got: Some(detail.clone()),
+                ..Default::default()
             }),
             _ => None,
+        }
+    }
+
+    /// Catch-all entry for variants without a rich structured form.
+    ///
+    /// Guarantees the total `.errors` contract: the `kind` is the variant name
+    /// in snake_case and `message` is the display string.
+    fn catch_all_entry(&self) -> ErrorEntry {
+        ErrorEntry {
+            kind: StixErrorDiscriminants::from(self).as_ref().to_string(),
+            message: self.to_string(),
+            ..Default::default()
         }
     }
 
@@ -225,30 +306,30 @@ impl StixError {
     /// Returns the structured error entries for this error.
     ///
     /// For `ValidationErrors`, this flattens the entries of each inner error.
-    /// For errors without a structured representation, the returned vector is
-    /// empty.
+    /// Every other error yields at least one entry: a rich entry when the
+    /// variant has natural structure, otherwise a catch-all entry
+    /// ([`StixError::catch_all_entry`]).
     pub fn errors(&self) -> Vec<ErrorEntry> {
         match self {
-            StixError::ValidationErrors(errors) => {
-                errors.iter().filter_map(|e| e.to_entry()).collect()
+            StixError::ValidationErrors(errors) if !errors.is_empty() => {
+                errors.iter().flat_map(|e| e.errors()).collect()
             }
-            _ => self.to_entry().into_iter().collect(),
+            _ => {
+                let mut entries: Vec<ErrorEntry> = self.to_entry().into_iter().collect();
+                if entries.is_empty() {
+                    entries.push(self.catch_all_entry());
+                }
+                entries
+            }
         }
     }
 
     /// Serializes this error as the cross-language JSON envelope.
     pub fn to_json(&self) -> serde_json::Value {
-        let errors = match self {
-            StixError::ValidationErrors(errors) => {
-                errors.iter().filter_map(|e| e.to_entry()).collect()
-            }
-            _ => self.to_entry().into_iter().collect(),
-        };
-
         serde_json::to_value(ErrorEnvelope {
             error: self.envelope_category().to_string(),
             message: self.envelope_message(),
-            errors,
+            errors: self.errors(),
         })
         .expect("ErrorEnvelope serializes to JSON")
     }
@@ -376,7 +457,11 @@ mod tests {
             "position kept: {}",
             envelope["message"]
         );
-        assert!(envelope["errors"].as_array().unwrap().is_empty());
+        // Total contract: even syntax failures carry a catch-all entry.
+        let entries = envelope["errors"].as_array().unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["kind"], "deserialization_error");
+        assert!(entries[0]["message"].as_str().unwrap().contains("line 1"));
     }
 
     #[test]
@@ -426,7 +511,170 @@ mod tests {
             envelope["message"],
             "Empty Lists and dictionaries are prohibted in STIX"
         );
-        assert!(envelope["errors"].as_array().unwrap().is_empty());
+        // Total contract: every variant yields at least one entry.
+        let entries = envelope["errors"].as_array().unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["kind"], "empty_list");
+        assert_eq!(entries[0]["message"], envelope["message"]);
+    }
+
+    /// Constructs every `StixError` variant so the total `.errors` contract can
+    /// be asserted exhaustively. A new variant must be added here, keeping the
+    /// contract honest.
+    fn all_variants() -> Vec<StixError> {
+        use crate::types::Identifier;
+        vec![
+            StixError::ValidationErrors(vec![StixError::EmptyList]),
+            StixError::ValidationErrors(vec![]),
+            StixError::DateTimeError("bad".parse::<jiff::Timestamp>().unwrap_err()),
+            StixError::EmptyList,
+            StixError::InvalidHash {
+                hash_type: "MD5".to_string(),
+                hash_identity: "unknown".to_string(),
+                hash_string: "d41d8cd98f00b204e9800998ecf8427e".to_string(),
+            },
+            StixError::InvalidUuid {
+                message: "bad".to_string(),
+            },
+            StixError::IllegalBuilderProperty {
+                object: "AttackPattern".to_string(),
+                object_type: "attack-pattern".to_string(),
+                field: "bogus".to_string(),
+            },
+            StixError::InvalidRelationship {
+                relationship: "indicates".to_string(),
+                source_type: "identity".to_string(),
+                target_type: "identity".to_string(),
+            },
+            StixError::MissingBuilderProperty {
+                object_type: "attack-pattern".to_string(),
+                property: "name".to_string(),
+            },
+            StixError::ParseHexError("zz".to_string()),
+            StixError::ParseIdentifierError("nope".to_string()),
+            StixError::ParseIntegerError("x".parse::<u32>().unwrap_err()),
+            StixError::ParseTimestampError("not-a-time".to_string()),
+            StixError::ParsePatternError("AND OR".to_string(), "syntax error".to_string()),
+            StixError::ValidationError("bad value".to_string()),
+            StixError::InvalidNestedObject {
+                context: "Domain Object x is not a valid y".to_string(),
+                source: Box::new(StixError::EmptyList),
+            },
+            StixError::InvalidVocabValue {
+                value: "unknown".to_string(),
+                vocabulary: "test-vocab".to_string(),
+            },
+            StixError::UnknownExtension,
+            StixError::WrongExtension,
+            StixError::UnableToVersion("no timestamps".to_string()),
+            StixError::BadVersion(
+                "attack-pattern--12345678-1234-5678-1234-567812345678".to_string(),
+                "bad".parse::<jiff::Timestamp>().unwrap_err(),
+            ),
+            StixError::CustomMissingExtension,
+            StixError::JsonNull,
+            StixError::UnexpectedJsonFormat,
+            StixError::UnknownFields(vec!["bogus".to_string()]),
+            StixError::UnrecognizedObject(strum::ParseError::VariantNotFound),
+            StixError::SerializationError("cannot serialize".to_string()),
+            StixError::DeserializationError("cannot deserialize".to_string()),
+            StixError::MissingProperty {
+                object_type: "attack-pattern".to_string(),
+                property: "name".to_string(),
+            },
+            StixError::UnknownProperties {
+                object_type: "attack-pattern".to_string(),
+                fields: vec!["bogus".to_string()],
+            },
+            StixError::InvalidPropertyType {
+                object_type: "attack-pattern".to_string(),
+                property: "name".to_string(),
+                expected: "a string".to_string(),
+                got: "integer `1`".to_string(),
+            },
+            StixError::MissingDataSource,
+            StixError::MissingDataSink,
+            StixError::UnsupportedDataType("redis".to_string()),
+            StixError::IoError("permission denied".to_string()),
+            StixError::PathNotFound("/tmp/nope".to_string()),
+            StixError::ObjectNotFound(Identifier::new_test("file")),
+        ]
+    }
+
+    #[test]
+    fn every_variant_yields_at_least_one_entry() {
+        for error in all_variants() {
+            let entries = error.errors();
+            assert!(
+                !entries.is_empty(),
+                "variant {:?} produced no entries",
+                error
+            );
+            for entry in &entries {
+                assert!(!entry.kind.is_empty(), "empty kind for {error:?}");
+                assert!(!entry.message.is_empty(), "empty message for {error:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn catch_all_kinds_are_snake_case_variant_names() {
+        assert_eq!(StixError::EmptyList.errors()[0].kind, "empty_list");
+        assert_eq!(
+            StixError::ParseHexError("zz".to_string()).errors()[0].kind,
+            "parse_hex_error"
+        );
+        assert_eq!(StixError::JsonNull.errors()[0].kind, "json_null");
+        // Rich variants keep their documented kinds.
+        assert_eq!(
+            StixError::InvalidVocabValue {
+                value: "x".to_string(),
+                vocabulary: "v".to_string(),
+            }
+            .errors()[0]
+                .kind,
+            "invalid_vocab_value"
+        );
+    }
+
+    #[test]
+    fn rich_entries_carry_natural_structure() {
+        // InvalidHash: value/expected/got mirror declared vs detected type.
+        let hash = StixError::InvalidHash {
+            hash_type: "MD5".to_string(),
+            hash_identity: "unknown".to_string(),
+            hash_string: "d41d8cd98f00b204e9800998ecf8427e".to_string(),
+        };
+        let entry = &hash.errors()[0];
+        assert_eq!(entry.kind, "invalid_hash");
+        assert_eq!(
+            entry.value.as_deref(),
+            Some("d41d8cd98f00b204e9800998ecf8427e")
+        );
+        assert_eq!(entry.expected.as_deref(), Some("MD5"));
+        assert_eq!(entry.got.as_deref(), Some("unknown"));
+        assert!(
+            !hash.to_string().contains("and it is:"),
+            "old wording removed: {}",
+            hash
+        );
+        assert!(hash.to_string().contains("is not a valid MD5 hash"));
+
+        let timestamp = StixError::ParseTimestampError("not-a-time".to_string());
+        let entry = &timestamp.errors()[0];
+        assert_eq!(entry.kind, "invalid_timestamp");
+        assert_eq!(entry.value.as_deref(), Some("not-a-time"));
+
+        let identifier = StixError::ParseIdentifierError("nope".to_string());
+        let entry = &identifier.errors()[0];
+        assert_eq!(entry.kind, "invalid_identifier");
+        assert_eq!(entry.value.as_deref(), Some("nope"));
+
+        let pattern = StixError::ParsePatternError("AND OR".to_string(), "syntax".to_string());
+        let entry = &pattern.errors()[0];
+        assert_eq!(entry.kind, "invalid_pattern");
+        assert_eq!(entry.value.as_deref(), Some("AND OR"));
+        assert_eq!(entry.got.as_deref(), Some("syntax"));
     }
 
     #[test]

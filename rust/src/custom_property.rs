@@ -8,8 +8,10 @@ use serde_json::Value;
 ///
 /// - ASCII only, characters limited to `a-z`, `0-9`, and `_`.
 /// - Length between 3 and 250 inclusive.
-/// - Must not start with a digit.
 /// - Must not be a reserved name.
+///
+/// Digits are allowed anywhere in the name, including as the first character;
+/// the spec places no leading-character restriction.
 pub fn validate_custom_property_name(name: &str) -> Result<(), Error> {
     if name.len() < 3 {
         return Err(Error::ValidationError(format!(

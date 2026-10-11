@@ -16,8 +16,10 @@ pub struct ErrorEnvelope {
 /// A single structured error entry inside an [`ErrorEnvelope`].
 ///
 /// Fields are sparse. `property` is a single JSON property name; `properties`
-/// is provided for entries that name a list of unknown fields.
-#[derive(Debug, Clone, Serialize)]
+/// is provided for entries that name a list of unknown fields. Entries are
+/// built with `..Default::default()` so each variant only names the fields it
+/// carries.
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct ErrorEntry {
     pub kind: String,
     pub message: String,
@@ -29,4 +31,8 @@ pub struct ErrorEntry {
     pub expected: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub got: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub value: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub vocabulary: Option<String>,
 }

@@ -1,5 +1,6 @@
 use crate::base::CustomPropertiesHolder;
 use crate::error::StixError as RustStixError;
+use crate::error::{json_kind, non_object_json_message};
 use crate::python_bindings::error::StixError;
 use pyo3::exceptions::PyAttributeError as PyO3AttributeError;
 use pyo3::prelude::*;
@@ -83,7 +84,10 @@ pub fn classify_top_level_type_error(
     };
 
     let Some(obj) = json_obj.as_object() else {
-        return error;
+        // Design D6: builders always synthesize a JSON object, so this branch
+        // is defensive. Classify a non-object payload plainly instead of
+        // leaking serde's internal `expected struct <Type>` message.
+        return RustStixError::DeserializationError(non_object_json_message(json_kind(json_obj)));
     };
 
     for (property, value) in obj {
@@ -198,4 +202,61 @@ pub fn custom_properties_dict<'py, T: CustomPropertiesHolder>(
         }
     }
     Ok(dict)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Defensive classification: a non-object payload must never surface
+    /// serde's internal struct name.
+    #[test]
+    fn non_object_payload_is_reported_plainly() {
+        for (json, kind) in [
+            ("[1,2,3]", "array"),
+            ("\"s\"", "string"),
+            ("7", "number"),
+            ("true", "boolean"),
+            ("null", "null"),
+        ] {
+            let payload: serde_json::Value = serde_json::from_str(json).unwrap();
+            let error = RustStixError::DeserializationError(
+                "invalid type: sequence, expected struct DomainObject".to_string(),
+            );
+            let classified = classify_top_level_type_error(error, "identity", &payload);
+            match classified {
+                RustStixError::DeserializationError(message) => {
+                    assert_eq!(
+                        message,
+                        format!("Expected a STIX object (JSON object), got {kind}."),
+                        "payload: {json}"
+                    );
+                }
+                other => panic!("expected DeserializationError for {json}, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn object_payload_still_scans_for_properties() {
+        let payload: serde_json::Value = serde_json::from_str(r#"{"name": 1}"#).unwrap();
+        let error = RustStixError::DeserializationError(
+            "invalid type: integer `1`, expected a string at line 1 column 1".to_string(),
+        );
+        let classified = classify_top_level_type_error(error, "identity", &payload);
+        match classified {
+            RustStixError::InvalidPropertyType {
+                object_type,
+                property,
+                expected,
+                got,
+            } => {
+                assert_eq!(object_type, "identity");
+                assert_eq!(property, "name");
+                assert_eq!(expected, "a string");
+                assert_eq!(got, "integer `1`");
+            }
+            other => panic!("expected InvalidPropertyType, got {other:?}"),
+        }
+    }
 }

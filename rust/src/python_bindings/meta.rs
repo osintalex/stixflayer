@@ -203,6 +203,30 @@ impl MarkingDefinition {
     }
 }
 
+/// Inserts a custom property that can arrive from two channels — a named
+/// keyword argument or the `custom_properties` dictionary — into the
+/// accumulated map, raising a validation error when the same property is
+/// supplied by both.
+///
+/// On the wire there is one slot per property (STIX 2.1 §11.2: common property
+/// names MUST NOT be reused), so two sources for one property is a caller
+/// error even when both values are equal. The check is order-independent: the
+/// conflict is detected whichever channel provided the key first.
+fn insert_custom_property(
+    map: &mut BTreeMap<String, serde_json::Value>,
+    key: String,
+    value: serde_json::Value,
+) -> Result<(), RustStixError> {
+    if map.contains_key(&key) {
+        return Err(RustStixError::ValidationError(format!(
+            "Property '{}' was supplied more than once: it cannot be set both as a named argument and in custom_properties.",
+            key
+        )));
+    }
+    map.insert(key, value);
+    Ok(())
+}
+
 #[pyclass]
 pub struct CustomObject(pub CustomObjectBuilder);
 
@@ -238,12 +262,18 @@ impl CustomObject {
                     }
                     "custom_properties" => {
                         let val = py_to_json(&v)?;
-                        if let serde_json::Value::Object(m) = val {
-                            custom_properties = m.into_iter().collect();
-                        } else {
-                            return Err(PyErr::new::<StixError, _>(
-                                "custom_properties must be a dictionary".to_string(),
-                            ));
+                        match val {
+                            serde_json::Value::Object(m) => {
+                                for (k, val) in m {
+                                    insert_custom_property(&mut custom_properties, k, val)
+                                        .map_err(stix_to_pyerr)?;
+                                }
+                            }
+                            _ => {
+                                return Err(PyErr::new::<StixError, _>(
+                                    "custom_properties must be a dictionary".to_string(),
+                                ));
+                            }
                         }
                     }
                     "created" => {
@@ -266,7 +296,8 @@ impl CustomObject {
                             // Any other keyword becomes a custom property, matching the SDO/SCO/SRO
                             // envelope behaviour for arbitrary fields.
                             let val = py_to_json(&v)?;
-                            custom_properties.insert(key, val);
+                            insert_custom_property(&mut custom_properties, key, val)
+                                .map_err(stix_to_pyerr)?;
                         } else {
                             return Err(PyErr::new::<StixError, _>(format!(
                                 "Unknown argument for CustomObject: '{}'",
@@ -1045,5 +1076,39 @@ impl Bundle {
             list.append(py_obj)?;
         }
         Ok(list)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn custom_property_conflict_is_order_independent() {
+        // Named argument first, then the same key via custom_properties.
+        let mut map = BTreeMap::new();
+        map.insert("name".to_string(), serde_json::json!("X"));
+        let err = insert_custom_property(&mut map, "name".to_string(), serde_json::json!("Y"))
+            .unwrap_err();
+        match err {
+            RustStixError::ValidationError(message) => {
+                assert!(message.contains("'name'"), "message: {message}");
+            }
+            other => panic!("expected ValidationError, got {other:?}"),
+        }
+        // The original value survives a rejected overwrite.
+        assert_eq!(map["name"], serde_json::json!("X"));
+
+        // Even when both values are equal, the conflict is an error.
+        let err = insert_custom_property(&mut map, "name".to_string(), serde_json::json!("X"))
+            .unwrap_err();
+        assert!(matches!(err, RustStixError::ValidationError(_)));
+
+        // Distinct properties via both channels merge.
+        assert!(
+            insert_custom_property(&mut map, "x_risk_score".to_string(), serde_json::json!(5))
+                .is_ok()
+        );
+        assert_eq!(map.len(), 2);
     }
 }

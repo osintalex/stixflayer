@@ -100,23 +100,27 @@ impl Stix for RelationshipObject {
         match &self.object_type {
             RelationshipObjectType::Relationship(relationship) => add_error(
                 &mut errors,
-                relationship.stix_check().map_err(|e| {
-                    Error::ValidationError(format!(
-                        "Relationship Object {} is not a valid generic relationship: {}",
-                        self.get_id(),
-                        e
-                    ))
-                }),
+                relationship
+                    .stix_check()
+                    .map_err(|e| Error::InvalidNestedObject {
+                        context: format!(
+                            "Relationship Object {} is not a valid generic relationship",
+                            self.get_id()
+                        ),
+                        source: Box::new(e),
+                    }),
             ),
             RelationshipObjectType::Sighting(sighting) => add_error(
                 &mut errors,
-                sighting.stix_check().map_err(|e| {
-                    Error::ValidationError(format!(
-                        "Relationship Object {} is not a valid sighting: {}",
-                        self.get_id(),
-                        e
-                    ))
-                }),
+                sighting
+                    .stix_check()
+                    .map_err(|e| Error::InvalidNestedObject {
+                        context: format!(
+                            "Relationship Object {} is not a valid sighting",
+                            self.get_id()
+                        ),
+                        source: Box::new(e),
+                    }),
             ),
         }
 

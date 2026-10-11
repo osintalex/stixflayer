@@ -13,6 +13,8 @@ meta objects, custom objects, and bundles. It verifies that:
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 import stixflayer
@@ -306,3 +308,52 @@ def test_bundle_constructor_accepts_python_objects():
     assert rec_ipv4.value == "198.51.100.1"
     assert isinstance(rec_custom, stixflayer.CustomObject)
     assert rec_custom.custom_properties["name"] == "Enrichment"
+
+
+def test_custom_object_conflict_raises_regardless_of_order():
+    """The same property via a named argument and custom_properties raises, in any order."""
+    with pytest.raises(stixflayer.ValidationError) as exc_info:
+        stixflayer.CustomObject(
+            type_="vendor-enrichment-sdo",
+            extension_type="new-sdo",
+            name="Named first",
+            custom_properties={"name": "Dict second"},
+        )
+    assert "'name'" in str(exc_info.value)
+
+    with pytest.raises(stixflayer.ValidationError) as exc_info:
+        stixflayer.CustomObject(
+            type_="vendor-enrichment-sdo",
+            extension_type="new-sdo",
+            custom_properties={"name": "Dict first"},
+            name="Named second",
+        )
+    assert "'name'" in str(exc_info.value)
+
+
+def test_custom_object_conflict_raises_on_equal_values():
+    """Identical values supplied through both channels are still a conflict."""
+    with pytest.raises(stixflayer.ValidationError):
+        stixflayer.CustomObject(
+            type_="vendor-enrichment-sdo",
+            extension_type="new-sdo",
+            name="Same value",
+            custom_properties={"name": "Same value"},
+        )
+
+
+def test_custom_object_distinct_properties_via_both_channels():
+    """Distinct properties via named argument and custom_properties both serialize."""
+    co = stixflayer.CustomObject(
+        type_="vendor-enrichment-sdo",
+        extension_type="new-sdo",
+        name="Vendor enrichment",
+        custom_properties={"x_risk_score": 5},
+    )
+    data = json.loads(co.to_json())
+    assert data["name"] == "Vendor enrichment"
+    assert data["x_risk_score"] == 5
+    # The named argument's property also shows up in the custom_properties view
+    # of the finished object, since custom properties are one flat namespace.
+    assert co.custom_properties["name"] == "Vendor enrichment"
+    assert co.custom_properties["x_risk_score"] == 5

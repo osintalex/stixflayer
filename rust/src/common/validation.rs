@@ -94,10 +94,10 @@ where
     if is_vocab_value::<V, _>(normalized.as_str()) {
         Ok(())
     } else {
-        Err(Error::ValidationError(format!(
-            "Value '{}' is not a valid {} value.",
-            normalized, enum_display_name
-        )))
+        Err(Error::InvalidVocabValue {
+            value: normalized,
+            vocabulary: enum_display_name.to_string(),
+        })
     }
 }
 
@@ -189,6 +189,22 @@ mod tests {
         let msg = err.to_string();
         assert!(msg.contains("unknown"));
         assert!(msg.contains("test-vocab"));
+        // The message keeps a single validation-error prefix.
+        assert!(msg.starts_with("STIX validation error: "));
+        assert_eq!(msg.matches("STIX validation error:").count(), 1);
+    }
+
+    #[test]
+    fn invalid_vocab_value_entry_carries_value_and_vocabulary() {
+        let err = validate_vocab_value::<TestVocab, _>("unknown", "test-vocab").unwrap_err();
+        let entries = err.errors();
+        assert_eq!(entries.len(), 1);
+        let entry = &entries[0];
+        assert_eq!(entry.kind, "invalid_vocab_value");
+        assert_eq!(entry.value.as_deref(), Some("unknown"));
+        assert_eq!(entry.vocabulary.as_deref(), Some("test-vocab"));
+        assert!(entry.message.contains("unknown"));
+        assert!(entry.message.contains("test-vocab"));
     }
 
     #[test]
