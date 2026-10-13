@@ -177,25 +177,23 @@ jobs:
           # Native build on a free ARM runner: the host target IS aarch64-linux-gnu.
           - target: aarch64-unknown-linux-gnu
             runner: ubuntu-24.04-arm
-            alpine: false
-          # Official Alpine image: musl is the default Rust target there.
+            native: true
+          # Cross-compiled with rustc's bundled lld (self-contained linking);
+          # a pure-Rust crate needs no musl toolchain and no container.
           - target: x86_64-unknown-linux-musl
             runner: ubuntu-latest
-            alpine: true
+            native: false
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
-      - if: ${{ !matrix.alpine }}
+      - if: matrix.native
         working-directory: rust
         run: cargo build --workspace
-      # Mount the repo root so cargo finds the root .cargo/config.toml by
-      # walking up from the rust/ working directory.
-      - if: ${{ matrix.alpine }}
+      - if: ${{ !matrix.native }}
+        working-directory: rust
         run: |
-          docker run --rm -v "$PWD:/io" -w /io/rust rust:alpine sh -c '
-            apk add --no-cache gcc musl-dev python3 >/dev/null &&
-            cargo build --workspace
-          '
+          rustup target add ${{ matrix.target }}
+          cargo build --workspace --target ${{ matrix.target }}
 
   rust-publish:
     name: Rust / publish to crates.io
