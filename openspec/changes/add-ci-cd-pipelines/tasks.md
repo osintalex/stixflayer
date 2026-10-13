@@ -23,13 +23,23 @@
 ## 4. Final verification
 
 - [x] 4.1 Run the complete local pre-flight: `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace`, `cargo test --workspace`, `uv run ruff format --check .`, `uv run ruff check .`, `uv run pyrefly check`, `uv run pytest --benchmark-disable` — all green
-- [ ] 4.2 Open a pull request with these changes and confirm the ci.yml run on GitHub is green: all six gate jobs pass in parallel and the test stage runs only after they succeed
+- [x] 4.2 Open a pull request with these changes and confirm the ci.yml run on GitHub is green: all six gate jobs pass in parallel and the test stage runs only after they succeed (14/14 checks green on the prep-release PR)
 - [x] 4.3 Confirm gate behavior without publishing: run the release gate logic against the current repo state (no tags → both packages would release; after creating a throwaway local tag `py-v0.1.0`, the Python gate flips to skip while Rust still releases), then delete the throwaway tag
 - [x] 4.4 Verify `openspec validate add-ci-cd-pipelines --strict` passes and all spec scenarios in `specs/ci-cd/spec.md` map to a workflow element created above
+
+## 5. Lean workflow rework (user feedback after the first green CI run)
+
+- [x] 5.1 Convert the three Python gate jobs in `ci.yml` to container jobs on `ghcr.io/astral-sh/uv:python3.13-bookworm-slim` (uv preinstalled — no setup-uv action); verify the YAML parses and `uv run --no-sync ruff format --check .`, `uv run --no-sync ruff check .`, `uv run --no-sync pyrefly check` still pass
+- [x] 5.2 Remove `Swatinem/rust-cache` from every job and drop `dtolnay/rust-toolchain` — runner images preinstall Rust, rustup, rustfmt, and cargo; the clippy job adds `rustup component add clippy`; verify the YAML parses and the cargo gate commands still pass locally
+- [ ] 5.3 Replace the `cross`-based `rust-cross` job (and its `taiki-e/install-action`) with a native `ubuntu-24.04-arm` build job for `aarch64-unknown-linux-gnu` and an official `rust:alpine` Docker build job for `x86_64-unknown-linux-musl`; verify the aarch64 build locally (this machine is aarch64) and the Alpine job on the first CI run
+- [x] 5.4 Turn `py-test` into an OS × Python {3.11, 3.12, 3.13} matrix with uv installed via the official `astral.sh` installer script (no setup-uv action) and interpreters provisioned by uv; verify the YAML parses and `uv run pytest --benchmark-disable` passes locally
+- [x] 5.5 Apply the same removals to `release.yml` (rust-cache, dtolnay, taiki-e/cross → native arm + rust:alpine) and switch the smoke stage from setup-uv to plain `python -m venv` + pip (musl wheels still checked in an Alpine container); verify the YAML parses
+- [x] 5.6 Trim `README.md`: remove the "Continuous integration" and "Releasing" sections, keeping the badge; verify `uv run ruff format --check .` and `uv run ruff check .` still pass
+- [x] 5.7 Audit both workflows: only the allowlisted actions remain (actions/checkout, actions/upload-artifact, actions/download-artifact, PyO3/maturin-action, pypa/gh-action-pypi-publish), each pinned to a full commit SHA; run the full local pre-flight (task 4.1 commands) and `openspec validate add-ci-cd-pipelines --strict`
 
 ## Workflow follow-up
 
 - Merge to main to trigger the first release; confirm PyPI shows stixflayer 0.1.0 with six wheels and crates.io shows both crates, and that `py-v0.1.0` / `rust-v0.1.0` tags exist.
-- Configure the one-time prerequisites from README "Releasing" (PyPI trusted publisher, `CARGO_REGISTRY_TOKEN`, required status checks) if not already done.
+- Configure the one-time prerequisites (PyPI trusted publisher for this repo/workflow/`pypi` environment, `CARGO_REGISTRY_TOKEN` secret, required status checks on ci.yml jobs) if not already done — documented in design.md (D5/D9); the README section that carried them was removed per user feedback.
 - A follow-up merge with unchanged versions must publish nothing (re-run release.yml manually or via a doc-only merge to observe).
 - Archive the change after the project's review requirements are satisfied.

@@ -19,7 +19,9 @@ env:
 jobs:
   # -------------------------------------------------------------------------
   # Stage 1 — quality gate. Six independent parallel jobs; the test stage
-  # below waits for every one of them.
+  # below waits for every one of them. Rust jobs use the toolchain
+  # preinstalled on the runner images; Python gate jobs run in a slim uv
+  # container instead of a full VM.
   # -------------------------------------------------------------------------
   rust-fmt:
     name: Rust / format
@@ -30,9 +32,6 @@ jobs:
         working-directory: rust
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
-      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # stable (rustfmt + clippy included)
-        with:
-          toolchain: stable
       - run: cargo fmt --all -- --check
 
   rust-clippy:
@@ -44,12 +43,8 @@ jobs:
         working-directory: rust
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
-      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f
-        with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
-        with:
-          workspaces: rust
+      # Runner images ship rustfmt but not always clippy; this is a no-op if present.
+      - run: rustup component add clippy
       - run: cargo clippy --workspace --all-targets -- -D warnings
 
   rust-build:
@@ -61,24 +56,16 @@ jobs:
         working-directory: rust
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
-      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f
-        with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
-        with:
-          workspaces: rust
       - run: cargo build --workspace
 
   py-format:
     name: Python / format
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.7.0
-        with:
-          python-version: "3.13"
-          enable-cache: true
       # Dev tools only — skip building the extension (no Rust toolchain here).
       - run: uv sync --no-install-project
       - run: uv run --no-sync ruff format --check .
@@ -86,31 +73,29 @@ jobs:
   py-lint:
     name: Python / lint
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.7.0
-        with:
-          python-version: "3.13"
-          enable-cache: true
       - run: uv sync --no-install-project
       - run: uv run --no-sync ruff check .
 
   py-typecheck:
     name: Python / types
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.7.0
-        with:
-          python-version: "3.13"
-          enable-cache: true
       - run: uv sync --no-install-project
       - run: uv run --no-sync pyrefly check
 
   # -------------------------------------------------------------------------
   # Stage 2 — tests. Runs only after every gate job above has passed.
+  # Target checks: aarch64 builds natively on a free ARM runner; musl builds
+  # in the official Alpine image, whose default Rust target is x86_64-musl.
   # -------------------------------------------------------------------------
   rust-test:
     name: Rust / tests (${{ matrix.os }})
@@ -126,42 +111,41 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
-      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f
-        with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
-        with:
-          workspaces: rust
       - run: cargo test --workspace
 
   rust-cross:
     name: Rust / cross-compile (${{ matrix.target }})
     needs: [rust-fmt, rust-clippy, rust-build, py-format, py-lint, py-typecheck]
-    runs-on: ubuntu-latest
     timeout-minutes: 45
-    defaults:
-      run:
-        working-directory: rust
     strategy:
       fail-fast: false
       matrix:
-        target: [aarch64-unknown-linux-gnu, x86_64-unknown-linux-musl]
+        include:
+          # Native build on a free ARM runner: the host target IS aarch64-linux-gnu.
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+            alpine: false
+          # Official Alpine image: musl is the default Rust target there.
+          - target: x86_64-unknown-linux-musl
+            runner: ubuntu-latest
+            alpine: true
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
-      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f
-        with:
-          toolchain: stable
-          targets: ${{ matrix.target }}
-      - uses: taiki-e/install-action@ab6895351a88b908e96a4697860d4ffea5e57dbe # v2
-        with:
-          tool: cross
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
-        with:
-          workspaces: rust
-      - run: cross build --workspace --target ${{ matrix.target }}
+      - if: ${{ !matrix.alpine }}
+        working-directory: rust
+        run: cargo build --workspace
+      # Mount the repo root so cargo finds the root .cargo/config.toml by
+      # walking up from the rust/ working directory.
+      - if: ${{ matrix.alpine }}
+        run: |
+          docker run --rm -v "$PWD:/io" -w /io/rust rust:alpine sh -c '
+            apk add --no-cache gcc musl-dev python3 >/dev/null &&
+            cargo build --workspace
+          '
 
   py-test:
-    name: Python / tests (${{ matrix.os }})
+    name: Python / tests (${{ matrix.os }}, py${{ matrix.python }})
     needs: [rust-fmt, rust-clippy, rust-build, py-format, py-lint, py-typecheck]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -169,18 +153,20 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
-      # Rust toolchain is required: the maturin build backend compiles the extension.
-      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f
-        with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
-        with:
-          workspaces: rust
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.7.0
-        with:
-          python-version: "3.13"
-          enable-cache: true
-      - run: uv sync
+      # uv via the official installer — no dedicated setup action.
+      - if: runner.os != 'Windows'
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          irm https://astral.sh/uv/install.ps1 | iex
+          Add-Content $env:GITHUB_PATH "$env:USERPROFILE\.local\bin"
+      # Rust toolchain is preinstalled: the maturin build backend compiles the extension.
+      # uv provisions the requested interpreter itself if the runner lacks it.
+      - run: uv sync --python ${{ matrix.python }}
       - run: uv run pytest --benchmark-disable

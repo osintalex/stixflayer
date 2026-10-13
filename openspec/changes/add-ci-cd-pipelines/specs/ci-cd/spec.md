@@ -60,7 +60,7 @@ The quality gate SHALL verify the Python code is correctly formatted, contains n
 
 ### Requirement: Tests run cross-platform after the gate passes
 
-After all quality-gate jobs pass, the pipeline SHALL run the test stage: the Rust test suite on Linux, macOS, and Windows; and the Python test suite against the compiled extension on Linux, macOS, and Windows.
+After all quality-gate jobs pass, the pipeline SHALL run the test stage: the Rust test suite on Linux, macOS, and Windows; and the Python test suite against the compiled extension on Linux, macOS, and Windows, with the Python suite executed on every Python version the package supports.
 
 #### Scenario: Rust tests run on all three operating systems
 
@@ -72,10 +72,29 @@ After all quality-gate jobs pass, the pipeline SHALL run the test stage: the Rus
 - **WHEN** the quality gate passes
 - **THEN** the extension is built from the Python package manifest and the Python test suite runs and passes on Linux, macOS, and Windows runners
 
+#### Scenario: Python tests run on every supported Python version
+
+- **WHEN** the quality gate passes
+- **THEN** the Python test suite runs and passes against the built extension for each supported Python version (currently 3.11, 3.12, and 3.13) on Linux, macOS, and Windows runners
+
 #### Scenario: Cross-compile targets are verified for the Rust library
 
 - **WHEN** the test stage runs for Rust
 - **THEN** the library compiles for the additional supported targets `aarch64-unknown-linux-gnu` and `x86_64-unknown-linux-musl`
+
+### Requirement: Workflows minimize third-party dependencies and resource use
+
+The CI and release workflows SHALL provision build tools only from tools preinstalled on the runner images, official container images, or direct package-manager installs, and SHALL NOT depend on GitHub Actions beyond an explicit allowlist: GitHub first-party actions, PyO3/maturin-action, and pypa/gh-action-pypi-publish. The workflows SHALL NOT use cache actions. Python quality-gate jobs SHALL run in a lightweight container image rather than a full runner VM.
+
+#### Scenario: Tools come from preinstalled runners or official images
+
+- **WHEN** a workflow job needs a build tool such as the Rust toolchain or uv
+- **THEN** the job uses a runner-preinstalled tool, an official container image, or a direct package-manager install, with no toolchain-setup or cache actions outside the allowlist
+
+#### Scenario: Python gate jobs run in a lightweight container
+
+- **WHEN** a Python format, lint, or type-check gate job starts
+- **THEN** it runs inside a minimal container image providing uv and the target Python version, not on a full runner VM
 
 ### Requirement: Release runs only on merge to main with a version bump
 

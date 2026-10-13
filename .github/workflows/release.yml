@@ -99,15 +99,15 @@ jobs:
         with:
           name: wheel-${{ matrix.name }}
           path: dist
-      - if: ${{ !matrix.docker }}
-        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.7.0
+      # Plain venv + pip — no uv, keeping the release path dependency-free.
       - if: ${{ !matrix.docker }}
         shell: bash
         run: |
-          uv venv
-          uv pip install dist/*.whl
-          if [ -x .venv/bin/python ]; then PY=.venv/bin/python; else PY=.venv/scripts/python.exe; fi
-          "$PY" .github/scripts/smoke_test.py
+          if command -v python3 >/dev/null 2>&1; then PY=python3; else PY=python; fi
+          "$PY" -m venv .venv
+          if [ -x .venv/bin/python ]; then VPY=.venv/bin/python; else VPY=.venv/scripts/python.exe; fi
+          "$VPY" -m pip install --quiet dist/*.whl
+          "$VPY" .github/scripts/smoke_test.py
       - if: ${{ matrix.docker }}
         shell: bash
         run: |
@@ -163,40 +163,39 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
-      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f
-        with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
-        with:
-          workspaces: rust
       - run: cargo test --workspace
 
   rust-cross:
     name: Rust / cross-compile (${{ matrix.target }})
     needs: [gate]
     if: needs.gate.outputs.rust_release == 'true'
-    runs-on: ubuntu-latest
     timeout-minutes: 45
-    defaults:
-      run:
-        working-directory: rust
     strategy:
       fail-fast: false
       matrix:
-        target: [aarch64-unknown-linux-gnu, x86_64-unknown-linux-musl]
+        include:
+          # Native build on a free ARM runner: the host target IS aarch64-linux-gnu.
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+            alpine: false
+          # Official Alpine image: musl is the default Rust target there.
+          - target: x86_64-unknown-linux-musl
+            runner: ubuntu-latest
+            alpine: true
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
-      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f
-        with:
-          toolchain: stable
-          targets: ${{ matrix.target }}
-      - uses: taiki-e/install-action@ab6895351a88b908e96a4697860d4ffea5e57dbe # v2
-        with:
-          tool: cross
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
-        with:
-          workspaces: rust
-      - run: cross build --workspace --target ${{ matrix.target }}
+      - if: ${{ !matrix.alpine }}
+        working-directory: rust
+        run: cargo build --workspace
+      # Mount the repo root so cargo finds the root .cargo/config.toml by
+      # walking up from the rust/ working directory.
+      - if: ${{ matrix.alpine }}
+        run: |
+          docker run --rm -v "$PWD:/io" -w /io/rust rust:alpine sh -c '
+            apk add --no-cache gcc musl-dev python3 >/dev/null &&
+            cargo build --workspace
+          '
 
   rust-publish:
     name: Rust / publish to crates.io
@@ -208,12 +207,6 @@ jobs:
       contents: write # push the rust-v* release tag
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
-      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f
-        with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
-        with:
-          workspaces: rust
       - name: Check whether stixflayer_derive is already on crates.io
         id: derive
         working-directory: rust
