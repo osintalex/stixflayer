@@ -37,9 +37,15 @@
 - [x] 5.6 Trim `README.md`: remove the "Continuous integration" and "Releasing" sections, keeping the badge; verify `uv run ruff format --check .` and `uv run ruff check .` still pass
 - [x] 5.7 Audit both workflows: only the allowlisted actions remain (actions/checkout, actions/upload-artifact, actions/download-artifact, PyO3/maturin-action, pypa/gh-action-pypi-publish), each pinned to a full commit SHA; run the full local pre-flight (task 4.1 commands) and `openspec validate add-ci-cd-pipelines --strict`
 
+## 6. Registry metadata fix (first-release defect)
+
+- [x] 6.1 Add registry metadata to `rust/stixflayer_derive/Cargo.toml`: `description = "Procedural macros for the stixflayer STIX 2.1 library"` and `repository = "https://github.com/osintalex/stixflayer"`; verify `cargo package --no-verify --allow-dirty -p stixflayer_derive` completes with no manifest-metadata warning
+- [x] 6.2 Add registry metadata to `rust/Cargo.toml` (`stixflayer`): `description = "Fast STIX 2.1 parsing, validation, and serialization in Rust"`, `repository = "https://github.com/osintalex/stixflayer"`, `readme = "../README.md"`, `documentation = "https://docs.rs/stixflayer"`; verify `cargo package --no-verify --allow-dirty -p stixflayer --list` includes `README.md` and emits no manifest-metadata warning, and the release gate still parses the manifest (`python3 .github/scripts/check_release_gate.py --manifest rust/Cargo.toml --tag-prefix rust-v`)
+- [x] 6.3 Run `cargo publish --dry-run --allow-dirty -p stixflayer_derive` (the main crate's full dry-run stays blocked until the derive crate exists on crates.io, per task 3.3) and `openspec validate add-ci-cd-pipelines --strict`
+
 ## Workflow follow-up
 
-- Merge to main to trigger the first release; confirm PyPI shows stixflayer 0.1.0 with six wheels and crates.io shows both crates, and that `py-v0.1.0` / `rust-v0.1.0` tags exist.
+- The first release attempt was rejected by crates.io for missing metadata (tasks 6.1–6.2 fix the manifests); after the fix, re-run the release (merge to main or a `workflow_dispatch` of release.yml — no version bump needed, nothing was uploaded) and confirm PyPI shows stixflayer 0.1.0 with six wheels and crates.io shows both crates, and that `py-v0.1.0` / `rust-v0.1.0` tags exist.
 - Configure the one-time prerequisites (PyPI trusted publisher for this repo/workflow/`pypi` environment, `CARGO_REGISTRY_TOKEN` secret, required status checks on ci.yml jobs) if not already done — documented in design.md (D5/D9); the README section that carried them was removed per user feedback.
 - A follow-up merge with unchanged versions must publish nothing (re-run release.yml manually or via a doc-only merge to observe).
 - Archive the change after the project's review requirements are satisfied.

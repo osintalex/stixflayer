@@ -141,17 +141,31 @@ The Python release SHALL build a single abi3 wheel (compatible with every Python
 
 ### Requirement: Rust release publishes the workspace crates in dependency order
 
-The Rust release SHALL publish the library to crates.io only after the cross-platform verification passes, and SHALL publish the `stixflayer_derive` crate first whenever its version also advanced, because the main crate's registry entry depends on it.
+The Rust release SHALL publish the library to crates.io only after the cross-platform verification passes, and SHALL publish the `stixflayer_derive` crate first whenever the version being released is not yet on crates.io, because the main crate's registry entry depends on it.
 
 #### Scenario: Main crate published after its dependency
 
-- **WHEN** the Rust release runs with both crates' versions advanced
+- **WHEN** the Rust release runs and `stixflayer_derive`'s version is not yet on crates.io
 - **THEN** `stixflayer_derive` is published to crates.io before the main `stixflayer` crate
 
 #### Scenario: Release only after verification
 
 - **WHEN** any cross-platform verification job fails during the Rust release
 - **THEN** nothing is published to crates.io
+
+### Requirement: Published crates carry registry-compliant metadata
+
+Every crate the Rust release publishes SHALL have a manifest satisfying crates.io's publication requirements before upload: a non-empty `description`, a `license`, and a `repository` URL. The main `stixflayer` crate SHALL additionally include the repository README in its published package.
+
+#### Scenario: Crate manifests are registry-compliant
+
+- **WHEN** a workspace crate is packaged for publish
+- **THEN** the package includes a non-empty description, a license, and a repository URL, and packaging emits no missing-metadata warning
+
+#### Scenario: Main crate package includes the README
+
+- **WHEN** the main `stixflayer` crate is packaged
+- **THEN** the package includes the repository README
 
 ### Requirement: Successful releases are recorded with version tags
 

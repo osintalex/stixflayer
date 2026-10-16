@@ -8,6 +8,8 @@ User-confirmed scope decisions: abi3 single-wheel builds; wheel matrix includes 
 
 After the first fully green CI run (14/14 jobs on the initial implementation), the user requested a leaner pipeline: lightweight containers instead of full VMs for the Python gate jobs, a minimal third-party-action policy (D8), and a Python version matrix for the test stage. Those decisions are folded into the decisions below; the workflow files were reworked accordingly.
 
+During the first release attempt, the `stixflayer_derive` publish was rejected by crates.io with `400 Bad Request: missing or empty metadata fields: description` — neither workspace manifest carried publish metadata, and the main crate's manifest had the same gap one step later. That defect and its fix (registry-compliant metadata in both manifests) are folded into the decisions below.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -50,6 +52,9 @@ release.yml gets `permissions: contents: write` (tag push) and `id-token: write`
 
 **D9 — Credential model.**
 One credential in the whole pipeline. PyPI uses trusted publishing: release.yml holds `id-token: write` and the publish job runs under the `pypi` GitHub environment; `pypa/gh-action-pypi-publish` exchanges the run's short-lived OIDC token for an upload session, validated against the one-time trusted-publisher registration (owner/repo/workflow name/environment) made on PyPI's website — no PyPI token is stored in the repository. crates.io, which has no OIDC support, uses the `CARGO_REGISTRY_TOKEN` repository secret, read automatically by `cargo publish` from the job env. Fallback if trusted publishing is ever unavailable: store a fine-grained `PYPI_API_TOKEN` as a secret scoped to the `pypi` environment and pass it to the publish action's `password` input — deliberately not implemented now to keep long-lived tokens out by default.
+
+**D10 — Registry-compliant crate metadata.**
+crates.io rejects an upload whose manifest lacks a description (HTTP 400), and cargo warns when a manifest has none of description/documentation/homepage/repository; verified locally that `description` + `repository` alone silence the warning. Both manifests therefore gain `description` and `repository` (repo: `https://github.com/osintalex/stixflayer`); the main crate additionally gets `readme = "../README.md"` (cargo copies the referenced file into the package) and `documentation = "https://docs.rs/stixflayer"`. The derive crate deliberately gets no readme/documentation — the repository README is library- and Python-oriented, and cargo emits no warning for its manifest with just description + repository. Manifests keep literal `version` fields: the release gate script (`check_release_gate.py`) reads `package.version` directly from `rust/Cargo.toml`, so workspace inheritance (`version.workspace = true`) is not introduced. Nothing was uploaded by the failed attempt, so both crates still publish as 0.1.0 with no version bump.
 
 ## Risks / Trade-offs
 

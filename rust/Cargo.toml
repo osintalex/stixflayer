@@ -3,6 +3,10 @@ name = "stixflayer"
 version = "0.1.0"
 edition = "2021"
 license = "BSD-3-Clause"
+description = "Fast STIX 2.1 parsing, validation, and serialization in Rust"
+repository = "https://github.com/osintalex/stixflayer"
+readme = "../README.md"
+documentation = "https://docs.rs/stixflayer"
 
 [workspace]
 members = [".", "stixflayer_derive"]
