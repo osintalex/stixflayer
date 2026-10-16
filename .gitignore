@@ -30,3 +30,4 @@ stix-2.1-spec.html
 benchmarks/results/*.json
 .benchmarks/
 
+POC-PARSER-COMPARISON.md
