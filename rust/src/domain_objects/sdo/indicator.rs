@@ -14,7 +14,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use stix_derive::StixProperties;
+use stixflayer_derive::StixProperties;
 
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]

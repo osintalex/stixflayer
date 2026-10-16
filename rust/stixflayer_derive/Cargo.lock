@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "stix_derive"
+name = "stixflayer_derive"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",

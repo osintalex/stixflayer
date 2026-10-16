@@ -19,7 +19,7 @@ use crate::{
     types::{Identified, Identifier},
     validation::validate_value,
 };
-use stix_derive::StixProperties;
+use stixflayer_derive::StixProperties;
 
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;

@@ -5,20 +5,20 @@ edition = "2021"
 license = "BSD-3-Clause"
 
 [workspace]
-members = [".", "stix_derive"]
+members = [".", "stixflayer_derive"]
 
 [lib]
 name = "stixflayer"
 
 [features]
 default = ["pyo3"]
-pyo3 = ["dep:pyo3"]
+pyo3 = ["dep:pyo3", "pyo3/abi3-py311"]
 
 [dependencies]
 addr = "0.15.6"
 base64 = "0.22.1"
 convert_case = "0.7.1"
-stix_derive = { path = "stix_derive" }
+stixflayer_derive = { path = "stixflayer_derive", version = "0.1.0" }
 email_address = "0.2"
 hex = "0.4.3"
 identyhash = "0.1.0"

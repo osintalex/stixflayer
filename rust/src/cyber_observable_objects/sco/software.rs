@@ -3,7 +3,7 @@ use crate::cyber_observable_objects::lang_codes::{is_iso639_2_code, is_valid_lan
 use crate::error::{add_error, return_multiple_errors, StixError as Error};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use stix_derive::StixProperties;
+use stixflayer_derive::StixProperties;
 
 /// Software
 ///

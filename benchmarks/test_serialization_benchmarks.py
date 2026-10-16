@@ -20,9 +20,11 @@ def test_serialize_bundle(benchmark: Any, name: str, text: str) -> None:
         return parsed.to_json()
 
     benchmark.group = "serialize_bundle"
-    benchmark.extra_info.update({
-        "library": "stixflayer",
-        "fixture": name,
-        "objects": len(json.loads(text)["objects"]),
-    })
+    benchmark.extra_info.update(
+        {
+            "library": "stixflayer",
+            "fixture": name,
+            "objects": len(json.loads(text)["objects"]),
+        }
+    )
     benchmark.pedantic(target, setup=gc_setup, rounds=30, warmup_rounds=5)

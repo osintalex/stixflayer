@@ -23,9 +23,11 @@ def test_iterate_bundle(benchmark: Any, name: str, text: str) -> None:
             _ = item.id
 
     benchmark.group = "iterate_bundle"
-    benchmark.extra_info.update({
-        "library": "stixflayer",
-        "fixture": name,
-        "objects": len(json.loads(text)["objects"]),
-    })
+    benchmark.extra_info.update(
+        {
+            "library": "stixflayer",
+            "fixture": name,
+            "objects": len(json.loads(text)["objects"]),
+        }
+    )
     benchmark.pedantic(target, setup=gc_setup, rounds=100, warmup_rounds=5)

@@ -6,7 +6,7 @@ use crate::types::Hashes;
 use base64::{engine::general_purpose, Engine};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use stix_derive::StixProperties;
+use stixflayer_derive::StixProperties;
 use url::Url as RustUrl;
 
 /// Artifact Object

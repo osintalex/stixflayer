@@ -1396,15 +1396,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
-name = "stix_derive"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
 name = "stixflayer"
 version = "0.1.0"
 dependencies = [
@@ -1433,13 +1424,22 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "serde_with",
- "stix_derive",
+ "stixflayer_derive",
  "strum",
  "test-log",
  "thiserror 2.0.21",
  "tlsh",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "stixflayer_derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]

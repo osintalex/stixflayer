@@ -1,5 +1,7 @@
 # 🧠 Stixflayer 🦑
 
+[![CI](https://github.com/osintalex/stixflayer/actions/workflows/ci.yml/badge.svg)](https://github.com/osintalex/stixflayer/actions/workflows/ci.yml)
+
 Rust-native STIX 2.1 engine. One spec-compliant core, consumed by many.
 
 ## Performance 🚀⚡
@@ -73,8 +75,8 @@ pip install -e .
 from stixflayer import Bundle
 
 bundle = Bundle.from_json(open("bundle.json").read())
-print(bundle.object_count)      # number of objects
-for obj in bundle.objects:      # live Python wrappers, not raw dicts
+print(bundle.object_count)  # number of objects
+for obj in bundle.objects:  # live Python wrappers, not raw dicts
     print(obj.type, obj.id)
 ```
 
@@ -97,7 +99,9 @@ ap = AttackPattern(
 from stixflayer import AttackPattern, ValidationError
 
 try:
-    AttackPattern.from_json('{"type": "attack-pattern", "spec_version": "2.1", "id": "attack-pattern--d3046a90-580c-4004-8208-66915bc29830", "created": "2019-04-24T15:12:36.609Z", "modified": "2023-03-24T15:14:15.637Z"}')
+    AttackPattern.from_json(
+        '{"type": "attack-pattern", "spec_version": "2.1", "id": "attack-pattern--d3046a90-580c-4004-8208-66915bc29830", "created": "2019-04-24T15:12:36.609Z", "modified": "2023-03-24T15:14:15.637Z"}'
+    )
 except ValidationError as e:
     print(e.errors)  # [{'kind': 'missing_property', 'message': "...", 'property': 'name'}]
 ```

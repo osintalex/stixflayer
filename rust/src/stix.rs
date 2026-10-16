@@ -19,7 +19,7 @@ use serde_json::Value;
 use serde_with::skip_serializing_none;
 use std::collections::BTreeMap;
 use std::str::FromStr;
-use stix_derive::StixProperties;
+use stixflayer_derive::StixProperties;
 use strum::IntoEnumIterator;
 
 /// A trait for all STIX 2.1 compliant objects and properties.

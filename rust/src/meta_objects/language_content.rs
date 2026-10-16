@@ -1,7 +1,7 @@
 //! Data structures and functions for implementing Lanugage Content SMOs
 
 use std::str::FromStr;
-use stix_derive::StixProperties;
+use stixflayer_derive::StixProperties;
 
 use crate::{
     base::{CommonProperties, CommonPropertiesBuilder, Stix},

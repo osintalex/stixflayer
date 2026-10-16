@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_this_or_that::as_opt_u64;
 use serde_with::skip_serializing_none;
 use std::sync::OnceLock;
-use stix_derive::StixProperties;
+use stixflayer_derive::StixProperties;
 
 fn protocol_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();

@@ -53,7 +53,7 @@ pub use note::Note;
 pub use observed_data::ObservedData;
 pub use opinion::Opinion;
 pub use report::Report;
-use stix_derive::StixProperties;
+use stixflayer_derive::StixProperties;
 pub use threat_actor::ThreatActor;
 pub use tool::Tool;
 pub use vulnerability::Vulnerability;

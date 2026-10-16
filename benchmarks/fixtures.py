@@ -123,8 +123,7 @@ def validate_fixture(text: str, path: Path) -> tuple[bool, str]:
 
     if validator_count != stixflayer_count:
         return False, (
-            f"object count mismatch for {path.name}: "
-            f"validator={validator_count}, stixflayer={stixflayer_count}"
+            f"object count mismatch for {path.name}: validator={validator_count}, stixflayer={stixflayer_count}"
         )
 
     return True, ""

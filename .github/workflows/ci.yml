@@ -1,0 +1,170 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Read-only: CI never publishes or pushes.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Stage 1 — quality gate. Six independent parallel jobs; the test stage
+  # below waits for every one of them. Rust jobs use the toolchain
+  # preinstalled on the runner images; Python gate jobs run in a slim uv
+  # container instead of a full VM.
+  # -------------------------------------------------------------------------
+  rust-fmt:
+    name: Rust / format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+      - run: cargo fmt --all -- --check
+
+  rust-clippy:
+    name: Rust / lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+      # Runner images ship rustfmt but not always clippy; this is a no-op if present.
+      - run: rustup component add clippy
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  rust-build:
+    name: Rust / compile
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+      - run: cargo build --workspace
+
+  py-format:
+    name: Python / format
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+      # Dev tools only — skip building the extension (no Rust toolchain here).
+      - run: uv sync --no-install-project
+      - run: uv run --no-sync ruff format --check .
+
+  py-lint:
+    name: Python / lint
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+      - run: uv sync --no-install-project
+      - run: uv run --no-sync ruff check .
+
+  py-typecheck:
+    name: Python / types
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+      - run: uv sync --no-install-project
+      - run: uv run --no-sync pyrefly check
+
+  # -------------------------------------------------------------------------
+  # Stage 2 — tests. Runs only after every gate job above has passed.
+  # Target checks: aarch64 builds natively on a free ARM runner; musl
+  # cross-compiles with rustc's bundled lld — no containers, no Docker.
+  # -------------------------------------------------------------------------
+  rust-test:
+    name: Rust / tests (${{ matrix.os }})
+    needs: [rust-fmt, rust-clippy, rust-build, py-format, py-lint, py-typecheck]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: rust
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+      - run: cargo test --workspace
+
+  rust-cross:
+    name: Rust / cross-compile (${{ matrix.target }})
+    needs: [rust-fmt, rust-clippy, rust-build, py-format, py-lint, py-typecheck]
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Native build on a free ARM runner: the host target IS aarch64-linux-gnu.
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+            native: true
+          # Cross-compiled with rustc's bundled lld (self-contained linking);
+          # a pure-Rust crate needs no musl toolchain and no container.
+          - target: x86_64-unknown-linux-musl
+            runner: ubuntu-latest
+            native: false
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+      - if: matrix.native
+        working-directory: rust
+        run: cargo build --workspace
+      - if: ${{ !matrix.native }}
+        working-directory: rust
+        run: |
+          rustup target add ${{ matrix.target }}
+          cargo build --workspace --target ${{ matrix.target }}
+
+  py-test:
+    name: Python / tests (${{ matrix.os }}, py${{ matrix.python }})
+    needs: [rust-fmt, rust-clippy, rust-build, py-format, py-lint, py-typecheck]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+      # uv via the official installer — no dedicated setup action.
+      - if: runner.os != 'Windows'
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          irm https://astral.sh/uv/install.ps1 | iex
+          Add-Content $env:GITHUB_PATH "$env:USERPROFILE\.local\bin"
+      # Rust toolchain is preinstalled: the maturin build backend compiles the extension.
+      # uv provisions the requested interpreter itself if the runner lacks it.
+      - run: uv sync --python ${{ matrix.python }}
+      - run: uv run pytest --benchmark-disable

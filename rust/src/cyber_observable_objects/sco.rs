@@ -55,7 +55,7 @@ use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{collections::HashMap, sync::LazyLock};
-use stix_derive::StixProperties;
+use stixflayer_derive::StixProperties;
 use strum::{AsRefStr, Display as StrumDisplay, EnumString};
 // Static dictionaries of ID contributing properties for each SCO type
 

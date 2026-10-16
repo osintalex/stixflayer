@@ -4,7 +4,7 @@ use crate::error::{add_error, return_multiple_errors, StixError as Error};
 use crate::types::{Identifier, Timestamp};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use stix_derive::StixProperties;
+use stixflayer_derive::StixProperties;
 
 /// Directory
 ///
