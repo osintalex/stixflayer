@@ -18,7 +18,7 @@ env:
 
 jobs:
   # -------------------------------------------------------------------------
-  # Stage 1 — quality gate. Six independent parallel jobs; the test stage
+  # Stage 1 — quality gate. Eight independent parallel jobs; the test stage
   # below waits for every one of them. Rust jobs use the toolchain
   # preinstalled on the runner images; Python gate jobs run in a slim uv
   # container instead of a full VM.
@@ -58,6 +58,22 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
       - run: cargo build --workspace
 
+  rust-docs:
+    name: Rust / docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+      # -D warnings also fails the build on broken intra-doc links.
+      # (missing_docs is a rustc lint; the crate itself denies it.)
+      - run: cargo doc --workspace --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - run: cargo test --doc --workspace
+
   py-format:
     name: Python / format
     runs-on: ubuntu-latest
@@ -92,6 +108,20 @@ jobs:
       - run: uv sync --no-install-project
       - run: uv run --no-sync pyrefly check
 
+  docs-build:
+    name: Docs / build
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+      # Docs tooling only — the site build needs no compiled extension
+      # (content is curated Markdown; no API autodoc).
+      - run: uv venv
+      - run: uv pip install -r docs/requirements.txt
+      - run: uv run --no-sync zensical build --strict --clean
+
   # -------------------------------------------------------------------------
   # Stage 2 — tests. Runs only after every gate job above has passed.
   # Target checks: aarch64 builds natively on a free ARM runner; musl
@@ -99,7 +129,7 @@ jobs:
   # -------------------------------------------------------------------------
   rust-test:
     name: Rust / tests (${{ matrix.os }})
-    needs: [rust-fmt, rust-clippy, rust-build, py-format, py-lint, py-typecheck]
+    needs: [rust-fmt, rust-clippy, rust-build, rust-docs, py-format, py-lint, py-typecheck, docs-build]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     defaults:
@@ -115,7 +145,7 @@ jobs:
 
   rust-cross:
     name: Rust / cross-compile (${{ matrix.target }})
-    needs: [rust-fmt, rust-clippy, rust-build, py-format, py-lint, py-typecheck]
+    needs: [rust-fmt, rust-clippy, rust-build, rust-docs, py-format, py-lint, py-typecheck, docs-build]
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -144,7 +174,7 @@ jobs:
 
   py-test:
     name: Python / tests (${{ matrix.os }}, py${{ matrix.python }})
-    needs: [rust-fmt, rust-clippy, rust-build, py-format, py-lint, py-typecheck]
+    needs: [rust-fmt, rust-clippy, rust-build, rust-docs, py-format, py-lint, py-typecheck, docs-build]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
