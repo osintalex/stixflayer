@@ -147,7 +147,7 @@ static PROTOCOLS_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     let mut protocols_map = HashMap::new();
     protocols_map.insert("http-request-ext".to_string(), "http".to_string());
     protocols_map.insert("tcp-ext".to_string(), "tcp".to_string());
-    protocols_map.insert("imcp-ext".to_string(), "imcp".to_string());
+    protocols_map.insert("icmp-ext".to_string(), "icmp".to_string());
     protocols_map.insert("socket-ext".to_string(), "tcp".to_string());
     protocols_map
 });
@@ -395,4 +395,29 @@ pub enum CyberObjectType {
     WindowsRegistryKeyType(WindowsRegistryKeyType),
     /// An `x509-certificate` object.
     X509Certificate(Box<X509Certificate>),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn protocol_extension_map_matches_spec() {
+        assert_eq!(
+            PROTOCOLS_MAP.get("icmp-ext").map(String::as_str),
+            Some("icmp")
+        );
+        assert_eq!(
+            PROTOCOLS_MAP.get("tcp-ext").map(String::as_str),
+            Some("tcp")
+        );
+        assert_eq!(
+            PROTOCOLS_MAP.get("http-request-ext").map(String::as_str),
+            Some("http")
+        );
+        assert_eq!(
+            PROTOCOLS_MAP.get("socket-ext").map(String::as_str),
+            Some("tcp")
+        );
+    }
 }

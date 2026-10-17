@@ -38,8 +38,8 @@ pub enum WindowsRegistryDataTypeEnum {
     #[strum(serialize = "REG_BINARY")]
     RegBinary,
     /// A 32-bit number (REG_DWORD).
-    #[strum(serialize = "Reg_DWORD")]
-    REGDword,
+    #[strum(serialize = "REG_DWORD")]
+    RegDword,
     /// A 32-bit number in big-endian format (REG_DWORD_BIG_ENDIAN).
     #[strum(serialize = "REG_DWORD_BIG_ENDIAN")]
     RegDwordBigEndian,
@@ -59,7 +59,7 @@ pub enum WindowsRegistryDataTypeEnum {
     #[strum(serialize = "REG_FULL_RESOURCE_DESCRIPTION")]
     RegFullResourceDescription,
     /// A hardware resource requirements list (REG_RESOURCE_REQUIREMENTS_LIST).
-    #[strum(serialize = "REG_RESOURCEL_REQUIREMENTS_LIST")]
+    #[strum(serialize = "REG_RESOURCE_REQUIREMENTS_LIST")]
     RegResourceRequirementsList,
     /// A 64-bit number (REG_QWORD).
     #[strum(serialize = "REG_QWORD")]
@@ -259,7 +259,7 @@ pub enum IanaServiceNamesEnum {
     /// The Internet Message Access Protocol.
     Imap,
     /// The Internet Control Message Protocol.
-    Imcp,
+    Icmp,
     /// The Internet Protocol.
     Ip,
     /// The Internet Relay Chat protocol.

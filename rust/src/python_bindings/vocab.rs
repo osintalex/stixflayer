@@ -24,7 +24,7 @@ macro_rules! make_vocab_enum {
                         .collect();
                     Err(PyErr::new::<StixError, _>(format!(
                         "Invalid {} value: '{}'. Valid values: {:?}",
-                        stringify!($enum_type),
+                        stringify!($name),
                         value,
                         valid_values
                     )))

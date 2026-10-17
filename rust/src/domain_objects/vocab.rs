@@ -134,8 +134,8 @@ pub enum IdentitySectors {
     GovernmentLocal,
     /// The government public services sector.
     GovernmentPublicServices,
-    /// The emergency services sanitation sector.
-    EmergencyServicesSanitation,
+    /// The emergency services sector.
+    EmergencyServices,
     /// The healthcare sector.
     Healthcare,
     /// The hospitality and leisure sector.
