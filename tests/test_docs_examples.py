@@ -33,8 +33,11 @@ def test_docs_examples(example: CodeExample, eval_example: EvalExample) -> None:
     eval_example.set_config(
         line_length=LINE_LENGTH,
         quotes="double",
-        # pytest-examples 0.0.18's own annotation is stale (it omits py311,
-        # which black accepts and the runtime honors).
+        # pytest-examples 0.0.18's own annotation is stale: the Literal in
+        # eval_example.py duplicates 'py310' where 'py311' belongs (config.py
+        # has the correct list). Runtime honors py311; black accepts it too.
+        # Tracked upstream: https://github.com/pydantic/pytest-examples/issues/63
+        # (also https://github.com/pydantic/pytest-examples/issues/64)
         # pyrefly: ignore [bad-argument-type]
         target_version="py311",
         # Snippets are linted with the project's ruff (config is auto-discovered),
