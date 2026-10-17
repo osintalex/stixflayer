@@ -59,7 +59,6 @@ pub mod common;
 pub mod custom_objects;
 pub mod custom_property;
 pub mod cyber_observable_objects;
-pub mod datastore;
 pub mod dictionary;
 pub mod domain_objects;
 pub mod error;

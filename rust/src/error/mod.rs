@@ -5,8 +5,6 @@ use jiff::Error as JiffError;
 use strum::ParseError;
 use thiserror::Error;
 
-use crate::types::Identifier;
-
 pub mod classify;
 pub mod envelope;
 pub mod helpers;
@@ -200,26 +198,6 @@ pub enum StixError {
         /// Description of the value that was found.
         got: String,
     },
-    // Datastore errors
-    /// The requested data source does not exist.
-    #[error("Data source not found")]
-    MissingDataSource,
-    /// The requested data sink does not exist.
-    #[error("Data sink not found")]
-    MissingDataSink,
-    /// The given data type is not supported.
-    #[error("Data type {0} is not supported in rust-stix")]
-    UnsupportedDataType(String),
-    // Filesystem access errors
-    /// A file operation failed; the string carries the I/O error.
-    #[error("File I/O error: {0}")]
-    IoError(String),
-    /// The given path does not exist.
-    #[error("File {0} not found")]
-    PathNotFound(String),
-    /// The object with the given identifier is not in the filesystem.
-    #[error("Object {0} not in filesystem")]
-    ObjectNotFound(Identifier),
 }
 
 impl StixError {
@@ -596,7 +574,6 @@ mod tests {
     /// be asserted exhaustively. A new variant must be added here, keeping the
     /// contract honest.
     fn all_variants() -> Vec<StixError> {
-        use crate::types::Identifier;
         vec![
             StixError::ValidationErrors(vec![StixError::EmptyList]),
             StixError::ValidationErrors(vec![]),
@@ -666,12 +643,6 @@ mod tests {
                 expected: "a string".to_string(),
                 got: "integer `1`".to_string(),
             },
-            StixError::MissingDataSource,
-            StixError::MissingDataSink,
-            StixError::UnsupportedDataType("redis".to_string()),
-            StixError::IoError("permission denied".to_string()),
-            StixError::PathNotFound("/tmp/nope".to_string()),
-            StixError::ObjectNotFound(Identifier::new_test("file")),
         ]
     }
 
