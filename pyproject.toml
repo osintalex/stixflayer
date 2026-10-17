@@ -75,6 +75,7 @@ dev = [
     "pyrefly>=0.60.2",
     "pytest>=9.0.3",
     "pytest-benchmark>=5.0",
+    "pytest-examples>=0.0.18",
     "ruff>=0.15.10",
     "stix2==3.0.2",
     "stix2-validator",

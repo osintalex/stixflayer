@@ -1,6 +1,8 @@
 # 🧠 Stixflayer 🦑
 
 [![CI](https://github.com/osintalex/stixflayer/actions/workflows/ci.yml/badge.svg)](https://github.com/osintalex/stixflayer/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/stixflayer)](https://pypi.org/project/stixflayer/)
+[![crates.io](https://img.shields.io/crates/v/stixflayer)](https://crates.io/crates/stixflayer)
 
 Rust-native STIX 2.1 engine. One spec-compliant core, consumed by many.
 
@@ -48,8 +50,8 @@ We also benchmark against, and owe a debt of comparison to, [`cti-stix-validator
 
 | Language | Status | Binding |
 |----------|--------|---------|
-| Rust | ⚙️🚀 First release coming soon | Native |
-| Python | 🐍🚀 First release coming soon | Native ([pyo3](https://pyo3.rs/)) |
+| Rust | 🦀✅ Released ([crates.io](https://crates.io/crates/stixflayer)) | Native |
+| Python | 🐍✅ Released ([PyPI](https://pypi.org/project/stixflayer/)) | Native ([pyo3](https://pyo3.rs/)) |
 | TypeScript | 🧙🛠️ Next up | [napi.rs](https://napi.rs/) |
 | Go, Java, and more | 🧪🛠️ Planned | WASM + Extism |
 
@@ -58,31 +60,57 @@ Rust performance when validating STIX 🦾
 
 ## Quick Start 🗡️
 
-The published packages are coming soon. Until then, install from source:
-
 ```bash
-pip install -e .
+pip install stixflayer
 ```
+
+Rust users: `cargo add stixflayer`, or browse the API on
+[docs.rs](https://docs.rs/stixflayer). Full documentation, guides, and a
+curated API reference live at
+[osintalex.github.io/stixflayer](https://osintalex.github.io/stixflayer/).
 
 ## Examples
 
-> 📚 **Full documentation is coming soon.** Until then, here are the most
-> common things you can do with the Python bindings today.
+The most common things you can do with the Python bindings. Every example
+below is executed in CI — what you see is what it prints.
 
 **Parse and validate a STIX bundle:**
 
 ```python
+import json
+
 from stixflayer import Bundle
 
-bundle = Bundle.from_json(open("bundle.json").read())
-print(bundle.object_count)  # number of objects
+document = json.dumps(
+    {
+        "type": "bundle",
+        "id": "bundle--0c7b5d88-7c1c-4a8b-8f0c-6e9d4f2b1a55",
+        "objects": [
+            {
+                "type": "attack-pattern",
+                "spec_version": "2.1",
+                "id": "attack-pattern--d3046a90-580c-4004-8208-66915bc29830",
+                "created": "2019-04-24T15:12:36.609Z",
+                "modified": "2023-03-24T15:14:15.637Z",
+                "name": "Clear Command History",
+            },
+        ],
+    }
+)
+
+bundle = Bundle.from_json(document)
+print(bundle.object_count)
+#> 1
 for obj in bundle.objects:  # live Python wrappers, not raw dicts
     print(obj.type, obj.id)
+    #> attack-pattern attack-pattern--d3046a90-580c-4004-8208-66915bc29830
 ```
 
-**Build an SDO:**
+**Build an SDO and serialize it back to JSON:**
 
 ```python
+import json
+
 from stixflayer import AttackPattern
 
 ap = AttackPattern(
@@ -91,6 +119,9 @@ ap = AttackPattern(
     description="Adversaries clear or remove bash_history to hide their tracks.",
     spec_version="2.1",
 )
+roundtrip = json.loads(ap.to_json())
+print(roundtrip["type"], roundtrip["name"])
+#> attack-pattern Clear Command History
 ```
 
 **Catch structured validation errors:**
@@ -103,7 +134,16 @@ try:
         '{"type": "attack-pattern", "spec_version": "2.1", "id": "attack-pattern--d3046a90-580c-4004-8208-66915bc29830", "created": "2019-04-24T15:12:36.609Z", "modified": "2023-03-24T15:14:15.637Z"}'
     )
 except ValidationError as e:
-    print(e.errors)  # [{'kind': 'missing_property', 'message': "...", 'property': 'name'}]
+    print(e.errors)
+    """
+    [
+        {
+            "kind": "missing_property",
+            "message": "`attack-pattern` is missing required property 'name'",
+            "property": "name",
+        }
+    ]
+    """
 ```
 
 **Validate a STIX pattern:**
@@ -112,14 +152,16 @@ except ValidationError as e:
 import stixflayer
 
 stixflayer.validate_pattern("[ipv4-addr:value = '192.0.2.1']")
-```
 
-**Serialize back to JSON:**
-
-```python
-import json
-
-roundtrip = json.loads(ap.to_json())
+try:
+    stixflayer.validate_pattern("[ipv4-addr:value = 192.0.2.1]")
+except Exception as e:
+    print(type(e).__name__, "-", e)
+    """
+    ValidationError
+    -
+    Failed to parse STIX Pattern [ipv4-addr:value = 192.0.2.1]: expected a specific character near '[ipv4-addr:value = 192.0.2.1]'
+    """
 ```
 
 ## Structure 🏰
