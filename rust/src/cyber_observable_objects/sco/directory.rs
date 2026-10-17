@@ -14,11 +14,17 @@ use stixflayer_derive::StixProperties;
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Directory {
+    /// The path to the directory, as originally observed, on the file system.
     pub path: String, // if not USCII path_enc must be set: not sure how we can determine
+    /// The observed encoding of the `path` property, as an IANA character set name.
     pub path_enc: Option<String>, //supposed to be from charcter set list
+    /// The date/time the directory was created.
     pub ctime: Option<Timestamp>,
+    /// The date/time the directory was last written to or modified.
     pub mtime: Option<Timestamp>,
+    /// The date/time the directory was last accessed.
     pub atime: Option<Timestamp>,
+    /// References to the `file` and/or `directory` objects contained within the directory.
     pub contains_refs: Option<Vec<Identifier>>,
 }
 impl Stix for Directory {

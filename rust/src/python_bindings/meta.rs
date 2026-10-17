@@ -27,6 +27,7 @@ use pyo3::types::{PyDict, PyList};
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
+/// Python binding for the MarkingDefinition meta object.
 #[pyclass]
 pub struct MarkingDefinition(pub MarkingDefinitionBuilder);
 
@@ -227,6 +228,7 @@ fn insert_custom_property(
     Ok(())
 }
 
+/// Python binding for the CustomObject custom STIX object type.
 #[pyclass]
 pub struct CustomObject(pub CustomObjectBuilder);
 
@@ -484,6 +486,7 @@ impl CustomObject {
     }
 }
 
+/// Python binding for the ExtensionDefinition meta object.
 #[pyclass]
 pub struct ExtensionDefinition(pub ExtensionDefinitionBuilder);
 
@@ -748,6 +751,7 @@ impl ExtensionDefinition {
     }
 }
 
+/// Python binding for the LanguageContent meta object.
 #[pyclass]
 pub struct LanguageContent(pub LanguageContentBuilder);
 
@@ -990,6 +994,7 @@ impl LanguageContent {
     }
 }
 
+/// Python binding for the Bundle bundle container.
 #[pyclass]
 pub struct Bundle(pub StixBundle);
 

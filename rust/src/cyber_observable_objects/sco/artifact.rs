@@ -21,11 +21,17 @@ use url::Url as RustUrl;
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Artifact {
+    /// The MIME type of the artifact's content.
     pub mime_type: Option<String>,
+    /// The binary content of the artifact, as a base64-encoded string.
     pub payload_bin: Option<String>,
+    /// A URL that resolves to the unencoded artifact content, instead of `payload_bin`.
     pub url: Option<RustUrl>,
+    /// A dictionary of hashes for the artifact contents.
     pub hashes: Option<Hashes>,
+    /// The encryption algorithm used for the artifact content, if it is encrypted.
     pub encryption_algorithm: Option<EncryptionAlgorithm>,
+    /// The decryption key for the encrypted artifact content.
     pub decryption_key: Option<String>,
 }
 impl Stix for Artifact {

@@ -70,7 +70,9 @@ impl DataStore {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DataSink {
     id: Uuid,
+    /// The type of datastore this sink writes to.
     pub data_type: DataSinkType,
+    /// Filters applied to objects added through this sink.
     pub filters: Vec<Filter>,
 }
 
@@ -117,7 +119,9 @@ pub enum DataSinkType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DataSource {
     id: Uuid,
+    /// The type of datastore this source reads from.
     pub data_type: DataSourceType,
+    /// Filters applied to objects retrieved through this source.
     pub filters: Vec<Filter>,
 }
 

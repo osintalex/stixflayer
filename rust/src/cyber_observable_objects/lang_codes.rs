@@ -6,6 +6,7 @@
 
 // Auto-generated from stix2validator.v21.enums
 // 232 entries
+/// Valid RFC 5646 language codes (as used by the validator).
 pub const LANG_CODES: &[&str] = &[
     "af",
     "af-ZA",
@@ -243,6 +244,7 @@ pub const LANG_CODES: &[&str] = &[
 
 // Auto-generated from stix2validator.v21.enums
 // 540 entries (ISO 639-2 three-letter codes)
+/// ISO 639-2 three-letter codes; accepted for backward compatibility but invalid in strict mode.
 pub const SOFTWARE_LANG_CODES: &[&str] = &[
     "aar", "abk", "ace", "ach", "ada", "ady", "afa", "afh", "afr", "ain", "aka", "akk", "alb",
     "alb", "ale", "alg", "alt", "amh", "ang", "anp", "apa", "ara", "arc", "arg", "arm", "arm",

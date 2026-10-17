@@ -13,9 +13,13 @@ use serde::{de::DeserializeOwned, Serialize};
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
 pub enum SpecialExtensions {
+    /// A predefined extension for File SCOs.
     FileExtensions(FileExtensions),
+    /// A predefined extension for NetworkTraffic SCOs.
     NetworkTrafficExtensions(NetworkTrafficExtensions),
+    /// A predefined extension for Process SCOs.
     ProcessExtensions(ProcessExtensions),
+    /// A predefined extension for UserAccount SCOs.
     UserAccountExtensions(UserAccountExtensions),
 }
 
@@ -61,9 +65,13 @@ fn dict_to_extension<T: DeserializeOwned>(
     extension
 }
 
+/// Predefined extensions for File SCOs.
 pub mod file;
+/// Predefined extensions for NetworkTraffic SCOs.
 pub mod network_traffic;
+/// Predefined extensions for Process SCOs.
 pub mod process;
+/// Predefined extensions for UserAccount SCOs.
 pub mod user_account;
 
 pub use self::file::*;

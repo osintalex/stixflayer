@@ -20,14 +20,19 @@ fn stix_timestamp_re() -> &'static Regex {
     })
 }
 
+/// A STIX 2.1 compliant timestamp wrapping a `jiff::Timestamp`.
+///
+/// Only accepts strings of the form `YYYY-MM-DDTHH:mm:ss[.s+]Z` in UTC.
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Timestamp(pub JiffTimestamp);
 
 impl Timestamp {
+    /// Creates a timestamp for the current time.
     pub fn now() -> Self {
         Self(JiffTimestamp::now())
     }
 
+    /// Creates a timestamp from a string, which must match the STIX 2.1 timestamp format.
     pub fn new(timestamp_str: &str) -> Result<Self, Error> {
         // STIX 2.1 has a stricter standard for valid timestamps than the `jiff`` crate we use.
         // Before parsing a given timestamp string, check that it matches the STIX pattern.

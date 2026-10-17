@@ -17,7 +17,9 @@ use strum::{AsRefStr, EnumIter};
 #[serde(untagged)]
 #[strum(serialize_all = "kebab-case")]
 pub enum ProcessExtensions {
+    /// The Windows Process extension (`windows-process-ext`).
     WindowsProcessExt(WindowsProcessExtension),
+    /// The Windows Service extension (`windows-service-ext`).
     WindowsServiceExt(WindowsServiceExtension),
 }
 

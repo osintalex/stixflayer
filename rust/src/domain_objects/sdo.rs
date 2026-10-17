@@ -91,10 +91,12 @@ impl DomainObject {
         validate_value(value, allow_custom, true)
     }
 
+    /// Returns whether this SDO has been marked as revoked.
     pub fn is_revoked(&self) -> bool {
         matches!(self.common_properties.revoked, Some(true))
     }
 
+    /// Creates a Sighting SRO builder with this SDO as the `sighting_of_ref`.
     pub fn add_sighting(self) -> Result<RelationshipObjectBuilder, Error> {
         let sighting_of_ref = self.get_id().to_owned();
 
@@ -166,7 +168,7 @@ impl Stix for DomainObject {
     }
 }
 
-// Checks that the required properties for an SDO are present and that the prohibited fields for an SDO are not present
+/// Checks that the required properties for an SDO are present and that the prohibited fields for an SDO are not present
 pub fn check_sdo_properties(properties: &CommonProperties) -> Result<(), Error> {
     let mut errors = Vec::new();
 
@@ -214,24 +216,43 @@ pub fn check_sdo_properties(properties: &CommonProperties) -> Result<(), Error> 
 #[serde(tag = "type", rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum DomainObjectType {
+    /// An attack-pattern SDO, describing a way that adversaries attempt to compromise targets.
     AttackPattern(AttackPattern),
+    /// A campaign SDO, a grouping of adversarial behaviors over a period of time.
     Campaign(Campaign),
+    /// A course-of-action SDO, an action taken to prevent or respond to an attack.
     CourseOfAction(CourseOfAction),
+    /// A grouping SDO, asserting that referenced STIX Objects share a common context.
     Grouping(Grouping),
+    /// An identity SDO, representing an individual, organization, or group (or a class thereof).
     Identity(Identity),
+    /// An incident SDO, which is a stub in STIX 2.1.
     Incident(Incident),
+    /// An indicator SDO, containing a pattern used to detect suspicious or malicious activity.
     Indicator(Indicator),
+    /// An infrastructure SDO, describing systems and resources supporting some purpose.
     Infrastructure(Infrastructure),
+    /// An intrusion-set SDO, a grouped set of adversarial behaviors with common properties.
     IntrusionSet(IntrusionSet),
+    /// A location SDO, representing a geographic location.
     Location(Location),
+    /// A malware SDO, representing a malware instance or family.
     Malware(Malware),
+    /// A malware-analysis SDO, capturing the metadata and results of a malware analysis.
     MalwareAnalysis(MalwareAnalysis),
+    /// A note SDO, conveying informative text for further context or analysis.
     Note(Note),
+    /// An observed-data SDO, conveying information about observed cyber-security related entities.
     ObservedData(ObservedData),
+    /// An opinion SDO, assessing the correctness of the information in another STIX Object.
     Opinion(Opinion),
+    /// A report SDO, a collection of threat intelligence focused on one or more topics.
     Report(Report),
+    /// A threat-actor SDO, representing an individual, group, or organization with malicious intent.
     ThreatActor(ThreatActor),
+    /// A tool SDO, representing legitimate software that can be used to perform attacks.
     Tool(Tool),
+    /// A vulnerability SDO, representing a weakness in software or hardware logic.
     Vulnerability(Vulnerability),
 }
 

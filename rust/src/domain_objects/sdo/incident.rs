@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use stixflayer_derive::StixProperties;
 
+/// Represents an incident; the STIX 2.1 Incident object is a stub.
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Incident {

@@ -103,6 +103,10 @@ pub fn classify_top_level_type_error(
 
     error
 }
+
+/// Convert a Python value into a `serde_json` value for use as a STIX property.
+///
+/// Raises `StixError` for Python types that have no STIX JSON representation.
 pub fn py_to_json(obj: &Bound<'_, PyAny>) -> Result<serde_json::Value, PyErr> {
     if obj.is_none() {
         return Ok(serde_json::Value::Null);
@@ -141,6 +145,8 @@ pub fn py_to_json(obj: &Bound<'_, PyAny>) -> Result<serde_json::Value, PyErr> {
         obj.get_type().name()?
     )))
 }
+
+/// Convert a `serde_json` value into the equivalent Python object.
 pub fn json_to_py(py: Python<'_>, value: &serde_json::Value) -> PyResult<Py<PyAny>> {
     Ok(match value {
         serde_json::Value::Null => py.None(),

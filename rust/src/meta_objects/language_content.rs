@@ -37,6 +37,7 @@ use uuid::Uuid;
 #[skip_serializing_none]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct LanguageContent {
+    /// The STIX type of the object: `language-content`.
     #[serde(rename = "type")]
     pub object_type: String,
     /// Common STIX object properties
@@ -66,10 +67,12 @@ impl LanguageContent {
         validate_value(value, allow_custom, true)
     }
 
+    /// Returns `true` if this object's `revoked` property is set to `true`.
     pub fn is_revoked(&self) -> bool {
         matches!(self.common_properties.revoked, Some(true))
     }
 
+    /// Create a builder for a sighting relationship with this object as the `sighting_of_ref`.
     pub fn add_sighting(self) -> Result<RelationshipObjectBuilder, Error> {
         let sighting_of_ref = self.get_id().to_owned();
 

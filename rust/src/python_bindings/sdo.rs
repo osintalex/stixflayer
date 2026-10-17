@@ -10,6 +10,7 @@ use crate::python_bindings::error::{stix_to_pyerr, StixError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
+/// Python binding for the Campaign domain object.
 #[pyclass]
 pub struct Campaign(pub DomainObjectBuilder);
 
@@ -61,6 +62,7 @@ impl Campaign {
     }
 }
 
+/// Python binding for the CourseOfAction domain object.
 #[pyclass]
 pub struct CourseOfAction(pub DomainObjectBuilder);
 
@@ -112,6 +114,7 @@ impl CourseOfAction {
     }
 }
 
+/// Python binding for the Grouping domain object.
 #[pyclass]
 pub struct Grouping(pub DomainObjectBuilder);
 
@@ -163,6 +166,7 @@ impl Grouping {
     }
 }
 
+/// Python binding for the Identity domain object.
 #[pyclass]
 pub struct Identity(pub DomainObjectBuilder);
 
@@ -214,6 +218,7 @@ impl Identity {
     }
 }
 
+/// Python binding for the Incident domain object.
 #[pyclass]
 pub struct Incident(pub DomainObjectBuilder);
 
@@ -265,6 +270,7 @@ impl Incident {
     }
 }
 
+/// Python binding for the Infrastructure domain object.
 #[pyclass]
 pub struct Infrastructure(pub DomainObjectBuilder);
 
@@ -316,6 +322,7 @@ impl Infrastructure {
     }
 }
 
+/// Python binding for the IntrusionSet domain object.
 #[pyclass]
 pub struct IntrusionSet(pub DomainObjectBuilder);
 
@@ -367,6 +374,7 @@ impl IntrusionSet {
     }
 }
 
+/// Python binding for the Location domain object.
 #[pyclass]
 pub struct Location(pub DomainObjectBuilder);
 
@@ -418,6 +426,7 @@ impl Location {
     }
 }
 
+/// Python binding for the MalwareAnalysis domain object.
 #[pyclass]
 pub struct MalwareAnalysis(pub DomainObjectBuilder);
 
@@ -469,6 +478,7 @@ impl MalwareAnalysis {
     }
 }
 
+/// Python binding for the Note domain object.
 #[pyclass]
 pub struct Note(pub DomainObjectBuilder);
 
@@ -520,6 +530,7 @@ impl Note {
     }
 }
 
+/// Python binding for the ObservedData domain object.
 #[pyclass]
 pub struct ObservedData(pub DomainObjectBuilder);
 
@@ -571,6 +582,7 @@ impl ObservedData {
     }
 }
 
+/// Python binding for the Opinion domain object.
 #[pyclass]
 pub struct Opinion(pub DomainObjectBuilder);
 
@@ -622,6 +634,7 @@ impl Opinion {
     }
 }
 
+/// Python binding for the Report domain object.
 #[pyclass]
 pub struct Report(pub DomainObjectBuilder);
 
@@ -673,6 +686,7 @@ impl Report {
     }
 }
 
+/// Python binding for the ThreatActor domain object.
 #[pyclass]
 pub struct ThreatActor(pub DomainObjectBuilder);
 
@@ -724,6 +738,7 @@ impl ThreatActor {
     }
 }
 
+/// Python binding for the Tool domain object.
 #[pyclass]
 pub struct Tool(pub DomainObjectBuilder);
 
@@ -775,6 +790,7 @@ impl Tool {
     }
 }
 
+/// Python binding for the Vulnerability domain object.
 #[pyclass]
 pub struct Vulnerability(pub DomainObjectBuilder);
 
@@ -830,6 +846,7 @@ impl Vulnerability {
 // EXPLICIT MALWARE CLASS — kwargs-based prototype
 // ============================================================================
 
+/// Python binding for the Malware domain object.
 #[pyclass]
 pub struct Malware(pub DomainObjectBuilder);
 
@@ -885,6 +902,7 @@ impl Malware {
 // EXPLICIT ATTACK PATTERN CLASS — kwargs-based
 // ============================================================================
 
+/// Python binding for the AttackPattern domain object.
 #[pyclass]
 pub struct AttackPattern(pub DomainObjectBuilder);
 
@@ -940,6 +958,7 @@ impl AttackPattern {
 // EXPLICIT INDICATOR CLASS — kwargs-based
 // ============================================================================
 
+/// Python binding for the Indicator domain object.
 #[pyclass]
 pub struct Indicator(pub DomainObjectBuilder);
 

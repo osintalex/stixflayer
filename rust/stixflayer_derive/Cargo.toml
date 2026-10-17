@@ -13,3 +13,10 @@ proc-macro = true
 proc-macro2 = "1"
 quote = "1"
 syn = "2"
+
+[dev-dependencies]
+# Doctests exercise the derive end-to-end: the generated code implements
+# `stixflayer::properties::StixProperties` and enum variants need the serde
+# tag attribute to be a real attribute.
+stixflayer = { path = ".." }
+serde = { version = "1", features = ["derive"] }

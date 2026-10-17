@@ -17,35 +17,35 @@ use stixflayer_derive::StixProperties;
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct UserAccount {
-    // The identifier of the account.
+    /// The identifier of the account.
     pub user_id: Option<String>,
-    // Specifies a cleartext credential
+    /// A cleartext credential for the account.
     pub credential: Option<String>,
-    // Specifies the type of credential
+    /// The type of the account credential.
     pub credential_type: Option<String>,
-    //Specifies the account login string,
+    /// The account login string.
     pub account_login: Option<String>,
-    //pecifies the type of the account.
+    /// The type of the account, from the `account-type-ov` open vocabulary.
     pub account_type: Option<String>,
-    //Specifies the display name of the account
+    /// The display name of the account, to be shown in user interfaces.
     pub display_name: Option<String>,
-    //Indicates that the account is associated with a network service
+    /// Whether the account is associated with a network service or system process.
     pub is_service_account: Option<bool>,
-    //Specifies that the account has elevated privileges
+    /// Whether the account has elevated privileges.
     pub is_privileged: Option<bool>,
-    //Specifies that the account has the ability to escalate privileges
+    /// Whether the account has the ability to escalate privileges.
     pub can_escalate_privs: Option<bool>,
-    //Specifies if the account is disabled.
+    /// Whether the account is disabled.
     pub is_disabled: Option<bool>,
-    //Specifies when the account was created.
+    /// The date and time the account was created.
     pub account_created: Option<Timestamp>,
-    //Specifies the expiration date of the account.
+    /// The date and time the account expires.
     pub account_expires: Option<Timestamp>,
-    //Specifies when the account credential was last changed.
+    /// The date and time the account credential was last changed.
     pub credential_last_changed: Option<Timestamp>,
-    //Specifies when the account was first accessed.
+    /// The date and time the account was first accessed.
     pub account_first_login: Option<Timestamp>,
-    //Specifies when the account was last accessed.
+    /// The date and time the account was last accessed.
     pub account_last_login: Option<Timestamp>,
 }
 

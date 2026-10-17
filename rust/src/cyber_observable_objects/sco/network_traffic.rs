@@ -40,28 +40,45 @@ fn ipfix_key_re() -> &'static Regex {
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct NetworkTraffic {
+    /// The date/time the network traffic was initiated, if known.
     pub start: Option<Timestamp>,
+    /// The date/time the network traffic ended, if known.
     pub end: Option<Timestamp>,
+    /// Whether the network traffic is still ongoing.
     pub is_active: Option<bool>,
+    /// The source of the network traffic, as a reference to an SCO (e.g. an IP or MAC address).
     pub src_ref: Option<Identifier>,
+    /// The destination of the network traffic, as a reference to an SCO (e.g. an IP or MAC address).
     pub dst_ref: Option<Identifier>,
+    /// The source port of the network connection.
     #[serde(default, deserialize_with = "as_opt_u64")]
     pub src_port: Option<u64>,
+    /// The destination port of the network connection.
     #[serde(default, deserialize_with = "as_opt_u64")]
     pub dst_port: Option<u64>,
+    /// The protocols observed in the network traffic, listed from lower to higher encapsulation.
     pub protocols: Vec<String>,
+    /// The number of bytes sent from the source to the destination.
     #[serde(default, deserialize_with = "as_opt_u64")]
     pub src_byte_count: Option<u64>,
+    /// The number of bytes sent from the destination to the source.
     #[serde(default, deserialize_with = "as_opt_u64")]
     pub dst_byte_count: Option<u64>,
+    /// The number of packets sent from the source to the destination.
     #[serde(default, deserialize_with = "as_opt_u64")]
     pub src_packets: Option<u64>,
+    /// The number of packets sent from the destination to the source.
     #[serde(default, deserialize_with = "as_opt_u64")]
     pub dst_packets: Option<u64>,
+    /// IP Flow Information Export (IPFIX) data for the traffic, as a dictionary.
     pub ipfix: Option<StixDictionary<DictionaryValue>>,
+    /// The bytes sent from the source to the destination, as a reference to an `artifact` object.
     pub src_payload_ref: Option<Identifier>,
+    /// The bytes sent from the destination to the source, as a reference to an `artifact` object.
     pub dst_payload_ref: Option<Identifier>,
+    /// References to the network-traffic objects encapsulated by this network traffic.
     pub encapsulates_refs: Option<Vec<Identifier>>,
+    /// A reference to the network-traffic object that encapsulates this network traffic.
     pub encapsulated_by_ref: Option<Identifier>,
 }
 impl Stix for NetworkTraffic {

@@ -13,17 +13,17 @@ use stixflayer_derive::StixProperties;
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Software {
-    // name of the software.
+    /// The name of the software.
     pub name: String,
-    // Common Platform Enumeration (CPE) entry for the software
+    /// The Common Platform Enumeration (CPE) v2.3 entry for the software, if available.
     pub cpe: Option<String>,
-    // The Software Identification (SWID) Tags [SWID] entry for the software
+    /// The Software Identification (SWID) tag entry for the software, if available.
     pub swid: Option<String>,
-    //languages supported by the software.
+    /// The languages supported by the software, as RFC 5646 language codes.
     pub languages: Option<Vec<String>>,
-    // The name of the vendor of the software.
+    /// The name of the vendor of the software.
     pub vendor: Option<String>,
-    // The version of the software.
+    /// The version of the software.
     pub version: Option<String>,
 }
 

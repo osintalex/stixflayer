@@ -10,6 +10,7 @@ use crate::python_bindings::error::{stix_to_pyerr, StixError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
+/// Python binding for the IPv4Address cyber-observable.
 #[pyclass]
 pub struct IPv4Address(pub CyberObjectBuilder);
 
@@ -77,6 +78,7 @@ impl IPv4Address {
     }
 }
 
+/// Python binding for the IPv6Address cyber-observable.
 #[pyclass]
 pub struct IPv6Address(pub CyberObjectBuilder);
 
@@ -144,6 +146,7 @@ impl IPv6Address {
     }
 }
 
+/// Python binding for the DomainName cyber-observable.
 #[pyclass]
 pub struct DomainName(pub CyberObjectBuilder);
 
@@ -211,6 +214,7 @@ impl DomainName {
     }
 }
 
+/// Python binding for the URL cyber-observable.
 #[pyclass]
 pub struct URL(pub CyberObjectBuilder);
 
@@ -277,6 +281,7 @@ impl URL {
     }
 }
 
+/// Python binding for the EmailAddress cyber-observable.
 #[pyclass]
 pub struct EmailAddress(pub CyberObjectBuilder);
 
@@ -344,6 +349,7 @@ impl EmailAddress {
     }
 }
 
+/// Python binding for the EmailMessage cyber-observable.
 #[pyclass]
 pub struct EmailMessage(pub CyberObjectBuilder);
 
@@ -418,6 +424,7 @@ impl EmailMessage {
     }
 }
 
+/// Python binding for the MacAddr cyber-observable.
 #[pyclass]
 pub struct MacAddr(pub CyberObjectBuilder);
 
@@ -485,6 +492,7 @@ impl MacAddr {
     }
 }
 
+/// Python binding for the AutonomousSystem cyber-observable.
 #[pyclass]
 pub struct AutonomousSystem(pub CyberObjectBuilder);
 
@@ -552,6 +560,7 @@ impl AutonomousSystem {
     }
 }
 
+/// Python binding for the File cyber-observable.
 #[pyclass]
 pub struct File(pub CyberObjectBuilder);
 
@@ -618,6 +627,7 @@ impl File {
     }
 }
 
+/// Python binding for the Software cyber-observable.
 #[pyclass]
 pub struct Software(pub CyberObjectBuilder);
 
@@ -685,6 +695,7 @@ impl Software {
     }
 }
 
+/// Python binding for the Directory cyber-observable.
 #[pyclass]
 pub struct Directory(pub CyberObjectBuilder);
 
@@ -752,6 +763,7 @@ impl Directory {
     }
 }
 
+/// Python binding for the Mutex cyber-observable.
 #[pyclass]
 pub struct Mutex(pub CyberObjectBuilder);
 
@@ -819,6 +831,7 @@ impl Mutex {
     }
 }
 
+/// Python binding for the Process cyber-observable.
 #[pyclass]
 pub struct Process(pub CyberObjectBuilder);
 
@@ -874,6 +887,7 @@ impl Process {
     }
 }
 
+/// Python binding for the NetworkTraffic cyber-observable.
 #[pyclass]
 pub struct NetworkTraffic(pub CyberObjectBuilder);
 
@@ -929,6 +943,7 @@ impl NetworkTraffic {
     }
 }
 
+/// Python binding for the UserAccount cyber-observable.
 #[pyclass]
 pub struct UserAccount(pub CyberObjectBuilder);
 
@@ -996,6 +1011,7 @@ impl UserAccount {
     }
 }
 
+/// Python binding for the WindowsRegistryKey cyber-observable.
 #[pyclass]
 pub struct WindowsRegistryKey(pub CyberObjectBuilder);
 
@@ -1063,6 +1079,7 @@ impl WindowsRegistryKey {
     }
 }
 
+/// Python binding for the X509Certificate cyber-observable.
 #[pyclass]
 pub struct X509Certificate(pub CyberObjectBuilder);
 
@@ -1130,6 +1147,7 @@ impl X509Certificate {
     }
 }
 
+/// Python binding for the Artifact cyber-observable.
 #[pyclass]
 pub struct Artifact(pub CyberObjectBuilder);
 

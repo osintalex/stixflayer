@@ -9,6 +9,7 @@ use strum::{AsRefStr, EnumIter};
 #[serde(untagged)]
 #[strum(serialize_all = "kebab-case")]
 pub enum UserAccountExtensions {
+    /// The UNIX account extension (`unix-account-ext`).
     UnixAccountExt(UnixAccountExtension),
 }
 

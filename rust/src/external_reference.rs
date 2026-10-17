@@ -130,6 +130,7 @@ impl ReferenceUrl {
         Ok(Self { url, hashes })
     }
 
+    /// Returns the URL of this external reference.
     pub fn get_url(&self) -> &Url {
         &self.url
     }

@@ -190,5 +190,6 @@ fn check_object_type(object_type: &str) -> Result<(), Error> {
 
 /// A trait for objects that have an identifier, providing a method to access it.
 pub trait Identified {
+    /// Returns the identifier of the object.
     fn get_id(&self) -> &Identifier;
 }

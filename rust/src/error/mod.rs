@@ -26,50 +26,81 @@ pub use helpers::{add_error, return_multiple_errors};
 #[strum_discriminants(derive(strum::AsRefStr))]
 #[strum_discriminants(strum(serialize_all = "snake_case"))]
 pub enum StixError {
-    // For retunning multiple errors at once, e.g. during validation
+    /// Multiple validation errors returned at once, e.g. by the collect-all
+    /// validation flow.
     #[error("Validation errors: {0:?}")]
     ValidationErrors(Vec<StixError>),
     // Basic parsing or validation errors
+    /// A timestamp could not be parsed or represented (wraps a
+    /// [`jiff`](https://docs.rs/jiff) error).
     #[error("DateTime error: {0}")]
     DateTimeError(JiffError),
+    /// A list or dictionary property was empty; empty collections are
+    /// prohibited in STIX 2.1.
     #[error("Empty Lists and dictionaries are prohibted in STIX")]
     EmptyList,
+    /// A hash value does not match the format of its declared algorithm.
     #[error("The hash value '{hash_string}' is not a valid {hash_type} hash (detected format: {hash_identity}).")]
     InvalidHash {
+        /// The hash algorithm the value was checked against.
         hash_type: String,
+        /// The hash algorithm the value's format actually suggests.
         hash_identity: String,
+        /// The offending hash value.
         hash_string: String,
     },
+    /// A `--` UUID portion of an object identifier is invalid.
     #[error("Invalid UUID in object id: {message}")]
-    InvalidUuid { message: String },
+    InvalidUuid {
+        /// Details of why the UUID is invalid.
+        message: String,
+    },
+    /// A property was set on a builder that its object type does not allow.
     #[error("{object} of type {object_type} do not have a '{field}' field.")]
     IllegalBuilderProperty {
+        /// The builder or object name the property was set on.
         object: String,
+        /// The STIX type of the object.
         object_type: String,
+        /// The property name that is not valid for this type.
         field: String,
     },
+    /// A relationship type is not valid between the given source and target
+    /// object types.
     #[error("A Relationship Object of type {relationship} cannot exist from a {source_type} to a {target_type}")]
     InvalidRelationship {
+        /// The relationship type that was attempted.
         relationship: String,
+        /// The STIX type of the source object.
         source_type: String,
+        /// The STIX type of the target object.
         target_type: String,
     },
+    /// A required property was never set on a builder.
     #[error("Object of type {object_type} must have the '{property}' property set.")]
     MissingBuilderProperty {
+        /// The STIX type of the object being built.
         object_type: String,
+        /// The required property that was not set.
         property: String,
     },
+    /// The given string could not be parsed as hexadecimal.
     #[error("Could not parse String {0} as a valid hex")]
     ParseHexError(String),
+    /// The given string could not be parsed as a STIX 2.1 identifier.
     #[error("Could not parse String {0} as a valid STIX 2.1 Identifier")]
     ParseIdentifierError(String),
+    /// The given string could not be parsed as an integer.
     #[error("Error parsing integer: {0}")]
     ParseIntegerError(ParseIntError),
+    /// The given string could not be parsed as a STIX 2.1 timestamp.
     #[error("Could not parse timestamp {0} as a valid STIX 2.1 Timestamp")]
     ParseTimestampError(String),
+    /// The given string is not a valid STIX pattern; the second field carries
+    /// the parser's diagnostic.
     #[error("Failed to parse STIX Pattern {0}: {1}")]
     ParsePatternError(String, String),
-    // General validation error
+    /// A validation failure with no more specific variant.
     #[error("STIX validation error: {0}")]
     ValidationError(String),
     /// An object-level check (SDO/SCO/SRO) failed because of an inner error.
@@ -80,70 +111,113 @@ pub enum StixError {
     /// field-level detail (e.g. vocabulary context) survives nesting.
     #[error("STIX validation error: {context}: {}", .source.embedded_message())]
     InvalidNestedObject {
+        /// Names the object and the failed check.
         context: String,
+        /// The inner error that caused the check to fail.
         source: Box<StixError>,
     },
+    /// A value is not a member of the vocabulary it was checked against.
     #[error("STIX validation error: Value '{value}' is not a valid {vocabulary} value.")]
-    InvalidVocabValue { value: String, vocabulary: String },
+    InvalidVocabValue {
+        /// The invalid value.
+        value: String,
+        /// The name of the vocabulary the value was checked against.
+        vocabulary: String,
+    },
     // Extension errors
+    /// An extension key is not a known predefined extension.
     #[error("Extension key is not a known predefined extension")]
     UnknownExtension,
+    /// An extension is not valid for the object type it is applied to.
     #[error("Wrong extension type for object")]
     WrongExtension,
     // Versioning errors
+    /// The object cannot be versioned; the string explains why.
     #[error("Cannot version this object: {0}")]
     UnableToVersion(String),
+    /// The given string is not a valid version timestamp.
     #[error("{0} is not valid version timestamp: {1}")]
     BadVersion(String, JiffError),
     // Customization errors
+    /// A custom object must carry an extension with an appropriate
+    /// `new_object` extension type.
     #[error("Custom objects must have an extension with an appropriate new_object extension type")]
     CustomMissingExtension,
     // (De)serialization and JSON parsing related errors
+    /// A JSON `null` was encountered; nulls are not allowed in STIX 2.1.
     #[error("JSON nulls are not allowed in STIX 2.1")]
     JsonNull,
+    /// The JSON value did not have the expected shape.
     #[error("Unexpected JSON format")]
     UnexpectedJsonFormat,
+    /// The object contained fields that are not part of its STIX type.
     #[error("Unknown fields in JSON: {0:?}")]
     UnknownFields(Vec<String>),
+    /// The JSON value is not a recognized STIX object type.
     #[error("Unrecognized STIX Object or Object Type")]
     UnrecognizedObject(ParseError),
     // `serde_json:Error`s are converted to Strings during error mapping because that Error type does not `impl Clone`
+    /// Serializing a value to JSON failed.
+    ///
+    /// The message is stringified because `serde_json::Error` does not
+    /// implement `Clone`.
     #[error("Serialization error: {0}")]
     SerializationError(String),
+    /// Deserializing a value from JSON failed.
+    ///
+    /// The message is stringified because `serde_json::Error` does not
+    /// implement `Clone`.
     #[error("Deserialization error: {0}")]
     DeserializationError(String),
     // Structured (de)serialization errors, produced by classify_serde_error
     // and the collect-all validation flow. These carry the STIX object type
     // so bindings can render actionable messages without re-parsing strings.
+    /// A required property is missing from an object.
     #[error("`{object_type}` is missing required property '{property}'")]
     MissingProperty {
+        /// The STIX type missing the property.
         object_type: String,
+        /// The required property name.
         property: String,
     },
+    /// An object contains properties that are not part of its STIX type.
     #[error("`{object_type}` has unknown properties: {fields:?}")]
     UnknownProperties {
+        /// The STIX type that rejected the fields.
         object_type: String,
+        /// The unrecognized property names.
         fields: Vec<String>,
     },
+    /// A property has a value of the wrong JSON type.
     #[error("`{object_type}` has an invalid value for property '{property}': expected {expected}, got {got}")]
     InvalidPropertyType {
+        /// The STIX type of the object.
         object_type: String,
+        /// The property with the wrong value type.
         property: String,
+        /// Description of the expected type.
         expected: String,
+        /// Description of the value that was found.
         got: String,
     },
     // Datastore errors
+    /// The requested data source does not exist.
     #[error("Data source not found")]
     MissingDataSource,
+    /// The requested data sink does not exist.
     #[error("Data sink not found")]
     MissingDataSink,
+    /// The given data type is not supported.
     #[error("Data type {0} is not supported in rust-stix")]
     UnsupportedDataType(String),
     // Filesystem access errors
+    /// A file operation failed; the string carries the I/O error.
     #[error("File I/O error: {0}")]
     IoError(String),
+    /// The given path does not exist.
     #[error("File {0} not found")]
     PathNotFound(String),
+    /// The object with the given identifier is not in the filesystem.
     #[error("Object {0} not in filesystem")]
     ObjectNotFound(Identifier),
 }
@@ -308,7 +382,7 @@ impl StixError {
     /// For `ValidationErrors`, this flattens the entries of each inner error.
     /// Every other error yields at least one entry: a rich entry when the
     /// variant has natural structure, otherwise a catch-all entry
-    /// ([`StixError::catch_all_entry`]).
+    /// (`catch_all_entry`).
     pub fn errors(&self) -> Vec<ErrorEntry> {
         match self {
             StixError::ValidationErrors(errors) if !errors.is_empty() => {

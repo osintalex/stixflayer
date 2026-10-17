@@ -1,9 +1,13 @@
 //! Data structures and functions for implementing STIX Relationship Objects (SROs).
 #![allow(dead_code)]
 
+/// Builder for constructing STIX Relationship Objects (SROs).
 pub mod builder;
+/// The generic Relationship SRO, a typed connection between two STIX Objects.
 pub mod relationship;
+/// The Sighting SRO, an assertion that an object was seen in a context.
 pub mod sighting;
+/// Validation of the required common properties for SROs.
 pub mod validation;
 
 pub use builder::RelationshipObjectBuilder;
@@ -11,6 +15,7 @@ pub use relationship::Relationship;
 pub use sighting::Sighting;
 pub use validation::check_sro_properties;
 
+/// Relationship type vocabulary used by SROs.
 pub mod types;
 
 use crate::{
@@ -27,6 +32,9 @@ use strum::{AsRefStr, Display as StrumDisplay};
 
 /// A trait for all STIX Objects that can be related by SROs.
 pub trait Related {
+    /// Creates a relationship of the given type from this object to `target`.
+    ///
+    /// Returns a builder for the new SRO.
     fn add_relationship<T: Related + Identified>(
         self,
         target: T,
@@ -61,6 +69,7 @@ impl RelationshipObject {
         validate_value(value, allow_custom, true)
     }
 
+    /// Returns whether the SRO is marked as revoked.
     pub fn is_revoked(&self) -> bool {
         matches!(self.common_properties.revoked, Some(true))
     }
@@ -137,6 +146,8 @@ crate::impl_custom_properties_holder!(RelationshipObject);
 #[serde(tag = "type", rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum RelationshipObjectType {
+    /// A generic relationship between two STIX Objects.
     Relationship(Relationship),
+    /// A sighting of a STIX Object in a context.
     Sighting(Sighting),
 }

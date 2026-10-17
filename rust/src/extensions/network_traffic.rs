@@ -16,9 +16,13 @@ use strum::{AsRefStr, EnumIter};
 #[serde(untagged)]
 #[strum(serialize_all = "kebab-case")]
 pub enum NetworkTrafficExtensions {
+    /// The ICMP extension (`icmp-ext`).
     IcmpExt(IcmpExtension),
+    /// The HTTP request extension (`http-request-ext`).
     HttpRequestExt(HttpRequestExtension),
+    /// The Network Socket extension (`socket-ext`).
     SocketExt(SocketExtenion),
+    /// The TCP extension (`tcp-ext`).
     TcpExt(TcpExtension),
 }
 

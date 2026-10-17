@@ -5,6 +5,7 @@ use strum::IntoEnumIterator;
 /// Macro to generate a Python class for STIX vocabulary enums
 macro_rules! make_vocab_enum {
     ($name:ident, $enum_type:ty) => {
+        #[doc = concat!("Python binding for the `", stringify!($name), "` vocabulary.")]
         #[pyclass]
         pub struct $name(String);
 
