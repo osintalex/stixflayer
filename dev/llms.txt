@@ -1,0 +1,3 @@
+# stixflayer
+
+> Fast STIX 2.1 parsing, validation, and serialization — one Rust engine, consumed by many languages.
