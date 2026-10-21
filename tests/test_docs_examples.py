@@ -28,6 +28,20 @@ EXAMPLE_ROOTS = (
 LINE_LENGTH = 120  # matches [tool.ruff] line-length
 
 
+# Skipped on Windows: the harness pipes each snippet to ruff through a
+# subprocess without an explicit encoding (pytest-examples 0.0.18,
+# lint.py), so the pipe uses the Windows ANSI code page (cp1252) instead
+# of UTF-8. Any snippet containing non-ASCII — e.g. the em dash in
+# docs/api/exceptions.md — then reaches ruff as invalid UTF-8 and it exits
+# with "stream did not contain valid UTF-8". Reproduces on Python
+# 3.11/3.12/3.13 (UTF-8 pipes only become the default in 3.15, PEP 686).
+# These tests verify content — code runs, output matches — which is
+# platform-independent, so Linux/macOS coverage is the meaningful signal;
+# a Windows-specific fix belongs upstream (encoding="utf-8" on the Popen).
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="pytest-examples pipes to ruff without an encoding; cp1252 breaks UTF-8 snippets (see comment above)",
+)
 @pytest.mark.parametrize("example", list(find_examples(*EXAMPLE_ROOTS)), ids=str)
 def test_docs_examples(example: CodeExample, eval_example: EvalExample) -> None:
     eval_example.set_config(
