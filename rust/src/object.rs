@@ -32,20 +32,27 @@ use strum::AsRefStr;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, AsRefStr)]
 #[serde(untagged)]
 pub enum StixObject {
+    /// A STIX Domain Object (SDO).
     #[strum(serialize = "sdo")]
     Sdo(DomainObject),
+    /// A STIX Relationship Object (SRO).
     #[strum(serialize = "sro")]
     Sro(RelationshipObject),
+    /// A STIX Cyber-observable Object (SCO).
     #[strum(serialize = "sco")]
     Sco(CyberObject),
+    /// A Language Content meta object.
     #[strum(serialize = "language-content")]
     LanguageContent(LanguageContent),
     // #[strum(serialize = "object-marking")]
     // ObjectMarking(ObjectMarking),
+    /// An Extension Definition meta object.
     #[strum(serialize = "extension-definition")]
     ExtensionDefinition(ExtensionDefinition),
+    /// A Marking Definition meta object.
     #[strum(serialize = "marking-definition")]
     MarkingDefinition(MarkingDefinition),
+    /// A custom STIX object.
     #[strum(serialize = "custom")]
     Custom(CustomObject),
 }

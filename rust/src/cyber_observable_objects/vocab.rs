@@ -1,54 +1,70 @@
 //! Enumerations for standardizing and categorizing types for SCOs.
-//! Enumerations for standardizing and categorizing types for SCOs.
 use serde::{Deserialize, Serialize};
 use strum::{AsRefStr, EnumIter};
 
 ///The encryption algorithm enumeration
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter, Serialize, Deserialize)]
 pub enum EncryptionAlgorithm {
+    /// AES-256-GCM authenticated encryption.
     #[strum(serialize = "AES-256-GCM")]
     #[serde(rename = "AES-256-GCM")]
     AES256GCM,
+    /// ChaCha20-Poly1305 authenticated encryption.
     #[strum(serialize = "ChaCha20-Poly1305")]
     #[serde(rename = "ChaCha20-Poly1305")]
     ChaCha20Poly1305,
+    /// The encryption algorithm is indicated by the MIME type of the file.
     #[strum(serialize = "mime-type-indicated")]
     #[serde(rename = "mime-type-indicated")]
     MimeTypeIndicated,
 }
 
 /// The Windows registry datatype enumeration
-/// The Windows registry datatype enumeration
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter, Serialize, Deserialize)]
 pub enum WindowsRegistryDataTypeEnum {
+    /// The default, unspecified registry data type.
     #[strum(serialize = "")]
     Default,
+    /// No defined value type (REG_NONE).
     #[strum(serialize = "REG_NONE")]
     RegNone,
+    /// A null-terminated string (REG_SZ).
     #[strum(serialize = "REG_SZ")]
     RegSz,
+    /// A null-terminated string with unexpanded environment variable references (REG_EXPAND_SZ).
     #[strum(serialize = "REG_EXPAND_SZ")]
     RegExpandSz,
+    /// Raw binary data (REG_BINARY).
     #[strum(serialize = "REG_BINARY")]
     RegBinary,
-    #[strum(serialize = "Reg_DWORD")]
-    REGDword,
+    /// A 32-bit number (REG_DWORD).
+    #[strum(serialize = "REG_DWORD")]
+    RegDword,
+    /// A 32-bit number in big-endian format (REG_DWORD_BIG_ENDIAN).
     #[strum(serialize = "REG_DWORD_BIG_ENDIAN")]
     RegDwordBigEndian,
+    /// A 32-bit number in little-endian format (REG_DWORD_LITTLE_ENDIAN).
     #[strum(serialize = "REG_DWORD_LITTLE_ENDIAN")]
     RegDwordLittleEndian,
+    /// A null-terminated string naming the target path of a symbolic link (REG_LINK).
     #[strum(serialize = "REG_LINK")]
     RegLink,
+    /// An array of null-terminated strings, terminated by an empty string (REG_MULTI_SZ).
     #[strum(serialize = "REG_MULTI_SZ")]
     RegMultiSz,
+    /// A hardware resource list (REG_RESOURCE_LIST).
     #[strum(serialize = "REG_RESOURCE_LIST")]
     RegResourceList,
+    /// A full hardware resource description (REG_FULL_RESOURCE_DESCRIPTION).
     #[strum(serialize = "REG_FULL_RESOURCE_DESCRIPTION")]
     RegFullResourceDescription,
-    #[strum(serialize = "REG_RESOURCEL_REQUIREMENTS_LIST")]
+    /// A hardware resource requirements list (REG_RESOURCE_REQUIREMENTS_LIST).
+    #[strum(serialize = "REG_RESOURCE_REQUIREMENTS_LIST")]
     RegResourceRequirementsList,
+    /// A 64-bit number (REG_QWORD).
     #[strum(serialize = "REG_QWORD")]
     RegQword,
+    /// An invalid or unrecognized registry data type (REG_INVALID_TYPE).
     #[strum(serialize = "REG_INVALID_TYPE")]
     RegInvalidType,
 }
@@ -57,17 +73,28 @@ pub enum WindowsRegistryDataTypeEnum {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum AccountTypeVocabulary {
-    Facebook,      //Specifies a Facebook account.
-    Ldap,          //Specifies an LDAP account.
-    Nis,           //Specifies a NIS account
-    Openid,        //Specifies an OpenID account.
-    Radius,        // Specifies a RADIUS account.
-    Skype,         // Specifies a Skype account.
-    Tacacs,        //Specifies a TACACS account.
-    Twitter,       //Specifies a Twitter account.
-    Unix,          //Specifies a POSIX account.
-    WindowsLocal,  //Specifies a Windows local account.
-    WindowsDomain, //Specifies a Windows domain account.
+    /// Specifies a Facebook account.
+    Facebook,
+    /// Specifies an LDAP account.
+    Ldap,
+    /// Specifies a NIS account.
+    Nis,
+    /// Specifies an OpenID account.
+    Openid,
+    /// Specifies a RADIUS account.
+    Radius,
+    /// Specifies a Skype account.
+    Skype,
+    /// Specifies a TACACS account.
+    Tacacs,
+    /// Specifies a Twitter account.
+    Twitter,
+    /// Specifies a POSIX account.
+    Unix,
+    /// Specifies a Windows local account.
+    WindowsLocal,
+    /// Specifies a Windows domain account.
+    WindowsDomain,
 }
 
 /// The Windows service start type enumeration
@@ -219,27 +246,50 @@ pub enum NetworkSocketTypeEnum {
 #[serde(tag = "type", rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum IanaServiceNamesEnum {
+    /// The Dynamic Host Configuration Protocol.
     Dhcp,
+    /// The Domain Name System protocol.
     Dns,
+    /// The File Transfer Protocol.
     Ftp,
+    /// The Hypertext Transfer Protocol.
     Http,
+    /// Hypertext Transfer Protocol Secure.
     Https,
+    /// The Internet Message Access Protocol.
     Imap,
-    Imcp,
+    /// The Internet Control Message Protocol.
+    Icmp,
+    /// The Internet Protocol.
     Ip,
+    /// The Internet Relay Chat protocol.
     Irc,
+    /// The Lightweight Directory Access Protocol.
     Ldap,
+    /// The Network File System protocol.
     Nfs,
+    /// The Network Time Protocol.
     Ntp,
+    /// The Post Office Protocol version 3.
     Pop3,
+    /// The Remote Desktop Protocol.
     Rdp,
+    /// The Real Time Streaming Protocol.
     Rtsp,
+    /// The SSH File Transfer Protocol.
     Sftp,
+    /// The Session Initiation Protocol.
     Sip,
+    /// The Simple Mail Transfer Protocol.
     Smtp,
+    /// The Simple Network Management Protocol.
     Snmp,
+    /// The Secure Shell protocol.
     Ssh,
+    /// The Transmission Control Protocol.
     Tcp,
+    /// The Telnet remote terminal protocol.
     Telnet,
+    /// The Trivial File Transfer Protocol.
     Tftp,
 }

@@ -16,6 +16,7 @@ use serde_with::skip_serializing_none;
 use stixflayer_derive::StixProperties;
 use strum::IntoEnumIterator;
 
+/// Represents a collection of threat intelligence focused on one or more topics.
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Report {

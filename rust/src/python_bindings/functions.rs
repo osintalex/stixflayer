@@ -8,6 +8,7 @@ use crate::python_bindings::error::{stix_to_pyerr, StixError};
 use crate::types::ExtensionType;
 use pyo3::prelude::*;
 
+/// Return the stixflayer version.
 #[pyfunction]
 pub fn version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
@@ -22,6 +23,8 @@ pub fn validate_pattern(pattern: &str) -> Result<(), PyErr> {
 // PyO3 limitation: #[pyclass] and #[pymethods] cannot be generated via macros.
 // Each SCO struct must be written explicitly with these proc-macro attributes.
 
+/// Parse an extension type name (`new-sdo`, `new-sco`, `new-sro`, ...)
+/// into its typed representation.
 pub fn parse_extension_type(val: &str) -> Result<ExtensionType, PyErr> {
     match val {
         "new-sdo" => Ok(ExtensionType::NewSdo),

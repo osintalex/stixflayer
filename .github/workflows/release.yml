@@ -5,7 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Baseline is read-only; the two publish jobs elevate explicitly.
+# Baseline is read-only; the publish jobs elevate explicitly.
 permissions:
   contents: read
 
@@ -144,6 +144,56 @@ jobs:
         run: |
           git tag "py-v${{ needs.gate.outputs.py_version }}"
           git push origin "py-v${{ needs.gate.outputs.py_version }}"
+
+  # -------------------------------------------------------------------------
+  # Docs release: publish versioned docs for the Python release that just
+  # shipped. Runs only when a Python release happened AND its publish
+  # succeeded — a skipped or failed publish skips this job entirely.
+  # Shares the docs-deploy concurrency group with dev deploys (docs.yml),
+  # so the two never race on the gh-pages branch.
+  # -------------------------------------------------------------------------
+  docs-deploy:
+    name: Docs / deploy versioned docs
+    needs: [gate, python-publish]
+    if: needs.gate.outputs.py_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # push versioned docs to the gh-pages branch
+    concurrency:
+      group: docs-deploy
+      cancel-in-progress: false
+    steps:
+      # Full history so mike can manage the gh-pages branch.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+        with:
+          fetch-depth: 0
+      # Docs tooling only — the site build needs no compiled extension.
+      - name: Install docs tooling
+        run: |
+          python3 -m venv .venv-docs
+          .venv-docs/bin/pip install --quiet -r docs/requirements.txt
+      - name: Configure git for mike commits
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Deploy versioned docs
+        # Versions track Python releases at minor granularity (0.1.0 -> 0.1)
+        # with `latest` as alias; the site root always serves latest.
+        # Aliases must be real copies: GitHub Pages does not follow symlink
+        # blobs, so mike's default symlinked `latest` would 404 (and copy
+        # keeps latest/llms.txt a real file). The site is small enough that
+        # duplicating it per release is cheap.
+        run: |
+          export PATH="$PWD/.venv-docs/bin:$PATH"
+          py_version="${{ needs.gate.outputs.py_version }}"
+          case "$py_version" in
+            *.*.*) minor="${py_version%.*}" ;;
+            *) minor="$py_version" ;;
+          esac
+          echo "Deploying docs for Python release $py_version as version $minor"
+          mike deploy --alias-type=copy "$minor" latest --push
+          mike set-default latest --push
 
   # -------------------------------------------------------------------------
   # Rust release: verify on all platforms → publish crates.io → tag.

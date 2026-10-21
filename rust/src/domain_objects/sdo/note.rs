@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use stixflayer_derive::StixProperties;
 
+/// Represents a note conveying informative text to provide further context or additional analysis.
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Note {

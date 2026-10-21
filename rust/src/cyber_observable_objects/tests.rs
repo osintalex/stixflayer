@@ -178,4 +178,18 @@ mod test {
 
         assert_eq!(rebuilt.object_type.to_string(), "ipv4-addr");
     }
+
+    #[test]
+    fn vocabulary_values_match_spec() {
+        use crate::cyber_observable_objects::vocab::{
+            IanaServiceNamesEnum, WindowsRegistryDataTypeEnum,
+        };
+
+        assert_eq!(WindowsRegistryDataTypeEnum::RegDword.as_ref(), "REG_DWORD");
+        assert_eq!(
+            WindowsRegistryDataTypeEnum::RegResourceRequirementsList.as_ref(),
+            "REG_RESOURCE_REQUIREMENTS_LIST"
+        );
+        assert_eq!(IanaServiceNamesEnum::Icmp.as_ref(), "icmp");
+    }
 }

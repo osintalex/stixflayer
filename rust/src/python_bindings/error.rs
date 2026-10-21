@@ -8,9 +8,24 @@ use pyo3::{create_exception, PyErr};
 // These are raised by the central `stix_to_pyerr` mapper from the typed Rust
 // error envelope. They subclass Exception directly (not ValueError) so callers
 // can opt-in to handling structured validation failures.
-create_exception!(stixflayer, StixError, pyo3::exceptions::PyException);
-create_exception!(stixflayer, ValidationError, StixError);
-create_exception!(stixflayer, DeserializationError, StixError);
+create_exception!(
+    stixflayer,
+    StixError,
+    pyo3::exceptions::PyException,
+    "Base class for all stixflayer errors."
+);
+create_exception!(
+    stixflayer,
+    ValidationError,
+    StixError,
+    "Raised when input parses as JSON but violates STIX 2.1 rules."
+);
+create_exception!(
+    stixflayer,
+    DeserializationError,
+    StixError,
+    "Raised when input cannot be parsed as STIX JSON at all."
+);
 
 /// Builds the Python `list[dict]` for the structured validation entries
 /// associated with `error`.

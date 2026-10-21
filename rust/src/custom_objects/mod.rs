@@ -3,6 +3,7 @@ pub mod builder;
 pub mod object;
 #[cfg(test)]
 mod tests;
+/// Validation logic for custom STIX objects.
 pub mod validation;
 
 pub use builder::CustomObjectBuilder;

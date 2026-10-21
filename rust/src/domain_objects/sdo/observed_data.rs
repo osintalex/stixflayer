@@ -16,6 +16,7 @@ use serde_with::skip_serializing_none;
 use stixflayer_derive::StixProperties;
 use strum::IntoEnumIterator;
 
+/// Represents information about observed cyber-security entities such as files and networks.
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct ObservedData {

@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use stixflayer_derive::StixProperties;
 
+/// Represents systems, software services, and resources intended to support some purpose.
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Infrastructure {

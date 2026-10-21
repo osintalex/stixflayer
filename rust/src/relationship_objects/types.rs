@@ -4,45 +4,85 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use strum::{AsRefStr, Display as StrumDisplay, EnumString};
 
+/// The relationship types allowed between STIX Objects.
+///
+/// Contains the common relationship types defined by the STIX 2.1 standard
+/// (see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_f3dx2rhc3vl>),
+/// the types specific to individual SDOs, and [`RelationshipType::Custom`] for
+/// user-defined names.
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, StrumDisplay, EnumString)]
 #[strum(serialize_all = "kebab-case")]
 pub enum RelationshipType {
     // Common relationships
+    /// Indicates that the source and target objects are semantically duplicates of each other.
     DuplicateOf,
+    /// Indicates that the target object is based on information from the source object.
     DerivedFrom,
+    /// Asserts a non-specific relationship between two objects.
     RelatedTo,
     // SDO specific relationships
+    /// Indicates that the source malware-analysis is results for the target malware.
     AnalysisOf,
+    /// Indicates that the source campaign, intrusion-set, or threat-actor is attributed to the target.
     AttributedTo,
+    /// Indicates that the source malware was authored by the target intrusion-set or threat-actor.
     AuthoredBy,
+    /// Indicates that the source indicator is based on information from the target observed-data.
     BasedOn,
+    /// Indicates that the source malware beacons to the target infrastructure.
     BeaconsTo,
+    /// Indicates that the source malware-analysis describes the target malware.
     Characterizes,
+    /// Indicates that the source infrastructure or malware communicates with the target.
     CommunicatesWith,
+    /// Indicates that the source campaign, intrusion-set, or threat-actor compromises the target.
     Compromises,
+    /// Indicates that the source infrastructure consists of the target objects or observables.
     ConsistsOf,
+    /// Indicates that the source infrastructure or malware controls the target.
     Controls,
+    /// Indicates that the source attack-pattern, infrastructure, or tool delivers the malware.
     Delivers,
+    /// Indicates that the source malware downloads the target file, malware, or tool.
     Downloads,
+    /// Indicates that the source malware drops the target file, malware, or tool.
     Drops,
+    /// Indicates that the source malware-analysis is dynamic analysis of the target malware.
     DynamicAnalysisOf,
+    /// Indicates that the source malware exfiltrates data to the target infrastructure.
     ExfiltratesTo,
+    /// Indicates that the source malware exploits the target vulnerability.
     Exploits,
+    /// Indicates that the source infrastructure or tool has the target vulnerability.
     Has,
+    /// Indicates that the source hosts the target malware, tool, or infrastructure.
     Hosts,
+    /// Indicates that the source threat-actor impersonates the target identity.
     Impersonates,
+    /// Indicates that the source indicator detects evidence of the target.
     Indicates,
+    /// Indicates that the source course-of-action investigates the target indicator.
     Investigates,
+    /// Indicates that the source identity, infrastructure, or threat-actor is located at the target.
     LocatedAt,
+    /// Indicates that the source course-of-action mitigates the target threat.
     Mitigates,
+    /// Indicates that the source campaign, intrusion-set, or malware originates from the target.
     OriginatesFrom,
+    /// Indicates that the source intrusion-set or threat-actor owns the target infrastructure.
     Owns,
+    /// Indicates that the source course-of-action remediates the target malware or vulnerability.
     Remediates,
+    /// Indicates that the source malware-analysis is static analysis of the target malware.
     StaticAnalysisOf,
+    /// Indicates that the source targets the given identity, location, or vulnerability.
     Targets,
+    /// Indicates that the source uses the target attack-pattern, infrastructure, malware, or tool.
     Uses,
+    /// Indicates that the source malware is a variant of the target malware.
     VariantOf,
     // Custom relationship, storing the relationship name
+    /// A user-defined relationship type not defined by the STIX 2.1 standard; holds its name.
     Custom(String),
 }
 

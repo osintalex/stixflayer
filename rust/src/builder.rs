@@ -223,6 +223,7 @@ impl CommonPropertiesBuilder {
         Ok(self)
     }
 
+    /// Builds the final `CommonProperties`, applying default timestamps per object category and builder type.
     pub fn build(&self) -> CommonProperties {
         let properties = self.properties.clone();
 
@@ -303,12 +304,19 @@ impl CommonPropertiesBuilder {
 #[derive(Clone, Debug, PartialEq, Eq, EnumString, Serialize)]
 #[strum(serialize_all = "kebab-case")]
 pub enum StixObjectCategory {
+    /// A STIX Domain Object (SDO).
     Sdo,
+    /// A STIX Relationship Object (SRO).
     Sro,
+    /// A STIX Cyber-observable Object (SCO).
     Sco,
+    /// An Extension Definition meta object.
     ExtensionDefinition,
+    /// A Language Content meta object.
     LanguageContent,
+    /// A Marking Definition meta object.
     MarkingDefinition,
+    /// A custom STIX object.
     Custom,
 }
 
@@ -316,7 +324,10 @@ pub enum StixObjectCategory {
 /// or a faithful reconstruction of an already-parsed one.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub enum BuilderType {
+    /// Building a brand new object.
     Creation,
+    /// Building a new version of an existing object.
     Version,
+    /// Reconstructing an already-parsed object as-is.
     FromExisting,
 }

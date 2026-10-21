@@ -39,6 +39,7 @@ use stixflayer_derive::StixProperties;
 #[skip_serializing_none]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct MarkingDefinition {
+    /// The STIX type of the object: `marking-definition`.
     #[serde(rename = "type")]
     pub object_type: String,
     /// Common STIX object properties
@@ -62,10 +63,12 @@ impl MarkingDefinition {
         validate_value(value, allow_custom, strict)
     }
 
+    /// Returns `true` if this object's `revoked` property is set to `true`.
     pub fn is_revoked(&self) -> bool {
         matches!(self.common_properties.revoked, Some(true))
     }
 
+    /// Create a builder for a sighting relationship with this object as the `sighting_of_ref`.
     pub fn add_sighting(self) -> Result<RelationshipObjectBuilder, Error> {
         let sighting_of_ref = self.get_id().to_owned();
 
@@ -234,18 +237,19 @@ impl MarkingDefinitionBuilder {
         self
     }
 
-    /// Set the optional `extension_properties` field for a Marking Definition SMO under construction
+    /// Set the `definition_type` field for a Marking Definition SMO under construction
     pub fn definition_type(mut self, definition_type: String) -> Self {
         self.definition_type = Some(definition_type);
         self
     }
 
-    /// Set the optional `extension_properties` field for a Marking Definition SMO under construction
+    /// Set the `definition` field for a Marking Definition SMO under construction
     pub fn definition(mut self, definition: MarkingTypes) -> Self {
         self.definition = Some(definition);
         self
     }
 
+    /// Set the optional `name` field for a Marking Definition SMO under construction.
     pub fn name(mut self, name: String) -> Self {
         self.name = Some(name);
         self
@@ -328,7 +332,9 @@ impl MarkingDefinitionBuilder {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MarkingTypes {
+    /// A TLP marking object.
     Tlp(TLP),
+    /// A Statement marking object.
     Statement(Statement),
 }
 
@@ -337,8 +343,10 @@ impl Stix for MarkingTypes {
         Ok(())
     }
 }
+/// The TLP marking object, which captures one of the four TLP levels.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TLP {
+    /// The TLP level of the marking: `white`, `green`, `amber`, or `red`.
     pub tlp: String,
 }
 
@@ -352,8 +360,10 @@ impl Stix for TLP {
         Ok(())
     }
 }
+/// The Statement marking object, which captures a free-form marking statement.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Statement {
+    /// The text of the marking statement.
     pub statement: String,
 }
 

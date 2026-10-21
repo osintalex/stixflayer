@@ -1,0 +1,11 @@
+# Documentation site tooling, pinned exactly (design.md D1).
+# Upgrades are deliberate one-PR changes; CI builds with these pins.
+
+# Zensical — static site generator by the Material for MkDocs team.
+# Requires Python >= 3.11 (matches the project floor). Reads mkdocs.yml.
+zensical==0.0.71
+
+# Zensical-compatible fork of mike for versioned GitHub Pages deploys.
+# Transitional until Zensical ships native versioning (design.md D2);
+# pinned to the 2.2.0+zensical-0.1.0 tag.
+mike @ git+https://github.com/squidfunk/mike.git@0f62791256ebeba60d20d2f1d8fe6ec3b7d1e2b3

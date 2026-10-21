@@ -26,24 +26,43 @@ pub enum ExtensionType {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum SdoTypes {
+    /// The attack-pattern SDO type: tactics and techniques used by adversaries.
     AttackPattern,
+    /// The campaign SDO type: a grouping of related adversary behavior over time.
     Campaign,
+    /// The course-of-action SDO type: an action to take in response to an attack.
     CourseOfAction,
+    /// The grouping SDO type: a set of STIX Objects the producer believes are related.
     Grouping,
+    /// The identity SDO type: the identity of a specific person or organization.
     Identity,
+    /// The incident SDO type: a stub object representing a security incident.
     Incident,
+    /// The indicator SDO type: a pattern that detects suspicious or malicious activity.
     Indicator,
+    /// The infrastructure SDO type: systems and resources intended to support a purpose.
     Infrastructure,
+    /// The intrusion-set SDO type: a coordinated set of adversarial behaviors.
     IntrusionSet,
+    /// The location SDO type: a geographic location.
     Location,
+    /// The malware SDO type: malicious code.
     Malware,
+    /// The malware-analysis SDO type: the results of analyzing malware.
     MalwareAnalysis,
+    /// The note SDO type: a prose note attached to one or more objects.
     Note,
+    /// The observed-data SDO type: observations of cyber-related entities over time.
     ObservedData,
+    /// The opinion SDO type: an analyst's assessment of another object.
     Opinion,
+    /// The report SDO type: a collection of threat intelligence about one or more topics.
     Report,
+    /// The threat-actor SDO type: an individual or group operating with malicious intent.
     ThreatActor,
+    /// The tool SDO type: legitimate software used by threat actors to perform attacks.
     Tool,
+    /// The vulnerability SDO type: a software flaw that can be used to gain access.
     Vulnerability,
 }
 
@@ -51,24 +70,42 @@ pub enum SdoTypes {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum ScoTypes {
+    /// The artifact SCO type: the raw bytes of a file or memory region.
     Artifact,
+    /// The autonomous-system SCO type: an autonomous system on the Internet.
     AutonomousSystem,
+    /// The directory SCO type: a directory on a filesystem.
     Directory,
+    /// The domain-name SCO type: a domain name.
     DomainName,
+    /// The email-addr SCO type: a single email address.
     #[strum(serialize = "email-addr")]
     EmailAddress,
+    /// The email-message SCO type: an instance of an email.
     EmailMessage,
+    /// The file SCO type: the properties of a file.
     File,
+    /// The ipv4-addr SCO type: an IPv4 address.
     Ipv4Addr,
+    /// The ipv6-addr SCO type: an IPv6 address.
     Ipv6Addr,
+    /// The mac-addr SCO type: a Media Access Control (MAC) address.
     MacAddr,
+    /// The mutex SCO type: a mutex on a system.
     Mutex,
+    /// The network-traffic SCO type: network traffic between two or more endpoints.
     NetworkTraffic,
+    /// The process SCO type: an instance of a program running on a system.
     Process,
+    /// The software SCO type: a high-level software application.
     Software,
+    /// The url SCO type: a uniform resource locator.
     Url,
+    /// The user-account SCO type: a user account on a system or service.
     UserAccount,
+    /// The windows-registry-key SCO type: a Windows registry key.
     WindowsRegistryKey,
+    /// The x509-certificate SCO type: an X.509 certificate.
     X509Certificate,
 }
 
@@ -85,7 +122,9 @@ pub fn is_sco_type_name(name: &str) -> bool {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum SroTypes {
+    /// The relationship SRO type: a typed connection between two STIX Objects.
     Relationship,
+    /// The sighting SRO type: an assertion that an object was seen in a context.
     Sighting,
 }
 
@@ -93,9 +132,13 @@ pub enum SroTypes {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum StixMetaTypes {
+    /// The language-content SMO type: language-specific content for another object.
     LanguageContent,
+    /// The marking-definition SMO type: data markings for handling requirements.
     MarkingDefinition,
+    /// The extension-definition SMO type: the definition of a STIX extension.
     ExtensionDefinition,
+    /// The bundle type: a collection of STIX Objects transmitted together.
     Bundle,
 }
 

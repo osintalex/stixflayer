@@ -6,6 +6,11 @@
 //! `::stixflayer::properties` (a proc-macro crate may only export
 //! proc-macro functions).
 //!
+//! This crate is an implementation detail of
+//! [`stixflayer`](https://docs.rs/stixflayer): the generated code resolves the
+//! trait through the *consuming* crate's `crate::properties` path, so the
+//! derive can only be used from inside the `stixflayer` crate itself.
+//!
 //! - On structs: generates `KNOWN`/`REQUIRED` impl consts derived from the
 //!   struct's fields. `Option<T>` fields and fields with `#[serde(default)]`
 //!   are optional. Field-level `#[serde(rename)]` and container-level
@@ -25,6 +30,87 @@ use syn::{
     parse_macro_input, Data, DataEnum, DeriveInput, GenericArgument, Ident, PathArguments, Token,
 };
 
+/// Derives the STIX property registry for a struct or tagged enum.
+///
+/// On structs, generates an implementation of
+/// `stixflayer::properties::StixProperties` with `KNOWN` (every accepted JSON
+/// property name) and `REQUIRED` (the subset that must be present). On
+/// tagged newtype enums, generates a `pub const <ENUM>_VARIANTS` table of
+/// [`VariantProps`](stixflayer.properties). See the crate docs for the full
+/// attribute rules.
+///
+/// The generated code resolves the trait through the consuming crate's
+/// `crate::properties` path, so the derive only works inside the
+/// `stixflayer` crate. The doctests below reproduce that layout with a shim
+/// module.
+///
+/// # Struct example
+///
+/// `Option<T>` and `#[serde(default)]` fields are optional; a
+/// `#[serde(rename)]` changes the registered JSON name:
+///
+/// ```
+/// // Shim for the `crate::properties` path the generated code uses.
+/// mod properties {
+///     pub use stixflayer::properties::StixProperties;
+/// }
+///
+/// use properties::StixProperties;
+/// use serde::Deserialize;
+/// use stixflayer_derive::StixProperties;
+///
+/// #[derive(StixProperties, Deserialize)]
+/// #[serde(rename_all = "snake_case")]
+/// struct Probe {
+///     name: String,
+///     #[serde(default)]
+///     short_description: Option<String>,
+/// }
+///
+/// fn main() {
+///     assert_eq!(Probe::KNOWN, &["name", "short_description"][..]);
+///     assert_eq!(Probe::REQUIRED, &["name"][..]);
+/// }
+/// ```
+///
+/// # Tagged enum example
+///
+/// Each newtype variant contributes an entry keyed by its serialized tag
+/// (honoring `#[serde(rename)]` and `#[serde(alias)]`):
+///
+/// ```
+/// mod properties {
+///     pub use stixflayer::properties::{StixProperties, VariantProps};
+/// }
+///
+/// use properties::{StixProperties, VariantProps};
+/// use serde::Serialize;
+/// use stixflayer_derive::StixProperties;
+///
+/// #[derive(StixProperties, Serialize)]
+/// struct First {
+///     value: String,
+/// }
+///
+/// #[derive(StixProperties, Serialize)]
+/// struct Second {
+///     count: u64,
+/// }
+///
+/// #[derive(StixProperties, Serialize)]
+/// #[serde(tag = "type")]
+/// enum Probe {
+///     #[serde(rename = "first")]
+///     First(First),
+///     Second(Second),
+/// }
+///
+/// fn main() {
+///     let tags: Vec<&str> = PROBE_VARIANTS.iter().map(|v: &VariantProps| v.tag).collect();
+///     assert_eq!(tags, &["first", "Second"][..]);
+///     assert_eq!(PROBE_VARIANTS[1].known, &["count"][..]);
+/// }
+/// ```
 #[proc_macro_derive(StixProperties)]
 pub fn derive_stix_properties(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -288,6 +374,7 @@ fn derive_enum(
         ident.span(),
     );
     Ok(quote! {
+        #[doc = "The per-variant property table for this tagged enum, keyed by each variant's serialized tag."]
         pub const #const_ident: &'static [crate::properties::VariantProps] = &[#(#entries),*];
     })
 }

@@ -475,4 +475,19 @@ mod nesting_tests {
             "no invalid_vocab_value entry: {entries:?}"
         );
     }
+
+    #[test]
+    fn identity_sector_values_match_spec() {
+        use crate::domain_objects::vocab::IdentitySectors;
+        use strum::IntoEnumIterator;
+
+        assert_eq!(
+            IdentitySectors::EmergencyServices.as_ref(),
+            "emergency-services"
+        );
+        assert!(
+            !IdentitySectors::iter().any(|v| v.as_ref().contains("sanitation")),
+            "unexpected sanitation sector value"
+        );
+    }
 }

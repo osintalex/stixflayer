@@ -10,6 +10,7 @@ use crate::relationship_objects::RelationshipObjectBuilder;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
+/// Python binding for the Relationship relationship object.
 #[pyclass]
 pub struct Relationship(pub RelationshipObjectBuilder);
 
@@ -65,6 +66,7 @@ impl Relationship {
     }
 }
 
+/// Python binding for the Sighting relationship object.
 #[pyclass]
 pub struct Sighting(pub RelationshipObjectBuilder);
 

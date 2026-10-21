@@ -11,7 +11,9 @@
 //!    - unknown properties (unless `allow_custom` is true)
 //!    - missing required properties
 //! 2. Typed deserialization; `serde_path_to_error` turns data errors into
-//!    structured [`StixError::MissingProperty`] / [`StixError::InvalidPropertyType`].
+//!    structured
+//!    [`StixError::MissingProperty`](crate::error::StixError::MissingProperty) /
+//!    [`StixError::InvalidPropertyType`](crate::error::StixError::InvalidPropertyType).
 //! 3. Object-specific `stix_check` logic when `strict` is true.
 
 use serde::de::DeserializeOwned;
@@ -35,7 +37,7 @@ use crate::{
 ///   properties.
 ///
 /// Multiple independent errors are returned as a single
-/// [`StixError::ValidationErrors`].
+/// [`StixError::ValidationErrors`](crate::error::StixError::ValidationErrors).
 pub fn validate_value<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
     value: Value,
     allow_custom: bool,

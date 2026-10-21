@@ -20,21 +20,37 @@ use stixflayer_derive::StixProperties;
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct EmailMessage {
-    //bools default to false: so is_multipart only needs to be set if true
+    /// Indicates whether the email body contains multiple MIME parts.
+    ///
+    /// Defaults to `false`, so it only needs to be set when `true`.
     pub is_multipart: bool,
+    /// The date/time that the email message was sent.
     pub date: Option<Timestamp>,
+    /// The value of the "Content-Type" header of the email message.
     pub content_type: Option<String>,
+    /// The "From:" header of the email message, as a reference to an `email-addr` object.
     pub from_ref: Option<Identifier>,
+    /// The "Sender:" header of the email message, as a reference to an `email-addr` object.
     pub sender_ref: Option<Identifier>,
+    /// The "To:" recipients of the email message, as references to `email-addr` objects.
     pub to_refs: Option<Vec<Identifier>>,
+    /// The "CC:" recipients of the email message, as references to `email-addr` objects.
     pub cc_refs: Option<Vec<Identifier>>,
+    /// The "BCC:" recipients of the email message, as references to `email-addr` objects.
     pub bcc_refs: Option<Vec<Identifier>>,
+    /// The Message-ID header field of the email message.
     pub message_id: Option<String>,
+    /// The subject of the email message.
     pub subject: Option<String>,
+    /// The "Received" header fields of the email message, in the order present in the message.
     pub recieved_lines: Option<Vec<String>>,
+    /// Any other header fields of the email message, as a dictionary of field names to values.
     pub additional_header_fields: Option<StixDictionary<Vec<String>>>,
+    /// The body of the email message; must not be used when `is_multipart` is `true`.
     pub body: Option<String>,
+    /// The MIME parts that make up the email body; must not be used when `is_multipart` is `false`.
     pub body_multipart: Option<Vec<EmailMimeCompomentType>>,
+    /// The raw contents of the email message, as a reference to an `artifact` object.
     pub raw_email_ref: Option<Identifier>,
 }
 impl Stix for EmailMessage {

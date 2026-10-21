@@ -1,3 +1,10 @@
+//! PyO3 bindings exposing the engine to Python.
+//!
+//! This module is `#[doc(hidden)]`: it is implementation plumbing for the
+//! Python package, not part of the Rust API. The Python-facing surface is the
+//! generated `stixflayer` package plus its type stubs; Rust users should rely
+//! on the engine modules instead.
+
 use crate::custom_objects::CustomObjectBuilder;
 use crate::cyber_observable_objects::sco::{CyberObjectBuilder, CyberObjectType};
 use crate::domain_objects::sdo::{DomainObjectBuilder, DomainObjectType};
@@ -7,14 +14,23 @@ use crate::meta_objects::marking_definition::MarkingDefinitionBuilder;
 use crate::relationship_objects::{RelationshipObjectBuilder, RelationshipObjectType};
 use pyo3::prelude::*;
 
+/// Builder glue shared by the Python wrapper classes.
 pub mod builder;
+/// Conversions between Python objects and JSON values.
 pub mod convert;
+/// Python exception types mirroring [`crate::error::StixError`].
 pub mod error;
+/// Python-facing free functions (`version`, `validate_pattern`).
 pub mod functions;
+/// Wrappers for meta objects, custom objects, and bundles.
 pub mod meta;
+/// Wrappers for STIX cyber-observable objects.
 pub mod sco;
+/// Wrappers for STIX domain objects.
 pub mod sdo;
+/// Wrappers for STIX relationship objects.
 pub mod sro;
+/// Wrappers for STIX open-vocabulary enums.
 pub mod vocab;
 
 pub use builder::{
@@ -44,7 +60,7 @@ pub use vocab::{
     ThreatActorSophistication, ThreatActorType,
 };
 
-/// Convert a typed [`StixObject`] into its corresponding Python wrapper class.
+/// Convert a typed [`StixObject`](crate::object::StixObject) into its corresponding Python wrapper class.
 pub fn wrap_stix_object(py: Python<'_>, obj: crate::object::StixObject) -> Result<PyObject, PyErr> {
     match obj {
         crate::object::StixObject::Sdo(domain_obj) => {
@@ -151,6 +167,7 @@ pub fn wrap_stix_object(py: Python<'_>, obj: crate::object::StixObject) -> Resul
     }
 }
 
+/// Define the `stixflayer` Python module: functions, wrapper classes, and exceptions.
 #[pymodule(name = "stixflayer")]
 pub fn stixflayer_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let py = m.py();

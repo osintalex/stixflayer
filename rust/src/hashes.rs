@@ -65,6 +65,8 @@ impl Hashes {
     pub fn iter(&self) -> impl Iterator<Item = (&String, &String)> {
         self.0.iter()
     }
+
+    /// Returns the number of hash entries in the hash list.
     pub fn length(&self) -> usize {
         self.0.len()
     }
@@ -175,20 +177,28 @@ impl crate::base::Stix for Hashes {
 /// Refers to the valid hash algorithms like MD5, SHA-1, and SHA-256 used for file identification.
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter, Serialize, Deserialize)]
 pub enum LegalHashTypes {
+    /// The MD5 message-digest algorithm.
     #[strum(serialize = "md5")]
     MD5,
+    /// The SHA-1 cryptographic hash algorithm.
     #[strum(serialize = "sha-1")]
     SHA1,
+    /// The SHA-256 cryptographic hash algorithm.
     #[strum(serialize = "sha-256")]
     SHA256,
+    /// The SHA-512 cryptographic hash algorithm.
     #[strum(serialize = "sha-512")]
     SHA512,
+    /// The SHA3-256 cryptographic hash algorithm.
     #[strum(serialize = "sha3-256")]
     SHA3256,
+    /// The SHA3-512 cryptographic hash algorithm.
     #[strum(serialize = "sha3-512")]
     SHA3512,
+    /// The ssdeep context-triggered piecewise hashing (fuzzy hash) algorithm.
     #[strum(serialize = "ssdeep")]
     SSDEEP,
+    /// The TLSH locality-sensitive hashing algorithm.
     #[strum(serialize = "tlsh")]
     TLSH,
 }

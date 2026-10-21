@@ -3,7 +3,8 @@ use crate::{
     error::{return_multiple_errors, StixError as Error},
 };
 
-// Checks that the required properties for an SRO are present and that the prohibited fields for an SRO are not present
+/// Checks that the required properties for an SRO are present and that the
+/// prohibited fields for an SRO are not present.
 pub fn check_sro_properties(properties: &CommonProperties) -> Result<(), Error> {
     let mut errors = Vec::new();
 

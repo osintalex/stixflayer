@@ -133,12 +133,19 @@ pub fn check_observable_dictionary_key(key: &str) -> Result<(), Error> {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(untagged)]
 pub enum DictionaryValue {
+    /// A string value.
     String(String),
+    /// A boolean value.
     Bool(bool),
+    /// An unsigned integer value.
     Int(u64),
+    /// A signed integer value.
     SInt(i64),
+    /// A floating point value.
     Float(OrderedFloat<f64>),
+    /// A list of values.
     List(Vec<DictionaryValue>),
+    /// A nested dictionary.
     Dict(StixDictionary<DictionaryValue>),
 }
 

@@ -744,6 +744,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `dst_payload_ref` property for an SCO under construction.
     pub fn dst_payload_ref(mut self, dst_payload_ref: Identifier) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::NetworkTraffic(ref mut nt) => {
@@ -760,6 +761,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `dst_port` property (the destination port) for an SCO under construction.
     pub fn dst_port(mut self, dst_port: u64) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::NetworkTraffic(ref mut nt) => nt.dst_port = Some(dst_port),
@@ -774,6 +776,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `dst_ref` property (the destination connection) for an SCO under construction.
     pub fn dst_ref(mut self, dst_ref: Identifier) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::NetworkTraffic(ref mut nt) => nt.dst_ref = Some(dst_ref),
@@ -788,6 +791,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `encapsulated_by_ref` property for an SCO under construction.
     pub fn encapsulated_by_ref(mut self, encapsulated_by_ref: Identifier) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::NetworkTraffic(ref mut nt) => {
@@ -804,6 +808,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `encapsulates_refs` property for an SCO under construction.
     pub fn encapsulates_refs(mut self, encapsulates_refs: Vec<Identifier>) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::NetworkTraffic(ref mut nt) => {
@@ -820,6 +825,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `encryption_algorithm` property for an SCO under construction.
     pub fn encryption_algorithm(
         mut self,
         encryption_algorithm: EncryptionAlgorithm,
@@ -839,6 +845,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `end` property for an SCO under construction.
     pub fn end(mut self, end: Timestamp) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::NetworkTraffic(ref mut nt) => nt.end = Some(end),
@@ -853,6 +860,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `environment_variables` property for an SCO under construction.
     pub fn environment_variables(
         mut self,
         environment_variables: StixDictionary<Vec<String>>,
@@ -872,6 +880,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `from_ref` property for an SCO under construction.
     pub fn from_ref(mut self, from_ref: Identifier) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::EmailMessage(ref mut email_message) => {
@@ -888,6 +897,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `hashes` property for an SCO under construction.
     pub fn hashes(mut self, hashes: Hashes) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::Artifact(ref mut artifact) => artifact.hashes = Some(hashes),
@@ -906,6 +916,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `ipfix` property for an SCO under construction.
     pub fn ipfix(mut self, ipfix: StixDictionary<DictionaryValue>) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::NetworkTraffic(ref mut nt) => nt.ipfix = Some(ipfix),
@@ -920,6 +931,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `is_active` property for an SCO under construction.
     pub fn is_active(mut self, is_active: bool) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::NetworkTraffic(ref mut nt) => nt.is_active = Some(is_active),
@@ -951,6 +963,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `is_hidden` property for an SCO under construction.
     pub fn is_hidden(mut self, is_hidden: bool) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::Process(ref mut process) => process.is_hidden = Some(is_hidden),
@@ -965,6 +978,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `is_self_signed` property for an SCO under construction.
     pub fn is_self_signed(mut self, is_self_signed: bool) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::X509Certificate(ref mut x509_certificate) => {
@@ -981,6 +995,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `issuer` property for an SCO under construction.
     pub fn issuer(mut self, issuer: String) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::X509Certificate(ref mut x509_certificate) => {
@@ -997,6 +1012,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `image_ref` property for an SCO under construction.
     pub fn image_ref(mut self, image_ref: Identifier) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::Process(ref mut process) => process.image_ref = Some(image_ref),
@@ -1011,7 +1027,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
-    // defaults to false: only need to set if true
+    /// Set the `is_multipart` property to `true` for an SCO under construction.
     pub fn is_multipart(mut self) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::EmailMessage(ref mut email_message) => {
@@ -1062,6 +1078,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `key` property for an SCO under construction.
     pub fn key(mut self, key: String) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::WindowsRegistryKey(ref mut windows_registy_key) => {
@@ -1094,6 +1111,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `magic_number_hex` property for an SCO under construction.
     pub fn magic_number_hex(mut self, magic_number_hex: String) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::File(ref mut file) => file.magic_number_hex = Some(magic_number_hex),
@@ -1107,6 +1125,7 @@ impl CyberObjectBuilder {
         }
         Ok(self)
     }
+    /// Set the optional `message_id` property for an SCO under construction.
     pub fn message_id(mut self, message_id: String) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::EmailMessage(ref mut email_message) => {
@@ -1123,6 +1142,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `mime_type` property for an SCO under construction.
     pub fn mime_type(mut self, mime_type: String) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::Artifact(ref mut artifact) => artifact.mime_type = Some(mime_type),
@@ -1138,6 +1158,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `modified_time` property for an SCO under construction.
     pub fn modified_time(mut self, modified_time: Timestamp) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::WindowsRegistryKey(ref mut windows_registry_key) => {
@@ -1154,6 +1175,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `mtime` property for an SCO under construction.
     pub fn mtime(mut self, mtime: &str) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::Directory(ref mut directory) => {
@@ -1193,6 +1215,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `name_enc` property for an SCO under construction.
     pub fn name_enc(mut self, name_enc: String) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::File(ref mut file) => file.name_enc = Some(name_enc),
@@ -1207,6 +1230,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `number` property for an SCO under construction.
     pub fn number(mut self, number: u64) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::AutonomousSystem(ref mut autonomous_system) => {
@@ -1223,6 +1247,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `number_of_subkeys` property for an SCO under construction.
     pub fn number_of_subkeys(mut self, number_of_subkeys: i64) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::WindowsRegistryKey(ref mut windows_registry_key) => {
@@ -1239,6 +1264,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `opened_connection_refs` property for an SCO under construction.
     pub fn opened_connection_refs(
         mut self,
         opened_connection_refs: Vec<Identifier>,
@@ -1258,6 +1284,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `parent_directory_ref` property for an SCO under construction.
     pub fn parent_directory_ref(mut self, parent_directory_ref: Identifier) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::File(ref mut file) => {
@@ -1274,6 +1301,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `parent_ref` property for an SCO under construction.
     pub fn parent_ref(mut self, parent_ref: Identifier) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::Process(ref mut process) => process.parent_ref = Some(parent_ref),
@@ -1288,6 +1316,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the required `path` property for an SCO under construction.
     pub fn path(mut self, path: String) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::Directory(ref mut directory) => directory.path = path,
@@ -1302,6 +1331,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `path_enc` property for an SCO under construction.
     pub fn path_enc(mut self, path_enc: String) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::Directory(ref mut directory) => directory.path_enc = Some(path_enc),
@@ -1316,6 +1346,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `payload_bin` property for an SCO under construction.
     pub fn payload_bin(mut self, payload_bin: String) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::Artifact(ref mut artifact) => artifact.payload_bin = Some(payload_bin),
@@ -1330,6 +1361,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `pid` property for an SCO under construction.
     pub fn pid(mut self, pid: i64) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::Process(ref mut process) => process.pid = Some(pid),
@@ -1344,6 +1376,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the required `protocols` property for an SCO under construction.
     pub fn protocols(mut self, protocols: Vec<String>) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::NetworkTraffic(ref mut nt) => nt.protocols = protocols,
@@ -1358,6 +1391,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `raw_email_ref` property for an SCO under construction.
     pub fn raw_email_ref(mut self, raw_email_ref: Identifier) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::EmailMessage(ref mut email_message) => {
@@ -1374,6 +1408,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `recieved_lines` property for an SCO under construction.
     pub fn recieved_lines(mut self, recieved_lines: Vec<String>) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::EmailMessage(ref mut email_message) => {
@@ -1390,6 +1425,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `resolves_to_refs` property for an SCO under construction.
     pub fn resolves_to_refs(mut self, refs: Vec<Identifier>) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::DomainName(ref mut domain_name) => {
@@ -1408,6 +1444,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `rir` property for an SCO under construction.
     pub fn rir(mut self, rir: String) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::AutonomousSystem(ref mut autonomous_system) => {
@@ -1424,6 +1461,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `sender_ref` property for an SCO under construction.
     pub fn sender_ref(mut self, sender_ref: Identifier) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::EmailMessage(ref mut email_message) => {
@@ -1440,6 +1478,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `serial_number` property for an SCO under construction.
     pub fn serial_number(mut self, serial_number: String) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::X509Certificate(ref mut x509_certificate) => {
@@ -1456,6 +1495,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `signature_algorithm` property for an SCO under construction.
     pub fn signature_algorithm(mut self, signature_algorithm: String) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::X509Certificate(ref mut x509_certificate) => {
@@ -1472,6 +1512,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `size` property for an SCO under construction.
     pub fn size(mut self, size: u64) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::File(ref mut file) => file.size = Some(size),
@@ -1486,6 +1527,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `src_byte_count` property for an SCO under construction.
     pub fn src_byte_count(mut self, src_byte_count: u64) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::NetworkTraffic(ref mut nt) => nt.src_byte_count = Some(src_byte_count),
@@ -1500,6 +1542,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `src_packets` property for an SCO under construction.
     pub fn src_packets(mut self, src_packets: u64) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::NetworkTraffic(ref mut nt) => nt.src_packets = Some(src_packets),
@@ -1513,6 +1556,7 @@ impl CyberObjectBuilder {
         };
         Ok(self)
     }
+    /// Set the optional `src_payload_ref` property for an SCO under construction.
     pub fn src_payload_ref(mut self, src_payload_ref: Identifier) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::NetworkTraffic(ref mut nt) => {
@@ -1529,6 +1573,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `src_ref` property (the source connection) for an SCO under construction.
     pub fn src_ref(mut self, src_ref: Identifier) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::NetworkTraffic(ref mut nt) => nt.src_ref = Some(src_ref),
@@ -1543,6 +1588,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `src_port` property (the source port) for an SCO under construction.
     pub fn src_port(mut self, src_port: u64) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::NetworkTraffic(ref mut nt) => nt.src_port = Some(src_port),
@@ -1557,6 +1603,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `start` property for an SCO under construction.
     pub fn start(mut self, start: Timestamp) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::NetworkTraffic(ref mut nt) => nt.start = Some(start),
@@ -1571,6 +1618,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `subject` property for an SCO under construction.
     pub fn subject(mut self, subject: String) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::EmailMessage(ref mut email_message) => {
@@ -1590,6 +1638,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `subject_public_key_algorithm` property for an SCO under construction.
     pub fn subject_public_key_algorithm(
         mut self,
         subject_public_key_algorithm: String,
@@ -1609,6 +1658,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `subject_public_key_exponent` property for an SCO under construction.
     pub fn subject_public_key_exponent(
         mut self,
         subject_public_key_exponent: i64,
@@ -1628,6 +1678,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `subject_public_key_modulus` property for an SCO under construction.
     pub fn subject_public_key_modulus(
         mut self,
         subject_public_key_modulus: String,
@@ -1662,6 +1713,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `to_refs` property for an SCO under construction.
     pub fn to_refs(mut self, to_refs: Vec<Identifier>) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::EmailMessage(ref mut email_message) => {
@@ -1678,6 +1730,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `url` property for an SCO under construction.
     pub fn url(mut self, url_str: String) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::Artifact(ref mut artifact) => {
@@ -1697,6 +1750,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the required `value` property for an SCO under construction.
     pub fn value(mut self, value: String) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::DomainName(ref mut domain_name) => domain_name.value = value,
@@ -1719,6 +1773,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `values` property for an SCO under construction.
     pub fn values(mut self, values: Vec<WindowsRegistryKeyType>) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::WindowsRegistryKey(ref mut windows_registry_key) => {
@@ -1767,6 +1822,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `validity_not_after` property for an SCO under construction.
     pub fn validity_not_after(mut self, validity_not_after: Timestamp) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::X509Certificate(ref mut x509_certificate) => {
@@ -1783,6 +1839,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `validity_not_before` property for an SCO under construction.
     pub fn validity_not_before(mut self, validity_not_before: Timestamp) -> Result<Self, Error> {
         match self.object_type {
             CyberObjectType::X509Certificate(ref mut x509_certificate) => {
@@ -1817,6 +1874,7 @@ impl CyberObjectBuilder {
         Ok(self)
     }
 
+    /// Set the optional `x509_v3_extensions` property for an SCO under construction.
     pub fn x509_v3_extensions(
         mut self,
         x509_v3_extensions: X509V3Extensions,

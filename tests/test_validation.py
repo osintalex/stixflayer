@@ -184,6 +184,23 @@ class TestNestedValidationMessages:
         assert vocab_entries[0]["vocabulary"] == "threat-actor-sophistication-ov"
 
 
+class TestVocabularyErrorMessages:
+    def test_vocab_constructor_error_names_the_class(self):
+        """Vocabulary constructor errors name the class, not an internal Rust path.
+
+        Change: fix-vocab-and-remove-datastore. The message used to leak
+        `crate::domain_objects::vocab::ThreatActorType` into Python.
+        """
+        with pytest.raises(stixflayer.StixError) as exc_info:
+            stixflayer.ThreatActorType("bogus")
+
+        message = str(exc_info.value)
+        assert "Invalid ThreatActorType value: 'bogus'" in message, f"message: {message}"
+        assert "crate::" not in message, f"internal path leaked: {message}"
+        assert "Valid values:" in message, f"valid values not listed: {message}"
+        assert '"spy"' in message, f"valid values not listed: {message}"
+
+
 class TestPatternErrorReporting:
     def test_invalid_pattern_raises_validation_error(self):
         """A syntactically invalid pattern raises ValidationError, not the base StixError."""

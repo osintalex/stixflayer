@@ -158,6 +158,7 @@ impl DomainObjectBuilder {
     // Setter functions for properties that may not exist in all SDO types
     // These functions will error if you try to set a property that does not exist
 
+    /// Set the `administrative_area` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn administrative_area(mut self, area: String) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::Location(ref mut location) => {
@@ -203,7 +204,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
-    // Set the `analysis_definition_version` field for an SDO under construction, if the SDO is of a type that has that field
+    /// Set the `analysis_definition_version` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn analysis_definition_version(
         mut self,
         analysis_definition_version: String,
@@ -223,7 +224,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
-    // Set the `analysis_ended` field for an SDO under construction, if the SDO is of a type that has that field
+    /// Set the `analysis_ended` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn analysis_ended(mut self, analysis_ended: String) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::MalwareAnalysis(ref mut malware_analysis) => {
@@ -242,7 +243,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
-    // Set the `analysis_engine_version` field for an SDO under construction, if the SDO is of a type that has that field
+    /// Set the `analysis_engine_version` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn analysis_engine_version(
         mut self,
         analysis_engine_version: String,
@@ -262,7 +263,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
-    // Set the analysis_sco_refs field for an SDO under construction, if the SDO is of a type that has that field
+    /// Set the analysis_sco_refs field for an SDO under construction, if the SDO is of a type that has that field
     pub fn analysis_sco_refs(mut self, analysis_sco_refs: Vec<Identifier>) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::MalwareAnalysis(ref mut malware_analysis) => {
@@ -332,6 +333,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
+    /// Set the `city` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn city(mut self, city: String) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::Location(ref mut location) => {
@@ -365,7 +367,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
-    /// Set the `contact_information (field for an SDO under construction, if the SDO is of a type that has that field
+    /// Set the `contact_information` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn contact_information(mut self, contact_information: String) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::Identity(ref mut identity) => {
@@ -412,6 +414,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
+    /// Set the `country` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn country(mut self, country: String) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::Location(ref mut location) => {
@@ -548,7 +551,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
-    /// Set the roles field for an SDO under construction, if the SDO is of a type that has that field
+    /// Set the `goals` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn goals(mut self, goals: Vec<String>) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::IntrusionSet(ref mut intrusion_set) => {
@@ -657,7 +660,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
-    // Set the installed_software_refs field for an SDO under construction, if the SDO is of a type that has that field
+    /// Set the installed_software_refs field for an SDO under construction, if the SDO is of a type that has that field
     pub fn installed_software_refs(
         mut self,
         installed_software_refs: Vec<Identifier>,
@@ -755,6 +758,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
+    /// Set the `latitude` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn latitude(mut self, latitude: f64) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::Location(ref mut location) => {
@@ -771,6 +775,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
+    /// Set the `longitude` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn longitude(mut self, longitude: f64) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::Location(ref mut location) => {
@@ -804,7 +809,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
-    // Set the modules field for an SDO under construction, if the SDO is of a type that has that field
+    /// Set the modules field for an SDO under construction, if the SDO is of a type that has that field
     pub fn modules(mut self, modules: Vec<String>) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::MalwareAnalysis(ref mut malware_analysis) => {
@@ -869,6 +874,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
+    /// Set the `objective` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn objective(mut self, objective: String) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::Campaign(ref mut campaign) => campaign.objective = Some(objective),
@@ -1028,6 +1034,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
+    /// Set the `postal_code` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn postal_code(mut self, postal_code: String) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::Location(ref mut location) => {
@@ -1044,6 +1051,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
+    /// Set the `precision` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn precision(mut self, precision: f64) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::Location(ref mut location) => {
@@ -1112,6 +1120,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
+    /// Set the `region` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn region(mut self, region: String) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::Location(ref mut location) => {
@@ -1165,7 +1174,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
-    // Set the `result_name` field for an SDO under construction, if the SDO is of a type that has that field
+    /// Set the `result_name` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn result_name(mut self, result_name: String) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::MalwareAnalysis(ref mut malware_analysis) => {
@@ -1238,7 +1247,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
-    /// Set the `sectors ` field for an SDO under construction, if the SDO is of a type that has that field
+    /// Set the `sectors` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn sectors(mut self, identity_sector: Vec<String>) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::Identity(ref mut identity) => {
@@ -1255,6 +1264,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
+    /// Set the `abstract` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn set_abstract(mut self, set_abstract: String) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::Note(ref mut note) => note.set_abstract = Some(set_abstract),
@@ -1269,6 +1279,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
+    /// Set the `is_family` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn set_family(mut self, is_family: bool) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::Malware(ref mut malware) => {
@@ -1285,7 +1296,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
-    // Set the `result` field for an SDO under construction, if the SDO is of a type that has that field
+    /// Set the `result` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn set_result(mut self, result: String) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::MalwareAnalysis(ref mut malware_analysis) => {
@@ -1336,6 +1347,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
+    /// Set the `street_address` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn street_address(mut self, address: String) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::Location(ref mut location) => {
@@ -1352,7 +1364,7 @@ impl DomainObjectBuilder {
         Ok(self)
     }
 
-    // Set the `submitted` field for an SDO under construction, if the SDO is of a type that has that field
+    /// Set the `submitted` field for an SDO under construction, if the SDO is of a type that has that field
     pub fn submitted(mut self, submitted: String) -> Result<Self, Error> {
         match self.object_type {
             DomainObjectType::MalwareAnalysis(ref mut malware_analysis) => {

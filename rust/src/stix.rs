@@ -86,6 +86,7 @@ pub struct CommonProperties {
     pub external_references: Option<Vec<ExternalReference>>,
     /// Specifies a list of identities of marking-definition objects that apply to this object.
     pub object_marking_refs: Option<Vec<Identifier>>,
+    /// Specifies a list of granular markings applied to limited portions of this object's content.
     pub granular_markings: Option<Vec<GranularMarking>>,
     /// This property defines whether or not the data contained within the object has been defanged.
     ///

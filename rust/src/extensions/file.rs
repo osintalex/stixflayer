@@ -16,10 +16,15 @@ use strum::{AsRefStr, EnumIter};
 #[serde(untagged)]
 #[strum(serialize_all = "kebab-case")]
 pub enum FileExtensions {
+    /// The Archive File extension (`archive-ext`).
     ArchiveExt(ArchiveExtension),
+    /// The NTFS File extension (`ntfs-ext`).
     NtfsExt(NtfsExtension),
+    /// The PDF File extension (`pdf-ext`).
     PdfExt(PdfExtension),
+    /// The Raster Image File extension (`raster-image-ext`).
     RasterExt(RasterExtension),
+    /// The Windows PE Binary File extension (`windows-pebinary-ext`).
     WindowsPebinaryExt(Box<WindowsPebinaryExtension>),
 }
 
@@ -235,7 +240,9 @@ impl Stix for RasterExtension {
 /// An EXIF tag, which can be either a string or an integer representing EXIF metadata fields
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExifTag {
+    /// The EXIF tag value as a string.
     String(String),
+    /// The EXIF tag value as an integer.
     Integer(i64),
 }
 impl Stix for ExifTag {
@@ -353,10 +360,14 @@ impl Stix for WindowsPebinaryExtension {
 /// Possible types of a Windows PE binary, specifying a file extension for capturing properties specific to Windows portable executable (PE) files
 #[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize, AsRefStr, EnumIter)]
 pub enum WindowsPebinaryTypeOv {
+    /// A library ("dll") PE binary.
     Dll,
+    /// An executable ("exe") PE binary.
     #[default]
     Exe,
+    /// A driver ("sys") PE binary.
     Sys,
+    /// Any other PE binary type.
     Other(String),
 }
 ///  Windows™ PE Optional Header Type

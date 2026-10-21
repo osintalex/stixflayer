@@ -36,6 +36,7 @@ use stixflayer_derive::StixProperties;
 #[skip_serializing_none]
 #[derive(Clone, Debug, PartialEq, Eq, Default, Serialize, Deserialize, StixProperties)]
 pub struct ExtensionDefinition {
+    /// The STIX type of the object: `extension-definition`.
     #[serde(rename = "type")]
     pub object_type: String,
     /// Common STIX object properties
@@ -79,10 +80,12 @@ impl ExtensionDefinition {
         validate_value(value, allow_custom, true)
     }
 
+    /// Returns `true` if this object's `revoked` property is set to `true`.
     pub fn is_revoked(&self) -> bool {
         matches!(self.common_properties.revoked, Some(true))
     }
 
+    /// Create a builder for a sighting relationship with this object as the `sighting_of_ref`.
     pub fn add_sighting(self) -> Result<RelationshipObjectBuilder, Error> {
         let sighting_of_ref = self.get_id().to_owned();
 

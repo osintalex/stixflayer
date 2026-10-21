@@ -48,14 +48,19 @@ pub trait StixProperties {
 
 /// Per-variant entry of a tagged enum's property table.
 pub struct VariantProps {
+    /// The JSON value of the enum's tag key for this variant.
     pub tag: &'static str,
+    /// The JSON property names this variant structurally accepts.
     pub known: &'static [&'static str],
+    /// The subset of `known` properties that must be present.
     pub required: &'static [&'static str],
 }
 
 /// The property lists for a composed STIX type.
 pub struct TypeProperties {
+    /// The JSON property names the type structurally accepts.
     pub known: Vec<&'static str>,
+    /// The JSON property names that must be present.
     pub required: Vec<&'static str>,
 }
 

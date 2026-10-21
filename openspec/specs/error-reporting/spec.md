@@ -79,3 +79,13 @@ Constructing a `CustomObject` with the same property supplied both as a named ar
 
 - **WHEN** a CustomObject is constructed with `name` as a named argument and a different property in `custom_properties`
 - **THEN** construction succeeds and both properties appear in the serialized output
+
+### Requirement: Messages never expose internal Rust paths
+
+User-facing error messages SHALL NOT contain internal Rust module or type paths (such as `crate::` paths); they SHALL identify the failing construct by its user-facing name.
+
+#### Scenario: Vocabulary constructor error names the class
+
+- **WHEN** a Python vocabulary class is constructed with a value outside its vocabulary
+- **THEN** the message names the vocabulary class (e.g. `ThreatActorType`) without any `crate::` or module path
+- **AND** the message still lists the valid values

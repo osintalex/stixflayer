@@ -31,25 +31,25 @@ pub enum ArchitectureExecutionEnvs {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum AttackMotivation {
-    // A non-hostile actor whose benevolent or harmless intent inadvertently causes harm.
+    /// A non-hostile actor whose benevolent or harmless intent inadvertently causes harm.
     Accidental,
-    // Being forced to act on someone else's behalf, often through intimidation or blackmail.
+    /// Being forced to act on someone else's behalf, often through intimidation or blackmail.
     Coercion,
-    // A desire to assert superiority over someone or something else.
+    /// A desire to assert superiority over someone or something else.
     Dominance,
-    // A passion to express a set of ideas, beliefs, and values that may drive harmful acts.
+    /// A passion to express a set of ideas, beliefs, and values that may drive harmful acts.
     Ideology,
-    // Seeking prestige or to become well known through some activity.
+    /// Seeking prestige or to become well known through some activity.
     Notoriety,
-    // Seeking advantage over a competing organization, including a military organization.
+    /// Seeking advantage over a competing organization, including a military organization.
     OrganizationalGain,
-    // The desire to improve one’s own financial status.
+    /// The desire to improve one’s own financial status.
     PersonalGain,
-    // A desire to satisfy a strictly personal goal, including curiosity or thrill-seeking.
+    /// A desire to satisfy a strictly personal goal, including curiosity or thrill-seeking.
     PersonalSatisfaction,
-    // A desire to avenge perceived wrongs through harmful actions.
+    /// A desire to avenge perceived wrongs through harmful actions.
     Revenge,
-    // Acting without identifiable reason or purpose, creating unpredictable events.
+    /// Acting without identifiable reason or purpose, creating unpredictable events.
     Unpredictable,
 }
 
@@ -57,17 +57,17 @@ pub enum AttackMotivation {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum AttackResourceLevel {
-    // Resources limited to the average individual; Threat Actor acts independently.
+    /// Resources limited to the average individual; Threat Actor acts independently.
     Individual,
-    // Members interact on a social and volunteer basis, often with little personal interest in the specific target.
+    /// Members interact on a social and volunteer basis, often with little personal interest in the specific target.
     Club,
-    // A short-lived interaction that concludes when participants achieve a single goal.
+    /// A short-lived interaction that concludes when participants achieve a single goal.
     Contest,
-    // A formally organized group with a leader, motivated by a specific goal.
+    /// A formally organized group with a leader, motivated by a specific goal.
     Team,
-    // Larger and better resourced than a team; typically a company or crime syndicate.
+    /// Larger and better resourced than a team; typically a company or crime syndicate.
     Organization,
-    // Controls public assets and functions within a jurisdiction; very well resourced.
+    /// Controls public assets and functions within a jurisdiction; very well resourced.
     Government,
 }
 
@@ -75,8 +75,11 @@ pub enum AttackResourceLevel {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter, Default)]
 #[strum(serialize_all = "kebab-case")]
 pub enum ContextType {
+    /// A grouping of objects related to suspicious activity.
     SuspiciousActivity,
+    /// A grouping of objects related to malware analysis.
     MalwareAnalysis,
+    /// A grouping of objects whose context is not otherwise specified.
     #[default]
     Unspecified,
 }
@@ -85,11 +88,17 @@ pub enum ContextType {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum IdentityClass {
+    /// A single person.
     Individual,
+    /// A formal or informal collection of people.
     Group,
+    /// A computer, program, or other electronic device.
     System,
+    /// A company, agency, or other organized entity.
     Organization,
+    /// A general type of entity, such as banks or universities.
     Class,
+    /// The identity class is not known.
     Unknown,
 }
 
@@ -97,33 +106,61 @@ pub enum IdentityClass {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum IdentitySectors {
+    /// The agriculture sector.
     Agriculture,
+    /// The aerospace sector.
     Aerospace,
+    /// The automotive sector.
     Automotive,
+    /// The communications sector.
     Communications,
+    /// The construction sector.
     Construction,
+    /// The defence sector.
     Defence,
+    /// The education sector.
     Education,
+    /// The energy sector.
     Energy,
+    /// The entertainment sector.
     Entertainment,
+    /// The financial services sector.
     FinancialServices,
+    /// The national government sector.
     GovernmentNational,
+    /// The regional government sector.
     GovernmentRegional,
+    /// The local government sector.
     GovernmentLocal,
+    /// The government public services sector.
     GovernmentPublicServices,
-    EmergencyServicesSanitation,
+    /// The emergency services sector.
+    EmergencyServices,
+    /// The healthcare sector.
     Healthcare,
+    /// The hospitality and leisure sector.
     HospitalityLeisure,
+    /// The infrastructure sector.
     Infrastructure,
+    /// The insurance sector.
     Insurance,
+    /// The manufacturing sector.
     Manufacturing,
+    /// The mining sector.
     Mining,
+    /// The non-profit sector.
     NonProfit,
+    /// The pharmaceuticals sector.
     Pharmaceuticals,
+    /// The retail sector.
     Retail,
+    /// The technology sector.
     Technology,
+    /// The telecommunications sector.
     Telecommunications,
+    /// The transportation sector.
     Transportation,
+    /// The utilities sector.
     Utilities,
 }
 
@@ -186,11 +223,17 @@ pub enum ImplementationLanguage {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum IndicatorPatternType {
+    /// Specifies a pattern expressed as a Perl Compatible Regular Expression (PCRE).
     Pcre,
+    /// Specifies a pattern expressed as a Sigma rule.
     Sigma,
+    /// Specifies a pattern expressed as a Snort rule.
     Snort,
+    /// Specifies a pattern expressed as a Suricata rule.
     Suricata,
+    /// Specifies a pattern expressed in the STIX pattern language.
     Stix,
+    /// Specifies a pattern expressed as a YARA rule.
     Yara,
 }
 
@@ -198,12 +241,19 @@ pub enum IndicatorPatternType {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum IndicatorType {
+    /// Unexpected or unusual activity that may indicate an attack or other malicious activity.
     AnomalousActivity,
+    /// Traffic or activity related to anonymization, such as TOR, VPN, or proxies.
     Anonymization,
+    /// Seemingly benign traffic or activity used in the context of analysis or testing.
     Benign,
+    /// Traffic or activity believed to be the result of a compromise.
     Compromised,
+    /// Traffic or activity believed to be representative of malicious activity.
     MaliciousActivity,
+    /// Traffic or activity related to the attribution of an attack or other activity.
     Attribution,
+    /// None of the other types apply, or the type is not known.
     Unknown,
 }
 
@@ -319,9 +369,13 @@ pub enum MalwareCapability {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum MalwareResult {
+    /// The analysis determined that the sample is benign.
     Benign,
+    /// The analysis determined that the sample is malicious.
     Malicious,
+    /// The analysis determined that the sample is suspicious.
     Suspicious,
+    /// The analysis could not determine a result.
     Unknown,
 }
 
@@ -380,11 +434,16 @@ pub enum MalwareType {
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum OpinionType {
+    /// A strongly agreeing opinion on the referenced object.
     StronglyAgree,
+    /// An agreeing opinion on the referenced object.
     Agree,
+    /// A neutral opinion on the referenced object.
     #[default]
     Neutral,
+    /// A disagreeing opinion on the referenced object.
     Disagree,
+    /// A strongly disagreeing opinion on the referenced object.
     StronglyDisagree,
 }
 
@@ -394,34 +453,63 @@ pub enum OpinionType {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum Region {
+    /// The continent of Africa.
     Africa,
+    /// The Eastern Africa sub-region.
     EasternAfrica,
+    /// The Middle Africa sub-region.
     MiddleAfrica,
+    /// The Northern Africa sub-region.
     NorthernAfrica,
+    /// The Southern Africa sub-region.
     SouthernAfrica,
+    /// The Western Africa sub-region.
     WesternAfrica,
+    /// The Americas region.
     Americas,
+    /// The Latin America and the Caribbean sub-region.
     LatinAmericaCaribbean,
+    /// The South America sub-region.
     SouthAmerica,
+    /// The Caribbean sub-region.
     Caribbean,
+    /// The Central America sub-region.
     CentralAmerica,
+    /// The Northern America sub-region.
     NorthernAmerica,
+    /// The continent of Asia.
     Asia,
+    /// The Central Asia sub-region.
     CentralAsia,
+    /// The Eastern Asia sub-region.
     EasternAsia,
+    /// The Southern Asia sub-region.
     SouthernAsia,
+    /// The South-Eastern Asia sub-region.
     SouthEasternAsia,
+    /// The Western Asia sub-region.
     WesternAsia,
+    /// The continent of Europe.
     Europe,
+    /// The Eastern Europe sub-region.
     EasternEurope,
+    /// The Northern Europe sub-region.
     NorthernEurope,
+    /// The Southern Europe sub-region.
     SouthernEurope,
+    /// The Western Europe sub-region.
     WesternEurope,
+    /// The continent of Oceania.
     Oceania,
+    /// The continent of Antarctica.
     Antarctica,
+    /// The Australia and New Zealand sub-region.
     AustraliaNewZealand,
+    /// The Melanesia sub-region.
     Melanesia,
+    /// The Micronesia sub-region.
     Micronesia,
+    /// The Polynesia sub-region.
     Polynesia,
 }
 
@@ -429,16 +517,27 @@ pub enum Region {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum ReportType {
+    /// A report about an attack pattern, or a report consisting of an attack pattern.
     AttackPattern,
+    /// A report about a campaign, or a report consisting of a campaign.
     Campaign,
+    /// A report about an identity, or a report consisting of an identity.
     Identity,
+    /// A report consisting of a set of indicators.
     Indicator,
+    /// A report about an intrusion set, or a report consisting of an intrusion set.
     IntrusionSet,
+    /// A report consisting of malware and malware analysis objects.
     Malware,
+    /// A report consisting of observed data.
     ObservedData,
+    /// A report about a threat actor, or a report consisting of a threat actor.
     ThreatActor,
+    /// A report about a threat that is not specific to one of the other values.
     ThreatReport,
+    /// A report consisting of tool objects.
     Tool,
+    /// A report about a vulnerability, or a report consisting of a vulnerability.
     Vulnerability,
 }
 
@@ -446,19 +545,19 @@ pub enum ReportType {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum ThreatActorRole {
-    // Threat actor executes attacks either on behalf of themselves or at the direction of someone else.
+    /// Threat actor executes attacks either on behalf of themselves or at the direction of someone else.
     Agent,
-    // The threat actor who directs the activities, goals, and objectives of the malicious activities.
+    /// The threat actor who directs the activities, goals, and objectives of the malicious activities.
     Director,
-    // A threat actor acting by themselves.
+    /// A threat actor acting by themselves.
     Independent,
-    // Someone who designs the battle space.
+    /// Someone who designs the battle space.
     InfrastructureArchitect,
-    // The threat actor who provides and supports the attack infrastructure.
+    /// The threat actor who provides and supports the attack infrastructure.
     InfrastructureOperator,
-    // The threat actor who authors malware or other malicious tools.
+    /// The threat actor who authors malware or other malicious tools.
     MalwareAuthor,
-    // The threat actor who funds the malicious activities.
+    /// The threat actor who funds the malicious activities.
     Sponsor,
 }
 
@@ -466,19 +565,19 @@ pub enum ThreatActorRole {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum ThreatActorSophistication {
-    // Can develop their own tools or scripts from known vulnerabilities.
+    /// Can develop their own tools or scripts from known vulnerabilities.
     Advanced,
-    // Can focus on the discovery and use of unknown malicious code.
+    /// Can focus on the discovery and use of unknown malicious code.
     Expert,
-    // Highly technical and proficient, capable of discovering new vulnerabilities.
+    /// Highly technical and proficient, capable of discovering new vulnerabilities.
     Innovator,
-    // Can proficiently use existing attack frameworks and toolkits.
+    /// Can proficiently use existing attack frameworks and toolkits.
     Intermediate,
-    // Can carry out random acts of disruption using tools they do not understand.
+    /// Can carry out random acts of disruption using tools they do not understand.
     None,
-    // Can minimally use existing techniques and programs to exploit weaknesses.
+    /// Can minimally use existing techniques and programs to exploit weaknesses.
     Minimal,
-    // State actors creating vulnerabilities through influence in supply chains.
+    /// State actors creating vulnerabilities through influence in supply chains.
     Strategic,
 }
 
@@ -486,29 +585,29 @@ pub enum ThreatActorSophistication {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter)]
 #[strum(serialize_all = "kebab-case")]
 pub enum ThreatActorType {
-    // Highly motivated supporter of a social or political cause, potentially disruptive.
+    /// Highly motivated supporter of a social or political cause, potentially disruptive.
     Activist,
-    // An organization competing in the same economic marketplace, seeking advantage.
+    /// An organization competing in the same economic marketplace, seeking advantage.
     Competitor,
-    // An enterprise organized for large-scale criminal activity for profit.
+    /// An enterprise organized for large-scale criminal activity for profit.
     CrimeSyndicate,
-    // Individual committing computer crimes for personal financial gain.
+    /// Individual committing computer crimes for personal financial gain.
     Criminal,
-    // An individual breaking into networks for thrill or challenge.
+    /// An individual breaking into networks for thrill or challenge.
     Hacker,
-    // A non-hostile insider unintentionally exposing the organization to harm.
+    /// A non-hostile insider unintentionally exposing the organization to harm.
     InsiderAccidental,
-    // Current or former insiders seeking revenge for perceived wrongs.
+    /// Current or former insiders seeking revenge for perceived wrongs.
     InsiderDisgruntled,
-    // Entities working for or directed by a nation state, with significant resources.
+    /// Entities working for or directed by a nation state, with significant resources.
     NationState,
-    // Seeks to cause embarrassment and brand damage by exposing sensitive information.
+    /// Seeks to cause embarrassment and brand damage by exposing sensitive information.
     Sensationalist,
-    // Secretly collects sensitive information for use, dissemination, or sale.
+    /// Secretly collects sensitive information for use, dissemination, or sale.
     Spy,
-    // Uses extreme violence to advance a social or political agenda.
+    /// Uses extreme violence to advance a social or political agenda.
     Terrorist,
-    // Insufficient information to determine the type of threat actor.
+    /// Insufficient information to determine the type of threat actor.
     Unknown,
 }
 
@@ -516,13 +615,21 @@ pub enum ThreatActorType {
 #[derive(Debug, PartialEq, Eq, Clone, AsRefStr, EnumIter, Default)]
 #[strum(serialize_all = "kebab-case")]
 pub enum ToolType {
+    /// Tools used to collect, crack, or exploit credentials, such as password crackers or keyloggers.
     CredentialExploitation,
+    /// Tools used to perform denial-of-service attacks or exhaust resources.
     DenialOfService,
+    /// Tools used to exploit vulnerabilities in software or systems, such as exploit kits.
     Exploitation,
+    /// Tools used to gather information about targets, networks, services, or users.
     InformationGathering,
+    /// Tools used to capture network traffic, such as sniffers.
     NetworkCapture,
+    /// Tools used to access hosts, services, or networks remotely, such as remote access trojans.
     RemoteAccess,
+    /// Tools used to scan hosts or networks for vulnerabilities, services, or configurations.
     VulnerabilityScanning,
+    /// None of the other types apply, or the type is not known.
     #[default]
     Unknown,
 }

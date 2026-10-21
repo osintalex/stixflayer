@@ -1,20 +1,64 @@
-//! #stixflayer
+//! # stixflayer
 //!
-//! An implementation of STIX 2.1 in Rust.
+//! Fast, strict [STIX 2.1](https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html)
+//! parsing, validation, and serialization in Rust.
 //!
-//! This is a work in progress implementation of the object and features of STIX 2.1 as a Rust library.
-//! Eventually, this will become a full Rust-based STIX API.
+//! stixflayer is a single spec-compliant engine shared by every language
+//! binding, so a document is validated the same way in Rust, Python, and
+//! beyond — instead of each language carrying its own subtly different
+//! reimplementation.
 //!
-//! The objects and features in this library are intended to conform to the STIX 2.1 standards detailed in [this document](https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html).
+//! # Quick start
+//!
+//! Parsing validates: [`Bundle::from_json`](bundles::Bundle::from_json) returns
+//! a parsed bundle or a structured [`StixError`].
+//!
+//! ```
+//! use stixflayer::Bundle;
+//!
+//! let json = r#"{
+//!     "type": "bundle",
+//!     "id": "bundle--0c7b5d88-7c1c-4a8b-8f0c-6e9d4f2b1a55",
+//!     "objects": [{
+//!         "type": "attack-pattern",
+//!         "spec_version": "2.1",
+//!         "id": "attack-pattern--d3046a90-580c-4004-8208-66915bc29830",
+//!         "created": "2019-04-24T15:12:36.609Z",
+//!         "modified": "2023-03-24T15:14:15.637Z",
+//!         "name": "Clear Command History"
+//!     }]
+//! }"#;
+//!
+//! let bundle = Bundle::from_json(json)?;
+//! assert_eq!(bundle.get_objects().len(), 1);
+//!
+//! # Ok::<(), stixflayer::StixError>(())
+//! ```
+//!
+//! Documents that break STIX 2.1 rules are rejected with machine-readable
+//! detail — see [`error::StixError`] for the error kinds and the fields each
+//! carries.
+//!
+//! # Python and other languages
+//!
+//! The [`python_bindings`] module exposes this engine to Python via
+//! [PyO3](https://pyo3.rs/) and is not part of the Rust API — it is hidden
+//! from documentation. The Python user-facing documentation lives at
+//! <https://osintalex.github.io/stixflayer/> and the Rust API reference on
+//! [docs.rs](https://docs.rs/stixflayer).
+
+// Every public item in the public API surface must be documented; the
+// Python-binding module is #[doc(hidden)], which also exempts it from this lint.
+#![deny(missing_docs)]
 
 pub mod base;
 pub mod builder;
 pub mod bundles;
+/// Shared helper modules: validation utilities, string normalization, and timestamp ordering checks.
 pub mod common;
 pub mod custom_objects;
 pub mod custom_property;
 pub mod cyber_observable_objects;
-pub mod datastore;
 pub mod dictionary;
 pub mod domain_objects;
 pub mod error;
@@ -37,6 +81,7 @@ pub mod types;
 pub mod validation;
 
 #[cfg(feature = "pyo3")]
+#[doc(hidden)]
 pub mod python_bindings;
 
 // Re-export commonly used types and builders

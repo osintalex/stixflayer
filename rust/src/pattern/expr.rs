@@ -13,27 +13,38 @@ use strum::IntoEnumIterator;
 /// A STIX Pattern Constant
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Constant {
+    /// A boolean literal.
     Boolean(bool),
+    /// A binary literal, such as `b'0123'`.
     Binary(String),
+    /// A hexadecimal literal, such as `h'ff'`.
     Hex(String),
+    /// An integer literal.
     Integer(i64),
+    /// A floating-point literal.
     Float(OrderedFloat<f64>),
+    /// A string literal.
     String(String),
+    /// A timestamp literal.
     Timestamp(Timestamp),
+    /// A set of constants, as used with the `IN` operator.
     Set(Vec<Constant>),
 }
 
 /// A STIX Pattern Observation Expression
 ///
-/// Fpr more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_e8slinrhxcc9> for details of the STIX Patterning grammar
+/// For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_e8slinrhxcc9> for details of the STIX Patterning grammar
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ObservationExpression {
+    /// One or more comparison expressions, optionally joined by boolean operators.
     Comparison(ComparisonComponent),
+    /// Two observation expressions joined by an observation operator.
     ObservationOp(
         Box<ObservationExpression>,
         ObservationOperator,
         Box<ObservationExpression>,
     ),
+    /// An observation expression qualified by a `REPEATS`, `WITHIN`, or `START`/`STOP` qualifier.
     Qualification(Box<ObservationExpression>, Qualifier),
 }
 impl ObservationExpression {
@@ -75,7 +86,9 @@ impl Stix for ObservationExpression {
 /// Left-associative Boolean comparison of one or more Comparison Expressions
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ComparisonComponent {
+    /// A single comparison expression.
     ComparisonExpression(ComparisonExpression),
+    /// Two comparison components joined by a boolean operator.
     BooleanOp(
         Box<ComparisonComponent>,
         BooleanOperator,
@@ -117,8 +130,11 @@ impl ComparisonComponent {
 /// A STIX Pattern Comparison Expression
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ComparisonExpression {
+    /// The path to the observable property being compared.
     pub object_path: ObjectPath,
+    /// The operator applied between the object path and the constant.
     pub operator: ComparisonOperator,
+    /// The constant compared against the object path; `None` for `EXISTS` comparisons.
     pub constant: Option<Constant>,
 }
 
@@ -168,7 +184,9 @@ impl ComparisonExpression {
 /// A STIX Pattern Object Path
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ObjectPath {
+    /// The observable type name at the start of the path, e.g. `ipv4-addr`.
     pub sco: String,
+    /// The property path after the `:`, which may index into lists and nested objects.
     pub property: String,
 }
 
@@ -220,40 +238,60 @@ impl ObjectPath {
 /// A STIX Pattern Comparison Operator
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ComparisonOperator {
+    /// An equality comparison (`=`).
     Eq,
+    /// An inequality comparison (`!=`).
     Neq,
+    /// A greater-than comparison (`>`).
     Gt,
+    /// A less-than comparison (`<`).
     Lt,
+    /// A greater-than-or-equal comparison (`>=`).
     Gte,
+    /// A less-than-or-equal comparison (`<=`).
     Lte,
+    /// A test that the path's value is in a set of constants (`IN`).
     In,
+    /// A wild-card string comparison (`LIKE`).
     Like,
+    /// A regular-expression string comparison (`MATCHES`).
     Matches,
+    /// A test that the path's value is a subset of the string constant (`ISSUBSET`).
     IsSubset,
+    /// A test that the path's value is a superset of the string constant (`ISSUPERSET`).
     IsSuperset,
+    /// A test of whether the property exists (`EXISTS`); takes no constant.
     Exists,
 }
 
 /// A STIX Pattern Boolean Operator
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BooleanOperator {
+    /// A boolean OR (`OR`) between comparison expressions.
     Or,
+    /// A boolean AND (`AND`) between comparison expressions.
     And,
 }
 
 /// A STIX Pattern Observation Operator
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ObservationOperator {
+    /// An observation OR (`OR`) between observation expressions.
     Or,
+    /// An observation AND (`AND`) between observation expressions.
     And,
+    /// A temporal ordering operator (`FOLLOWEDBY`) between observation expressions.
     FollowedBy,
 }
 
 /// A STIX Pattern Observation Expression Qualifier
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Qualifier {
+    /// A `REPEATS` qualifier matching an observation repeated a given number of times.
     Repeats(i64),
+    /// A `WITHIN` qualifier bounding an observation to a time window, in seconds.
     Within(OrderedFloat<f64>),
+    /// A `START`/`STOP` qualifier bounding an observation to a timestamp range.
     StartStop(Timestamp, Timestamp),
 }
 

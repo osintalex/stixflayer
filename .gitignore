@@ -15,6 +15,9 @@ target/
 *.dylib
 *.dll
 
+# Docs site build output
+site/
+
 # Dev tooling / agent config
 .cargo/
 .grit/

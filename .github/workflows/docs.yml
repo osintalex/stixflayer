@@ -1,0 +1,59 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Dev deploys write the gh-pages branch.
+permissions:
+  contents: write
+
+# Serialize docs deploys: a new push to main waits for an in-progress deploy
+# (or a release-time version deploy) instead of racing it on gh-pages.
+# Must stay in sync with the docs job in release.yml.
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  docs-dev-deploy:
+    name: Deploy dev docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Full history so mike can manage the gh-pages branch.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+        with:
+          fetch-depth: 0
+      # Docs tooling only — the site build needs no compiled extension.
+      - name: Install docs tooling
+        run: |
+          python3 -m venv .venv-docs
+          .venv-docs/bin/pip install --quiet -r docs/requirements.txt
+      - name: Configure git for mike commits
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Deploy dev docs
+        # mike invokes `zensical build --clean` itself; keep the venv on PATH.
+        run: |
+          export PATH="$PWD/.venv-docs/bin:$PATH"
+          mike deploy dev --push
+      - name: Set default version if none exists
+        # Bootstraps the site root so it serves something before the first
+        # release. Once a release has set `latest` as the default, it wins.
+        # This mike fork records the default as a root index.html redirect
+        # (upstream mike used a `default` symlink; check both).
+        run: |
+          export PATH="$PWD/.venv-docs/bin:$PATH"
+          git fetch origin gh-pages --quiet 2>/dev/null || true
+          ref="$(git rev-parse --verify origin/gh-pages 2>/dev/null)" || true
+          if [ -n "$ref" ] && (git cat-file -e "$ref:index.html" 2>/dev/null || git cat-file -e "$ref:default" 2>/dev/null); then
+            echo "A default version already exists; leaving it in place."
+          else
+            mike set-default dev --push
+          fi

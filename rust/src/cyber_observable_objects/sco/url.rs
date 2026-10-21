@@ -15,6 +15,7 @@ use url::Url as RustUrl;
 #[skip_serializing_none]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, StixProperties)]
 pub struct Url {
+    /// The value of the URL, which must conform to RFC 3986.
     pub value: RustUrl,
 }
 impl Stix for Url {

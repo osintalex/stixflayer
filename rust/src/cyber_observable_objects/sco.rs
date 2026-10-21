@@ -1,23 +1,41 @@
 //! Contains the implementation logic for STIX Cyber-observable Objects (SCOs).
 
+/// The Artifact cyber-observable object.
 pub mod artifact;
+/// The autonomous-system cyber-observable object.
 pub mod autonomous_system;
 pub mod builder;
+/// The directory cyber-observable object.
 pub mod directory;
+/// The domain-name cyber-observable object.
 pub mod domain_name;
+/// The email-addr cyber-observable object.
 pub mod email_addr;
+/// The email-message cyber-observable object.
 pub mod email_message;
+/// The file cyber-observable object.
 pub mod file;
+/// The ipv4-addr cyber-observable object.
 pub mod ipv4_addr;
+/// The ipv6-addr cyber-observable object.
 pub mod ipv6_addr;
+/// The mac-addr cyber-observable object.
 pub mod mac_addr;
+/// The mutex cyber-observable object.
 pub mod mutex;
+/// The network-traffic cyber-observable object.
 pub mod network_traffic;
+/// The process cyber-observable object.
 pub mod process;
+/// The software cyber-observable object.
 pub mod software;
+/// The url cyber-observable object.
 pub mod url;
+/// The user-account cyber-observable object.
 pub mod user_account;
+/// The windows-registry-key cyber-observable object.
 pub mod windows_registry_key;
+/// The x509-certificate cyber-observable object.
 pub mod x509_certificate;
 
 pub use artifact::Artifact;
@@ -129,7 +147,7 @@ static PROTOCOLS_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     let mut protocols_map = HashMap::new();
     protocols_map.insert("http-request-ext".to_string(), "http".to_string());
     protocols_map.insert("tcp-ext".to_string(), "tcp".to_string());
-    protocols_map.insert("imcp-ext".to_string(), "imcp".to_string());
+    protocols_map.insert("icmp-ext".to_string(), "icmp".to_string());
     protocols_map.insert("socket-ext".to_string(), "tcp".to_string());
     protocols_map
 });
@@ -162,6 +180,7 @@ impl CyberObject {
         validate_value(value, allow_custom, true)
     }
 
+    /// Returns whether the object's `revoked` property is `true`.
     pub fn is_revoked(&self) -> bool {
         matches!(self.common_properties.revoked, Some(true))
     }
@@ -336,25 +355,69 @@ pub use builder::CyberObjectBuilder;
 #[serde(tag = "type", rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum CyberObjectType {
+    /// An `artifact` object.
     Artifact(Artifact),
+    /// An `autonomous-system` object.
     AutonomousSystem(AutonomousSystem),
+    /// A `directory` object.
     Directory(Directory),
+    /// A `domain-name` object.
     DomainName(DomainName),
+    /// An `email-addr` object.
     #[serde(rename = "email-addr", alias = "email-address")]
     #[strum(serialize = "email-addr")]
     EmailAddress(EmailAddress),
+    /// An `email-message` object.
     EmailMessage(EmailMessage),
+    /// A `file` object.
     File(File),
+    /// An `ipv4-addr` object.
     Ipv4Addr(Ipv4Addr),
+    /// An `ipv6-addr` object.
     Ipv6Addr(Ipv6Addr),
+    /// A `mac-addr` object.
     MacAddr(MacAddr),
+    /// A `mutex` object.
     Mutex(Mutex),
+    /// A `network-traffic` object.
     NetworkTraffic(NetworkTraffic),
+    /// A `process` object.
     Process(Process),
+    /// A `software` object.
     Software(Software),
+    /// A `url` object.
     Url(Url),
+    /// A `user-account` object.
     UserAccount(UserAccount),
+    /// A `windows-registry-key` object.
     WindowsRegistryKey(WindowsRegistryKey),
+    /// A `windows-registry-key` value entry.
     WindowsRegistryKeyType(WindowsRegistryKeyType),
+    /// An `x509-certificate` object.
     X509Certificate(Box<X509Certificate>),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn protocol_extension_map_matches_spec() {
+        assert_eq!(
+            PROTOCOLS_MAP.get("icmp-ext").map(String::as_str),
+            Some("icmp")
+        );
+        assert_eq!(
+            PROTOCOLS_MAP.get("tcp-ext").map(String::as_str),
+            Some("tcp")
+        );
+        assert_eq!(
+            PROTOCOLS_MAP.get("http-request-ext").map(String::as_str),
+            Some("http")
+        );
+        assert_eq!(
+            PROTOCOLS_MAP.get("socket-ext").map(String::as_str),
+            Some("tcp")
+        );
+    }
 }
