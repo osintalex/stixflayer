@@ -75,6 +75,11 @@ plugins:
 markdown_extensions:
   - admonition
   - attr_list
+  - pymdownx.emoji:
+      # Zensical namespace (not Material's) — required for shortcode rendering.
+      # Without this, :emoji: and :material-icon: shortcodes render as literal text.
+      emoji_index: !!python/name:zensical.extensions.emoji.twemoji
+      emoji_generator: !!python/name:zensical.extensions.emoji.to_svg
   - def_list
   - footnotes
   - md_in_html
