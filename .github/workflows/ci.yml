@@ -118,6 +118,12 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
       # Docs tooling only — the site build needs no compiled extension
       # (content is curated Markdown; no API autodoc).
+      # git is required: docs/requirements.txt pins mike to a GitHub fork,
+      # and the slim uv container ships without a git executable.
+      - name: Install git (for the mike git dependency)
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends git
       - run: uv venv
       - run: uv pip install -r docs/requirements.txt
       - run: uv run --no-sync zensical build --strict --clean

@@ -23,6 +23,12 @@ bindings = "pyo3"
 [tool.ruff]
 line-length = 120
 target-version = "py311"
+# The docs site's Markdown code blocks are executable examples verified by
+# tests/test_docs_examples.py using the `#>` expected-output sentinel, which
+# ruff format's Markdown support would rewrite to `# >` — breaking the
+# harness's output detection. The snippets are already linted by the harness
+# itself, so keep ruff (check and format) off Markdown entirely.
+extend-exclude = ["docs", "README.md"]
 
 [tool.ruff.lint]
 # Curated aggressive set (see openspec change "pre-publication-cleanup", design D1).
