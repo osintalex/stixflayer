@@ -76,7 +76,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let path = harness::results_dir().join("spike.jsonl");
+    let dir = harness::results_dir().join("spike");
+    std::fs::create_dir_all(&dir)?;
+    let path = dir.join("report.jsonl");
     std::fs::write(&path, lines.join("\n") + "\n")?;
 
     println!(

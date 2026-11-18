@@ -1,6 +1,6 @@
 # STIX Pattern Parser Comparison - Results
 
-**Status:** in progress. All four front ends complete; the winner spike is pending.
+**Status:** complete. All four front ends measured; the winner spike is done.
 
 ## 1. Environment
 
@@ -157,7 +157,7 @@ port is about 100 lines.
 ## 7. AST integration spike
 
 The spike builds the real `stixflayer::pattern::expr` AST from pest's pair tree and runs the real
-`Stix::stix_check()`. Results are in `results/spike.jsonl`.
+`Stix::stix_check()`. Results are in `results/spike/report.jsonl`.
 
 ```
 must-pass ASTs built:  47/51
@@ -185,4 +185,34 @@ the *contract*, not the parser.
 
 ## 8. Verdict
 
-Pending the final review.
+**Does antlr's error surface deliver the "richest raw material" advantage?** Partly. It has the best
+structured data of any candidate (line, column, byte span, offending token text and type), and the
+official grammar compiles unmodified. But the specific advantage it was chosen for does not exist:
+expected sets are computed after the left-recursive operator decision, so `I04` reports only `']'`
+and `I25` reports only `<EOF>`. A "did you mean FOLLOWEDBY?" layer cannot be built from that event;
+it would need a separate vocabulary-level fuzzy match, which every library can do. The raw material
+is real for other failures (a missing value lists the literal kinds), but not for the typo class
+that motivated the choice. Combined with MSRV 1.95, the codegen dependency on `rustpython-vm`, the
+`libc` pin, 314 KB of generated source, and a 28 MB binary, it does not pay for itself.
+
+**Is pest's output, with renamed rules, already close enough?** Yes. About 60 lines of rule renaming
+turns `expected kw_and, kw_or, or r_bracket` into "expected 'AND' or 'OR' or ']'", and pest is the
+only candidate whose expected set contains `FOLLOWEDBY` for `I25` — so it is the only one that can
+actually support the brief's did-you-mean question, at the outer position. The raw rendering is rule
+names, but the plain-language layer is required by the `error-reporting` spec regardless, and pest's
+structured `positives`/`negatives` feed it directly. At 1 s rebuilds, a 6.8 MB binary, MSRV 1.88,
+and no codegen step, it is also the cheapest.
+
+**Recommendation.** Primary: **pest + a typed error layer**. Documented fallback:
+**antlr-rust 0.34**, if IDE-grade spans and token identity become a requirement, or if the project
+later decides it will not hand-maintain a grammar port; the fallback carries the dependency and MSRV
+costs above. The fresh nom probe is not recommended for a rewrite: `alt` discards the deepest error,
+so expected sets need custom machinery. chumsky is not recommended: its trivia and char-level
+keyword handling make every message noisy, and fixing it needs a lexer.
+
+**What the adoption change inherits.** The spike shows the front end is not the whole job. `expr.rs`
+cannot represent parenthesised comparison groups (`V17`) or `NOT` on comparisons and `EXISTS`
+(`V28`, `V29`, `V49`), and the `REPEATS > 0` / `WITHIN > 0` rule currently lives in the shipped front
+end rather than `stix_check`. The follow-up change should extend the AST, decide where the range rule
+belongs, port the grammar to pest, build the AST from pest pairs, and keep the existing semantic layer
+and error contract. The `pest-poc` and `spike-poc` crates are the seeds for that work.

@@ -75,10 +75,10 @@
 
 ## 8. Verdict
 
-- [ ] 8.1 Assemble `poc-parser/RESULTS.md` with environment, verbatim showcase, correctness matrix,
+- [x] 8.1 Assemble `poc-parser/RESULTS.md` with environment, verbatim showcase, correctness matrix,
   diagnostics assessment, cost table, and the three verdict questions; verify every claim cites a
   `results/*.jsonl` entry and all showcase cases are present.
-- [ ] 8.2 Run the final checks: `cargo build --workspace` in `poc-parser/`, `git status` shows only
+- [x] 8.2 Run the final checks: `cargo build --workspace` in `poc-parser/`, `git status` shows only
   `poc-parser/` and change artifacts, and no file under `rust/`, `src/`, `tests/`, or `testdata/`
   changed; verify with `git diff --stat c00f095..HEAD -- rust src tests testdata` returning empty.
 
