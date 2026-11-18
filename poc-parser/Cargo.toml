@@ -1,0 +1,10 @@
+[workspace]
+resolver = "2"
+members = [
+    "harness",
+    "baseline-poc",
+    "nom-poc",
+    "pest-poc",
+    "antlr-poc",
+    "chumsky-poc",
+]
