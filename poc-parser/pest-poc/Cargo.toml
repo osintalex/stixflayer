@@ -1,0 +1,10 @@
+[package]
+name = "pest-poc"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+harness = { path = "../harness" }
+pest = "2.9"
+pest_derive = "2.9"

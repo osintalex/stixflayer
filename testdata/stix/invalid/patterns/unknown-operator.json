@@ -1,13 +1,10 @@
-{
-    "//": "INVALID: pattern uses unknown comparison operator '><'",
-    "type": "indicator",
-    "spec_version": "2.1",
-    "id": "indicator--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
-    "created": "2016-04-06T08:17:27.000Z",
-    "modified": "2016-04-06T08:17:27.000Z",
-    "name": "Bad Pattern Operator",
-    "indicator_types": ["malicious-activity"],
-    "pattern": "[file:hashes.'SHA-256' >< 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855']",
-    "pattern_type": "stix",
-    "valid_from": "2016-04-06T08:17:27.000Z"
-}
+[
+    {
+        "id": "I31",
+        "description": "Unknown operator '><'",
+        "pattern": "[file:hashes.'SHA-256' >< 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855']",
+        "spec": "9.6.1",
+        "layer": "grammar",
+        "expected_error": "a value"
+    }
+]

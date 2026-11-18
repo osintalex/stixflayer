@@ -1,14 +1,20 @@
 [
     {
+        "id": "V61",
         "description": "WITHIN qualifier",
-        "pattern": "[domain-name:value = 'example.com'] WITHIN 600 SECONDS"
+        "pattern": "[domain-name:value = 'example.com'] WITHIN 600 SECONDS",
+        "spec": "9.5.1"
     },
     {
+        "id": "V62",
         "description": "REPEATS qualifier",
-        "pattern": "[domain-name:value = 'example.com'] REPEATS 5 TIMES"
+        "pattern": "[domain-name:value = 'example.com'] REPEATS 5 TIMES",
+        "spec": "9.5.1"
     },
     {
+        "id": "V63",
         "description": "Multiple qualifiers",
-        "pattern": "[domain-name:value = 'example.com'] WITHIN 600 SECONDS REPEATS 5 TIMES"
+        "pattern": "[domain-name:value = 'example.com'] WITHIN 600 SECONDS REPEATS 5 TIMES",
+        "spec": "9.5.1"
     }
 ]

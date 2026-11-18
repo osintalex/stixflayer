@@ -1,18 +1,26 @@
 [
     {
-        "description": "Simple equality comparison",
-        "pattern": "[file:hashes.'SHA-256' = 'd7a9f2b24e57209a18e7cfb2439c0b6f3c0d9a4b5c8e6f1a2b3c4d5e6f7a8b9']"
+        "id": "V54",
+        "description": "Simple file hash equality",
+        "pattern": "[file:hashes.'SHA-256' = 'd7a9f2b24e57209a18e7cfb2439c0b6f3c0d9a4b5c8e6f1a2b3c4d5e6f7a8b9']",
+        "spec": "9.6.4"
     },
     {
+        "id": "V55",
         "description": "IPv4 address comparison",
-        "pattern": "[ipv4-addr:value = '192.0.2.1']"
+        "pattern": "[ipv4-addr:value = '192.0.2.1']",
+        "spec": "9.6.1"
     },
     {
+        "id": "V56",
         "description": "Domain name comparison",
-        "pattern": "[domain-name:value = 'example.com']"
+        "pattern": "[domain-name:value = 'example.com']",
+        "spec": "9.6.1"
     },
     {
+        "id": "V57",
         "description": "EXISTS comparison",
-        "pattern": "EXISTS [file:name]"
+        "pattern": "[EXISTS file:name]",
+        "spec": "9.6.1"
     }
 ]

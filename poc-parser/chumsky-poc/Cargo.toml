@@ -1,0 +1,9 @@
+[package]
+name = "chumsky-poc"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+harness = { path = "../harness" }
+chumsky = "0.14"

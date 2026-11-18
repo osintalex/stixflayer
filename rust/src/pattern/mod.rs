@@ -1,655 +1,820 @@
-//! A Rust implementaiton of STIX Patterning grammar that use the nom combinator parser
+//! A Rust implementation of the STIX 2.1 Patterning grammar.
+//!
+//! The grammar is hand-ported to pest in `stix.pest`; this module builds the
+//! typed [`expr`] AST from the pest pair tree and maps parser failures to
+//! plain-language diagnostics with a line and column.
 
 pub mod expr;
-mod util;
 
-use std::ops::Not;
+use pest::error::{Error as PestError, ErrorVariant, LineColLocation};
+use pest::iterators::Pair;
+use pest::Parser;
 
-use crate::{base::Stix, error::StixError, types::Timestamp};
-use base64::{engine::general_purpose, Engine};
+use crate::base::Stix;
+use crate::error::StixError;
+use crate::types::Timestamp;
 use expr::*;
-use nom::{
-    branch::alt,
-    bytes::complete::{is_not, tag},
-    character::complete::{alphanumeric1, char, digit1, multispace0, multispace1},
-    combinator::{complete, fail, map, opt},
-    error::{Error, ErrorKind},
-    multi::separated_list1,
-    number::complete::double,
-    sequence::{delimited, pair, preceded, separated_pair, terminated},
-    IResult, Parser,
-};
-use nom_language::precedence::{binary_op, precedence, unary_op, Assoc, Operation};
-use ordered_float::OrderedFloat;
-use util::*;
 
-/// Validate a STIX Pattern string
+/// The pest parser generated from `stix.pest`.
+///
+/// The module is private: the generated `Rule` enum is an implementation
+/// detail used by the diagnostics and coverage tests, not public API.
+#[allow(missing_docs)]
+mod grammar {
+    use pest_derive::Parser;
+
+    #[derive(Parser)]
+    #[grammar = "pattern/stix.pest"]
+    pub struct StixParser;
+}
+
+use grammar::{Rule, StixParser};
+
+/// A failure while turning a valid parse tree into the typed AST.
+///
+/// The grammar rejects malformed input before this layer, so a failure here
+/// means a value could not be represented (for example an integer overflow).
+type BuildResult<T> = Result<T, &'static str>;
+
+/// Validate a STIX Pattern string.
+///
+/// Parses the pattern against the STIX 2.1 patterning grammar and then applies
+/// the patterning semantic rules. A grammar failure is reported as
+/// [`StixError::ParsePatternError`] with a `line:column` position and a plain
+/// description of what was expected; a semantic failure is reported as a
+/// [`StixError::ValidationError`].
 pub fn validate_pattern(pattern: &str) -> Result<(), StixError> {
-    // Parse the string into a STIX Pattern data structure, or else error it the pattern does not follow the grammar
-    let (remains, observation) = parse_observation(pattern)
-        .map_err(|e| StixError::ParsePatternError(pattern.to_string(), describe_parse_error(e)))?;
-    if remains.is_empty().not() {
-        return Err(StixError::ParsePatternError(
-            pattern.to_string(),
-            "Remaining characters at the end of pattern after parsing".to_string(),
-        ));
-    }
-
-    // Check that the STIX Pattern does not violate any additional rules
+    let observation = parse_pattern(pattern)?;
     observation.stix_check()
 }
 
-/// Describes a nom parse failure in plain language.
-///
-/// nom's own `Display` prints its internal error kind and the raw remaining
-/// input (`error Tag at: "..."`), which leaks parser internals into user-facing
-/// messages. This maps the error kinds produced by this grammar to readable
-/// text; the input at the point of failure is always included so users can
-/// locate the problem in their pattern.
-fn describe_parse_error(err: nom::Err<nom::error::Error<&str>>) -> String {
-    use nom::error::ErrorKind;
+/// Parse a pattern into the typed AST without applying semantic checks.
+fn parse_pattern(pattern: &str) -> Result<ObservationExpression, StixError> {
+    let mut pairs = StixParser::parse(Rule::pattern, pattern).map_err(|error| {
+        StixError::ParsePatternError(pattern.to_string(), format_parse_error(pattern, &error))
+    })?;
 
-    let (input, code) = match err {
-        nom::Err::Error(e) | nom::Err::Failure(e) => (e.input, e.code),
-        nom::Err::Incomplete(_) => {
-            return "the pattern ended in the middle of a value".to_string();
+    let root = pairs.next().ok_or_else(|| {
+        StixError::ParsePatternError(
+            pattern.to_string(),
+            "the pattern could not be interpreted".to_string(),
+        )
+    })?;
+
+    build_observation_expression(root).map_err(|_| {
+        StixError::ParsePatternError(
+            pattern.to_string(),
+            "the pattern contains a value that is out of range".to_string(),
+        )
+    })
+}
+
+fn build_observation_expression(pair: Pair<Rule>) -> BuildResult<ObservationExpression> {
+    let expressions = pair
+        .into_inner()
+        .find(|inner| inner.as_rule() == Rule::observation_expressions)
+        .ok_or("missing observation expressions")?;
+    build_observation_expressions(expressions)
+}
+
+fn build_observation_expressions(pair: Pair<Rule>) -> BuildResult<ObservationExpression> {
+    let mut inner = pair.into_inner();
+    let mut acc = build_observation_or(inner.next().ok_or("empty observation")?)?;
+
+    while let Some(operator) = inner.next() {
+        if operator.as_rule() != Rule::kw_followedby {
+            continue;
         }
-    };
-    let expectation = match code {
-        ErrorKind::Digit => "expected a number",
-        ErrorKind::HexDigit => "expected a hexadecimal value",
-        ErrorKind::AlphaNumeric => "expected a name or keyword",
-        ErrorKind::Tag => "expected a keyword or symbol",
-        ErrorKind::TakeUntil => "expected a closing quote or delimiter",
-        ErrorKind::Alt => "expected a valid pattern element",
-        ErrorKind::Char => "expected a specific character",
-        ErrorKind::Eof => "expected the end of the pattern",
-        _ => "syntax error",
-    };
-    if input.is_empty() {
-        format!("{expectation}, but the pattern ended")
-    } else {
-        format!("{expectation} near '{input}'")
+        let rhs = build_observation_or(inner.next().ok_or("dangling FOLLOWEDBY")?)?;
+        acc = ObservationExpression::ObservationOp(
+            Box::new(acc),
+            ObservationOperator::FollowedBy,
+            Box::new(rhs),
+        );
     }
+
+    Ok(acc)
 }
 
-fn parse_observation(input: &str) -> IResult<&str, ObservationExpression> {
-    precedence(
-        fail(),
-        unary_op(1, preceded(multispace1, parse_qualifier)),
-        alt((
-            binary_op(
-                2,
-                Assoc::Left,
-                delimited(multispace1, tag("AND"), multispace0),
-            ),
-            binary_op(
-                3,
-                Assoc::Left,
-                delimited(multispace1, tag("OR"), multispace0),
-            ),
-            binary_op(
-                4,
-                Assoc::Left,
-                delimited(multispace1, tag("FOLLOWEDBY"), multispace0),
-            ),
-        )),
-        alt((parse_comparison_observation, parse_nested_observation)),
-        |op: Operation<&str, Qualifier, &str, ObservationExpression>| {
-            use nom_language::precedence::Operation::*;
-            match op {
-                Postfix(o, qualifier) => {
-                    Ok(ObservationExpression::Qualification(Box::new(o), qualifier))
-                }
-                Binary(lhs, "AND", rhs) => Ok(ObservationExpression::ObservationOp(
-                    Box::new(lhs),
-                    ObservationOperator::And,
-                    Box::new(rhs),
-                )),
-                Binary(lhs, "OR", rhs) => Ok(ObservationExpression::ObservationOp(
-                    Box::new(lhs),
-                    ObservationOperator::Or,
-                    Box::new(rhs),
-                )),
-                Binary(lhs, "FOLLOWEDBY", rhs) => Ok(ObservationExpression::ObservationOp(
-                    Box::new(lhs),
-                    ObservationOperator::FollowedBy,
-                    Box::new(rhs),
-                )),
-                _ => Err("Invalid combination"),
-            }
-        },
-    )(input)
+fn build_observation_or(pair: Pair<Rule>) -> BuildResult<ObservationExpression> {
+    let mut inner = pair.into_inner();
+    let mut acc = build_observation_and(inner.next().ok_or("empty observation OR")?)?;
+
+    while let Some(operator) = inner.next() {
+        if operator.as_rule() != Rule::kw_or {
+            continue;
+        }
+        let rhs = build_observation_and(inner.next().ok_or("dangling OR")?)?;
+        acc = ObservationExpression::ObservationOp(
+            Box::new(acc),
+            ObservationOperator::Or,
+            Box::new(rhs),
+        );
+    }
+
+    Ok(acc)
 }
 
-fn parse_nested_observation(input: &str) -> IResult<&str, ObservationExpression> {
-    let (remains, nested) =
-        delimited(char('('), take_until_unbalanced('(', ')'), char(')')).parse(input)?;
-    let (_, observation) = parse_observation.parse(nested)?;
-    Ok((remains, observation))
+fn build_observation_and(pair: Pair<Rule>) -> BuildResult<ObservationExpression> {
+    let mut inner = pair.into_inner();
+    let mut acc = build_observation(inner.next().ok_or("empty observation AND")?)?;
+
+    while let Some(operator) = inner.next() {
+        if operator.as_rule() != Rule::kw_and {
+            continue;
+        }
+        let rhs = build_observation(inner.next().ok_or("dangling AND")?)?;
+        acc = ObservationExpression::ObservationOp(
+            Box::new(acc),
+            ObservationOperator::And,
+            Box::new(rhs),
+        );
+    }
+
+    Ok(acc)
 }
 
-fn parse_comparison_observation(input: &str) -> IResult<&str, ObservationExpression> {
-    let (rest, first_comparison) = preceded(char('['), parse_comparison_expression).parse(input)?;
+fn build_observation(pair: Pair<Rule>) -> BuildResult<ObservationExpression> {
+    let mut inner = pair.into_inner();
+    let first = inner.next().ok_or("empty observation expression")?;
 
-    let (remains, observation) = parse_next_comparison(
-        rest,
-        ComparisonComponent::ComparisonExpression(first_comparison),
+    let mut acc = match first.as_rule() {
+        Rule::comparison_observation => {
+            let comparison = first
+                .into_inner()
+                .find(|inner| inner.as_rule() == Rule::comparison_expression)
+                .ok_or("missing comparison expression")?;
+            ObservationExpression::Comparison(build_comparison_expression(comparison)?)
+        }
+        Rule::compound_observation => {
+            let nested = first
+                .into_inner()
+                .find(|inner| inner.as_rule() == Rule::observation_expressions)
+                .ok_or("missing nested observation")?;
+            build_observation_expressions(nested)?
+        }
+        _ => return Err("unexpected observation"),
+    };
+
+    for qualifier in inner {
+        if qualifier.as_rule() == Rule::qualifier {
+            acc = ObservationExpression::Qualification(Box::new(acc), build_qualifier(qualifier)?);
+        }
+    }
+
+    Ok(acc)
+}
+
+fn build_comparison_expression(pair: Pair<Rule>) -> BuildResult<ComparisonComponent> {
+    let mut inner = pair.into_inner();
+    let mut acc = build_comparison_and(inner.next().ok_or("empty comparison")?)?;
+
+    while let Some(operator) = inner.next() {
+        if operator.as_rule() != Rule::kw_or {
+            continue;
+        }
+        let rhs = build_comparison_and(inner.next().ok_or("dangling comparison OR")?)?;
+        acc = ComparisonComponent::BooleanOp(Box::new(acc), BooleanOperator::Or, Box::new(rhs));
+    }
+
+    Ok(acc)
+}
+
+fn build_comparison_and(pair: Pair<Rule>) -> BuildResult<ComparisonComponent> {
+    let mut inner = pair.into_inner();
+    let mut acc = build_prop_test(inner.next().ok_or("empty comparison AND")?)?;
+
+    while let Some(operator) = inner.next() {
+        if operator.as_rule() != Rule::kw_and {
+            continue;
+        }
+        let rhs = build_prop_test(inner.next().ok_or("dangling comparison AND")?)?;
+        acc = ComparisonComponent::BooleanOp(Box::new(acc), BooleanOperator::And, Box::new(rhs));
+    }
+
+    Ok(acc)
+}
+
+fn build_prop_test(pair: Pair<Rule>) -> BuildResult<ComparisonComponent> {
+    let children: Vec<Pair<Rule>> = pair.into_inner().collect();
+    let has = |rule: Rule| children.iter().any(|child| child.as_rule() == rule);
+    let find = |rule: Rule| children.iter().find(|child| child.as_rule() == rule);
+
+    // A parenthesised comparison group is a component in its own right.
+    if has(Rule::l_paren) && has(Rule::comparison_expression) {
+        let inner = find(Rule::comparison_expression).ok_or("empty comparison group")?;
+        return build_comparison_expression(inner.clone());
+    }
+
+    let negated = has(Rule::kw_not);
+    let object_path = build_object_path(
+        find(Rule::object_path)
+            .ok_or("missing object path")?
+            .clone(),
     )?;
 
-    Ok((remains, ObservationExpression::Comparison(observation)))
-}
-
-fn parse_next_comparison(
-    input: &str,
-    component: ComparisonComponent,
-) -> IResult<&str, ComparisonComponent> {
-    if let Ok((remains, _)) = char::<&str, Error<&str>>(']')(input) {
-        Ok((remains, component.to_owned()))
-    } else {
-        let boolean_parser = map(terminated(alt((tag("AND"), tag("OR"))), multispace1), |o| {
-            match_boolean_operator(o)
-        });
-
-        let (remains, (boolean, comparison2)) =
-            (boolean_parser, parse_comparison_expression).parse(input)?;
-
-        let next_component =
-            ComparisonComponent::BooleanOp(Box::new(component), boolean, comparison2);
-        parse_next_comparison(remains, next_component)
+    if has(Rule::kw_exists) {
+        return Ok(ComparisonComponent::ComparisonExpression(
+            ComparisonExpression {
+                object_path,
+                operator: ComparisonOperator::Exists,
+                constant: None,
+                negated,
+            },
+        ));
     }
-}
 
-fn parse_comparison_expression(input: &str) -> IResult<&str, ComparisonExpression> {
-    // First check if this is an "EXISTS" comparison expression, which has a unique syntax
-    if let Ok((remains, object_path)) =
-        preceded(pair(tag("EXISTS"), multispace1), parse_object_path).parse(input)
-    {
-        let comparison_expression = ComparisonExpression {
-            object_path,
-            operator: ComparisonOperator::Exists,
-            constant: None,
+    let (operator, constant) = if find(Rule::eq_op).is_some() {
+        (ComparisonOperator::Eq, build_literal(&children)?)
+    } else if find(Rule::neq_op).is_some() {
+        (ComparisonOperator::Neq, build_literal(&children)?)
+    } else if let Some(operator) = find(Rule::order_op) {
+        let operator = match operator.as_str().trim() {
+            ">=" => ComparisonOperator::Gte,
+            "<=" => ComparisonOperator::Lte,
+            ">" => ComparisonOperator::Gt,
+            "<" => ComparisonOperator::Lt,
+            _ => return Err("unknown order operator"),
         };
-
-        Ok((remains, comparison_expression))
+        (operator, build_literal(&children)?)
+    } else if has(Rule::kw_in) {
+        let set = find(Rule::set_literal).ok_or("missing set literal")?;
+        (ComparisonOperator::In, build_set(set.clone())?)
+    } else if has(Rule::kw_like) {
+        (ComparisonOperator::Like, build_literal(&children)?)
+    } else if has(Rule::kw_matches) {
+        (ComparisonOperator::Matches, build_literal(&children)?)
+    } else if has(Rule::kw_issubset) {
+        (ComparisonOperator::IsSubset, build_literal(&children)?)
+    } else if has(Rule::kw_issuperset) {
+        (ComparisonOperator::IsSuperset, build_literal(&children)?)
     } else {
-        let object_parser = terminated(parse_object_path, multispace1);
-        let operator_parser = map(
-            terminated(
-                alt((
-                    tag::<&str, &str, Error<&str>>("="),
-                    tag("!="),
-                    tag(">"),
-                    tag("<"),
-                    tag(">="),
-                    tag("<="),
-                    tag("IN"),
-                    tag("LIKE"),
-                    tag("MATCHES"),
-                    tag("ISSUBSET"),
-                    tag("ISSUPERSET"),
-                )),
-                multispace1,
-            ),
-            match_comparison_operator,
-        );
-        let constant_parser = terminated(alt((parse_set, parse_constant)), multispace0);
+        return Err("missing comparison operator");
+    };
 
-        let (remains, (object_path, operator, constant)) =
-            (object_parser, operator_parser, constant_parser).parse(input)?;
-
-        let comparsion_expression = ComparisonExpression {
+    Ok(ComparisonComponent::ComparisonExpression(
+        ComparisonExpression {
             object_path,
             operator,
             constant: Some(constant),
-        };
-
-        Ok((remains, comparsion_expression))
-    }
-}
-
-fn parse_object_path(input: &str) -> IResult<&str, ObjectPath> {
-    let mut parser = complete(separated_pair(
-        alphanumeric_dash0,
-        char(':'),
-        is_not(" \t\r\n"),
-    ));
-
-    let (remains, (sco, property)) = parser.parse(input)?;
-
-    let object_path = ObjectPath {
-        sco: sco.to_string(),
-        property: property.to_string(),
-    };
-
-    Ok((remains, object_path))
-}
-
-fn parse_qualifier(input: &str) -> IResult<&str, Qualifier> {
-    let (remains, qualifier) = alt((
-        map(
-            delimited(
-                terminated(tag("REPEATS"), multispace1),
-                parse_integer,
-                preceded(multispace1, tag("TIMES")),
-            ),
-            Qualifier::Repeats,
-        ),
-        map(
-            delimited(
-                terminated(tag("WITHIN"), multispace1),
-                parse_float,
-                preceded(multispace1, tag("SECONDS")),
-            ),
-            Qualifier::Within,
-        ),
-        map(
-            pair(
-                preceded(terminated(tag("STARTS"), multispace1), parse_timestamp),
-                preceded(
-                    delimited(multispace1, tag("STOPS"), multispace1),
-                    parse_timestamp,
-                ),
-            ),
-            |(a, b)| Qualifier::StartStop(a, b),
-        ),
-    ))
-    .parse(input)?;
-
-    // Check that Qualifier values fall within the allowed ranges
-    match &qualifier {
-        Qualifier::Repeats(int) => {
-            if *int <= 0 {
-                return Err(nom::Err::Error(Error::new(input, ErrorKind::Alt)));
-            }
-        }
-        Qualifier::Within(float) => {
-            if float <= &OrderedFloat(0.0) {
-                return Err(nom::Err::Error(Error::new(input, ErrorKind::Alt)));
-            }
-        }
-        Qualifier::StartStop(start, stop) => {
-            if stop <= start {
-                return Err(nom::Err::Error(Error::new(input, ErrorKind::Alt)));
-            }
-        }
-    }
-
-    Ok((remains, qualifier))
-}
-
-fn match_boolean_operator(operator: &str) -> BooleanOperator {
-    match operator {
-        "AND" => BooleanOperator::And,
-        "OR" => BooleanOperator::Or,
-        _ => unreachable!(),
-    }
-}
-
-fn match_comparison_operator(operator: &str) -> ComparisonOperator {
-    match operator {
-        "=" => ComparisonOperator::Eq,
-        "!=" => ComparisonOperator::Neq,
-        ">" => ComparisonOperator::Gt,
-        "<" => ComparisonOperator::Lt,
-        ">=" => ComparisonOperator::Gte,
-        "<=" => ComparisonOperator::Lte,
-        "IN" => ComparisonOperator::In,
-        "LIKE" => ComparisonOperator::Eq,
-        "MATCHES" => ComparisonOperator::Matches,
-        "ISSUBSET" => ComparisonOperator::IsSubset,
-        "ISSUPERSET" => ComparisonOperator::IsSuperset,
-        _ => unreachable!(),
-    }
-}
-
-fn parse_constant(input: &str) -> IResult<&str, Constant> {
-    // parse_set is not included in the list of possible parsers to avoid recursive sets
-    alt((
-        map(parse_integer, Constant::Integer),
-        map(parse_float, Constant::Float),
-        map(parse_bool, Constant::Boolean),
-        map(parse_binary, Constant::Binary),
-        map(parse_hex, Constant::String),
-        map(parse_timestamp, Constant::Timestamp),
-        map(parse_string, Constant::String),
-    ))
-    .parse(input)
-}
-
-fn parse_set(input: &str) -> IResult<&str, Constant> {
-    let (remains, set) = delimited(
-        char('('),
-        separated_list1(pair(char(','), multispace0), parse_constant),
-        char(')'),
-    )
-    .parse(input)?;
-
-    Ok((remains, Constant::Set(set)))
-}
-
-fn parse_integer(input: &str) -> IResult<&str, i64> {
-    let (number, sign) = opt(char('-')).parse(input)?;
-    let (remains, int_str) = digit1.parse(number)?;
-
-    let mut integer = int_str
-        .parse()
-        .map_err(|_| nom::Err::Error(Error::new(input, ErrorKind::Digit)))?;
-    if sign.is_some() {
-        integer *= -1;
-    }
-
-    Ok((remains, integer))
-}
-
-fn parse_float(input: &str) -> IResult<&str, OrderedFloat<f64>> {
-    let (remains, number) = double.parse(input)?;
-    Ok((remains, OrderedFloat(number)))
-}
-
-fn parse_bool(input: &str) -> IResult<&str, bool> {
-    let (remains, boolean) = alt((tag("true"), tag("false"))).parse(input)?;
-    match boolean {
-        "true" => Ok((remains, true)),
-        "false" => Ok((remains, false)),
-        _ => unreachable!(),
-    }
-}
-
-fn parse_binary(input: &str) -> IResult<&str, String> {
-    let (remains, binary_str) = delimited(tag("b\'"), alphanumeric1, char('\'')).parse(input)?;
-    // Confirm that this is a valid base64 encoded string
-    general_purpose::STANDARD
-        .decode(format!("b\"{}\"", binary_str))
-        .map_err(|_| nom::Err::Error(Error::new(input, ErrorKind::AlphaNumeric)))?;
-
-    Ok((remains, format!("b\'{}\'", binary_str)))
-}
-
-fn parse_hex(input: &str) -> IResult<&str, String> {
-    let (remains, hex_str) = delimited(tag("h\'"), alphanumeric1, char('\'')).parse(input)?;
-    // Confirm that this is a valid hex string
-    hex::decode(hex_str).map_err(|_| nom::Err::Error(Error::new(input, ErrorKind::HexDigit)))?;
-
-    Ok((remains, format!("h\'{}\'", hex_str)))
-}
-
-fn parse_timestamp(input: &str) -> IResult<&str, Timestamp> {
-    let (remains, timestamp_str) = delimited(tag("t\'"), nonspace0, char('\'')).parse(input)?;
-    let timestamp = Timestamp::new(timestamp_str)
-        .map_err(|_| nom::Err::Error(Error::new(input, ErrorKind::Tag)))?;
-
-    Ok((remains, timestamp))
-}
-
-fn parse_string(input: &str) -> IResult<&str, String> {
-    let (remains, input_str) = delimited(tag("\'"), nonspace0, char('\'')).parse(input)?;
-    Ok((remains, input_str.to_string()))
-}
-
-#[cfg(test)]
-mod test {
-    use ordered_float::OrderedFloat;
-
-    use crate::{
-        base::Stix,
-        pattern::{
-            expr::*, parse_comparison_expression, parse_observation, parse_qualifier,
-            validate_pattern,
+            negated,
         },
+    ))
+}
+
+fn build_literal(children: &[Pair<Rule>]) -> BuildResult<Constant> {
+    let literal = children
+        .iter()
+        .find(|child| {
+            matches!(
+                child.as_rule(),
+                Rule::primitive_literal
+                    | Rule::orderable_literal
+                    | Rule::bool_literal
+                    | Rule::string_literal
+                    | Rule::timestamp_literal
+                    | Rule::hex_literal
+                    | Rule::binary_literal
+                    | Rule::int_pos
+                    | Rule::int_neg
+                    | Rule::float_pos
+                    | Rule::float_neg
+            )
+        })
+        .ok_or("missing literal")?;
+    build_constant(literal.clone())
+}
+
+fn build_set(pair: Pair<Rule>) -> BuildResult<Constant> {
+    let values = pair
+        .into_inner()
+        .filter(|child| child.as_rule() == Rule::primitive_literal)
+        .map(build_constant)
+        .collect::<BuildResult<Vec<_>>>()?;
+    Ok(Constant::Set(values))
+}
+
+fn build_constant(pair: Pair<Rule>) -> BuildResult<Constant> {
+    let text = pair.as_str().trim();
+
+    match pair.as_rule() {
+        Rule::primitive_literal | Rule::orderable_literal => {
+            let inner = pair.into_inner().next().ok_or("empty literal")?;
+            build_constant(inner)
+        }
+        Rule::bool_literal => Ok(Constant::Boolean(text == "true")),
+        Rule::string_literal => Ok(Constant::String(
+            text.strip_prefix('\'')
+                .and_then(|value| value.strip_suffix('\''))
+                .ok_or("malformed string literal")?
+                .to_string(),
+        )),
+        Rule::hex_literal => Ok(Constant::Hex(text.to_string())),
+        Rule::binary_literal => Ok(Constant::Binary(text.to_string())),
+        Rule::timestamp_literal => {
+            let inner = text
+                .strip_prefix("t'")
+                .and_then(|value| value.strip_suffix('\''))
+                .ok_or("malformed timestamp literal")?;
+            Timestamp::new(inner)
+                .map(Constant::Timestamp)
+                .map_err(|_| "invalid timestamp")
+        }
+        Rule::int_pos | Rule::int_neg => text
+            .parse::<i64>()
+            .map(Constant::Integer)
+            .map_err(|_| "integer out of range"),
+        Rule::float_pos | Rule::float_neg => text
+            .parse::<f64>()
+            .map(|value| Constant::Float(ordered_float::OrderedFloat(value)))
+            .map_err(|_| "invalid float"),
+        _ => Err("unexpected literal"),
+    }
+}
+
+fn build_object_path(pair: Pair<Rule>) -> BuildResult<ObjectPath> {
+    let mut inner = pair.into_inner();
+    let sco = inner
+        .next()
+        .ok_or("missing object type")?
+        .as_str()
+        .to_string();
+    let _colon = inner.next().ok_or("missing path separator")?;
+    let first = inner.next().ok_or("missing first path component")?;
+    let mut property = first.as_str().to_string();
+
+    for component in inner.filter(|inner| inner.as_rule() == Rule::path_component) {
+        for part in component.into_inner() {
+            match part.as_rule() {
+                Rule::dot | Rule::l_bracket | Rule::r_bracket => property.push_str(part.as_str()),
+                Rule::ident_no_hyphen
+                | Rule::string_literal
+                | Rule::int_pos
+                | Rule::int_neg
+                | Rule::asterisk => property.push_str(part.as_str()),
+                _ => {}
+            }
+        }
+    }
+
+    Ok(ObjectPath { sco, property })
+}
+
+fn build_qualifier(pair: Pair<Rule>) -> BuildResult<Qualifier> {
+    let inner = pair.into_inner().next().ok_or("empty qualifier")?;
+
+    match inner.as_rule() {
+        Rule::repeats => {
+            let count = inner
+                .into_inner()
+                .find(|child| child.as_rule() == Rule::int_pos)
+                .ok_or("REPEATS without a count")?;
+            count
+                .as_str()
+                .trim()
+                .parse::<i64>()
+                .map(Qualifier::Repeats)
+                .map_err(|_| "REPEATS count out of range")
+        }
+        Rule::within => {
+            let value = inner
+                .into_inner()
+                .find(|child| matches!(child.as_rule(), Rule::int_pos | Rule::float_pos))
+                .ok_or("WITHIN without a value")?;
+            value
+                .as_str()
+                .trim()
+                .parse::<f64>()
+                .map(|value| Qualifier::Within(ordered_float::OrderedFloat(value)))
+                .map_err(|_| "invalid WITHIN value")
+        }
+        Rule::start_stop => {
+            let mut timestamps = inner
+                .into_inner()
+                .filter(|child| child.as_rule() == Rule::timestamp_literal)
+                .map(build_constant);
+            let start = timestamps.next().ok_or("START without a timestamp")??;
+            let stop = timestamps.next().ok_or("STOP without a timestamp")??;
+            match (start, stop) {
+                (Constant::Timestamp(start), Constant::Timestamp(stop)) => {
+                    Ok(Qualifier::StartStop(start, stop))
+                }
+                _ => Err("START/STOP are not timestamps"),
+            }
+        }
+        _ => Err("unexpected qualifier"),
+    }
+}
+
+/// Format a pest parse failure as `line:column: expected …, found …`.
+///
+/// Pest's `Display` prints rule names and source snippets; this maps each rule
+/// to a plain-language phrase and names the offending token instead.
+fn format_parse_error(pattern: &str, error: &PestError<Rule>) -> String {
+    let (line, column) = match error.line_col {
+        LineColLocation::Pos(position) => position,
+        LineColLocation::Span(position, _) => position,
     };
 
-    #[test]
-    fn parse_comp_expr() {
-        let pattern = "user-account:value = \'Peter\']";
-        let (remains, result) = parse_comparison_expression(pattern).unwrap();
-
-        let expected = ComparisonExpression {
-            object_path: ObjectPath {
-                sco: "user-account".to_string(),
-                property: "value".to_string(),
-            },
-            operator: super::expr::ComparisonOperator::Eq,
-            constant: Some(Constant::String("Peter".to_string())),
-        };
-
-        assert_eq!(remains, "]");
-        assert_eq!(result, expected);
+    match &error.variant {
+        ErrorVariant::ParsingError {
+            positives,
+            negatives,
+        } => {
+            let expected = if positives.is_empty() {
+                "a valid pattern element".to_string()
+            } else {
+                dedup(positives.iter().map(|rule| rule_phrase(*rule)))
+            };
+            let found = token_at(pattern, line, column).unwrap_or_else(|| {
+                if negatives.is_empty() {
+                    "the end of the input".to_string()
+                } else {
+                    dedup(negatives.iter().map(|rule| rule_phrase(*rule)))
+                }
+            });
+            format!("{line}:{column}: expected {expected}, found {found}")
+        }
+        ErrorVariant::CustomError { message } => format!("{line}:{column}: {message}"),
     }
+}
 
-    #[test]
-    fn parse_invalid_constant() {
-        let pattern = "user-account:value = Peter]";
-        let comparison = parse_comparison_expression(pattern);
+/// The token starting at a 1-based line and column, ignoring leading whitespace.
+fn token_at(pattern: &str, line: usize, column: usize) -> Option<String> {
+    let line_text = pattern.lines().nth(line.saturating_sub(1))?;
+    let rest: String = line_text
+        .chars()
+        .skip(column.saturating_sub(1))
+        .collect::<String>()
+        .trim_start()
+        .to_string();
 
-        assert!(comparison.is_err());
+    let first = rest.chars().next()?;
+    if first.is_alphanumeric() || first == '-' || first == '_' {
+        Some(
+            rest.chars()
+                .take_while(|character| {
+                    character.is_alphanumeric() || *character == '-' || *character == '_'
+                })
+                .collect(),
+        )
+    } else {
+        Some(first.to_string())
     }
+}
 
-    #[test]
-    fn parse_exists() {
-        let pattern = "EXISTS windows-registry-key:values";
-        let result = parse_comparison_expression(pattern).unwrap().1;
-
-        let expected = ComparisonExpression {
-            object_path: ObjectPath {
-                sco: "windows-registry-key".to_string(),
-                property: "values".to_string(),
-            },
-            operator: super::expr::ComparisonOperator::Exists,
-            constant: None,
-        };
-
-        assert_eq!(result, expected);
+fn dedup(names: impl Iterator<Item = &'static str>) -> String {
+    let mut unique: Vec<&'static str> = Vec::new();
+    for name in names {
+        if !unique.contains(&name) {
+            unique.push(name);
+        }
     }
+    unique.join(" or ")
+}
 
-    #[test]
-    fn parse_comp_obsv() {
-        let pattern = "[ipv4-addr:value = \'203.0.113.1\' OR ipv4-addr:value = \'203.0.113.2\' AND ipv4-addr:resolves-to-refs = (\'mac-addr--ff26c055-6336-5bc5-b98d-13d6226742dd\', \'mac-addr--5853f6a4-638f-5b4e-9b0f-ded361ae3812\')]";
-        let result = parse_observation(pattern).unwrap().1;
-
-        let comparison1 = ComparisonExpression {
-            object_path: ObjectPath {
-                sco: "ipv4-addr".to_string(),
-                property: "value".to_string(),
-            },
-            operator: super::expr::ComparisonOperator::Eq,
-            constant: Some(Constant::String("203.0.113.1".to_string())),
-        };
-
-        let comparison2 = ComparisonExpression {
-            object_path: ObjectPath {
-                sco: "ipv4-addr".to_string(),
-                property: "value".to_string(),
-            },
-            operator: super::expr::ComparisonOperator::Eq,
-            constant: Some(Constant::String("203.0.113.2".to_string())),
-        };
-
-        let comparison3 = ComparisonExpression {
-            object_path: ObjectPath {
-                sco: "ipv4-addr".to_string(),
-                property: "resolves-to-refs".to_string(),
-            },
-            operator: super::expr::ComparisonOperator::Eq,
-            constant: Some(Constant::Set(vec![
-                Constant::String("mac-addr--ff26c055-6336-5bc5-b98d-13d6226742dd".to_string()),
-                Constant::String("mac-addr--5853f6a4-638f-5b4e-9b0f-ded361ae3812".to_string()),
-            ])),
-        };
-
-        let component1 = ComparisonComponent::BooleanOp(
-            Box::new(ComparisonComponent::ComparisonExpression(comparison1)),
-            BooleanOperator::Or,
-            comparison2,
-        );
-
-        let expected = ObservationExpression::Comparison(ComparisonComponent::BooleanOp(
-            Box::new(component1),
-            BooleanOperator::And,
-            comparison3,
-        ));
-
-        assert_eq!(result, expected);
+/// The grammar rule name, used by the fixture coverage check.
+#[cfg(test)]
+fn rule_name(rule: Rule) -> &'static str {
+    match rule {
+        Rule::EOI => "EOI",
+        Rule::WHITESPACE => "WHITESPACE",
+        Rule::COMMENT => "COMMENT",
+        Rule::ident_char => "ident_char",
+        Rule::keyword => "keyword",
+        Rule::ident_no_hyphen => "ident_no_hyphen",
+        Rule::ident_with_hyphen => "ident_with_hyphen",
+        Rule::pattern => "pattern",
+        Rule::observation_expressions => "observation_expressions",
+        Rule::observation_expression_or => "observation_expression_or",
+        Rule::observation_expression_and => "observation_expression_and",
+        Rule::observation_expression => "observation_expression",
+        Rule::comparison_observation => "comparison_observation",
+        Rule::compound_observation => "compound_observation",
+        Rule::comparison_expression => "comparison_expression",
+        Rule::comparison_expression_and => "comparison_expression_and",
+        Rule::prop_test => "prop_test",
+        Rule::object_path => "object_path",
+        Rule::object_type => "object_type",
+        Rule::first_path_component => "first_path_component",
+        Rule::path_component => "path_component",
+        Rule::set_literal => "set_literal",
+        Rule::primitive_literal => "primitive_literal",
+        Rule::orderable_literal => "orderable_literal",
+        Rule::qualifier => "qualifier",
+        Rule::start_stop => "start_stop",
+        Rule::within => "within",
+        Rule::repeats => "repeats",
+        Rule::string_literal => "string_literal",
+        Rule::hex_literal => "hex_literal",
+        Rule::base64_char => "base64_char",
+        Rule::base64_body => "base64_body",
+        Rule::binary_literal => "binary_literal",
+        Rule::timestamp_literal => "timestamp_literal",
+        Rule::year => "year",
+        Rule::month => "month",
+        Rule::day => "day",
+        Rule::hour => "hour",
+        Rule::minute => "minute",
+        Rule::second => "second",
+        Rule::int_pos => "int_pos",
+        Rule::int_neg => "int_neg",
+        Rule::float_pos => "float_pos",
+        Rule::float_neg => "float_neg",
+        Rule::bool_literal => "bool_literal",
+        Rule::kw_and => "kw_and",
+        Rule::kw_or => "kw_or",
+        Rule::kw_not => "kw_not",
+        Rule::kw_followedby => "kw_followedby",
+        Rule::kw_like => "kw_like",
+        Rule::kw_matches => "kw_matches",
+        Rule::kw_issuperset => "kw_issuperset",
+        Rule::kw_issubset => "kw_issubset",
+        Rule::kw_exists => "kw_exists",
+        Rule::kw_last => "kw_last",
+        Rule::kw_in => "kw_in",
+        Rule::kw_start => "kw_start",
+        Rule::kw_stop => "kw_stop",
+        Rule::kw_seconds => "kw_seconds",
+        Rule::kw_true => "kw_true",
+        Rule::kw_false => "kw_false",
+        Rule::kw_within => "kw_within",
+        Rule::kw_repeats => "kw_repeats",
+        Rule::kw_times => "kw_times",
+        Rule::l_bracket => "l_bracket",
+        Rule::r_bracket => "r_bracket",
+        Rule::l_paren => "l_paren",
+        Rule::r_paren => "r_paren",
+        Rule::colon => "colon",
+        Rule::comma => "comma",
+        Rule::dot => "dot",
+        Rule::asterisk => "asterisk",
+        Rule::eq_op => "eq_op",
+        Rule::neq_op => "neq_op",
+        Rule::order_op => "order_op",
     }
+}
 
-    #[test]
-    fn parse_no_brackets() {
-        let pattern = "ipv4-addr:value = \'203.0.113.1\' OR ipv4-addr:value = \'203.0.113.2\'";
-        let observation = parse_observation(pattern);
-
-        assert!(observation.is_err());
-    }
-
-    #[test]
-    fn parse_quali() {
-        let pattern = "WITHIN 600 SECONDS";
-        let result = parse_qualifier(pattern).unwrap().1;
-
-        let expected = Qualifier::Within(OrderedFloat(600_f64));
-        assert_eq!(result, expected);
-
-        let bad_pattern = "WITHIN -300 SECONDS";
-        let bad_result = parse_qualifier(bad_pattern);
-        assert!(bad_result.is_err());
-    }
-
-    #[test]
-    fn multiple_qualis() {
-        let good_pattern =
-            "[domain-name:value = \'example.com\'] WITHIN 600 SECONDS REPEATS 5 TIMES";
-        let good_validated = validate_pattern(good_pattern);
-
-        let bad_pattern =
-            "[domain-name:value = \'example.com\'] WITHIN 600 SECONDS WITHIN 300 SECONDS";
-        let bad_validated = validate_pattern(bad_pattern);
-
-        assert!(good_validated.is_ok());
-        assert!(bad_validated.is_err());
-    }
-
-    #[test]
-    fn parse_obsv() {
-        let pattern = "([ipv4-addr:value = \'198.51.100.1/32\' OR ipv4-addr:value = \'203.0.113.33/32\' AND ipv6-addr:value = \'2001:0db8:dead:beef:dead:beef:dead:0001/128\'] FOLLOWEDBY [domain-name:value = \'example.com\']) WITHIN 600 SECONDS";
-        let result = parse_observation(pattern).unwrap().1;
-
-        let comparison1 = ComparisonExpression {
-            object_path: ObjectPath {
-                sco: "ipv4-addr".to_string(),
-                property: "value".to_string(),
-            },
-            operator: super::expr::ComparisonOperator::Eq,
-            constant: Some(Constant::String("198.51.100.1/32".to_string())),
-        };
-
-        let comparison2 = ComparisonExpression {
-            object_path: ObjectPath {
-                sco: "ipv4-addr".to_string(),
-                property: "value".to_string(),
-            },
-            operator: super::expr::ComparisonOperator::Eq,
-            constant: Some(Constant::String("203.0.113.33/32".to_string())),
-        };
-
-        let comparison3 = ComparisonExpression {
-            object_path: ObjectPath {
-                sco: "ipv6-addr".to_string(),
-                property: "value".to_string(),
-            },
-            operator: super::expr::ComparisonOperator::Eq,
-            constant: Some(Constant::String(
-                "2001:0db8:dead:beef:dead:beef:dead:0001/128".to_string(),
-            )),
-        };
-
-        let component1 = ComparisonComponent::BooleanOp(
-            Box::new(ComparisonComponent::ComparisonExpression(comparison1)),
-            BooleanOperator::Or,
-            comparison2,
-        );
-
-        let observation1 = ObservationExpression::Comparison(ComparisonComponent::BooleanOp(
-            Box::new(component1),
-            BooleanOperator::And,
-            comparison3,
-        ));
-
-        let observation2 = ObservationExpression::Comparison(
-            ComparisonComponent::ComparisonExpression(ComparisonExpression {
-                object_path: ObjectPath {
-                    sco: "domain-name".to_string(),
-                    property: "value".to_string(),
-                },
-                operator: super::expr::ComparisonOperator::Eq,
-                constant: Some(Constant::String("example.com".to_string())),
-            }),
-        );
-
-        let observation3 = ObservationExpression::ObservationOp(
-            Box::new(observation1),
-            ObservationOperator::FollowedBy,
-            Box::new(observation2),
-        );
-
-        let expected = ObservationExpression::Qualification(
-            Box::new(observation3),
-            Qualifier::Within(ordered_float::OrderedFloat(600_f64)),
-        );
-
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn parse_and_different_objects() {
-        let pattern = "[ipv4-addr:value = \'198.51.100.1/32\' AND ipv6-addr:value = \'2001:0db8:dead:beef:dead:beef:dead:0001/128\']";
-        let observation = parse_observation(pattern).unwrap().1.stix_check();
-        assert!(observation.is_err());
+/// A plain-language phrase for a grammar rule, used in parse diagnostics.
+fn rule_phrase(rule: Rule) -> &'static str {
+    match rule {
+        Rule::kw_and => "'AND'",
+        Rule::kw_or => "'OR'",
+        Rule::kw_not => "'NOT'",
+        Rule::kw_followedby => "'FOLLOWEDBY'",
+        Rule::kw_like => "'LIKE'",
+        Rule::kw_matches => "'MATCHES'",
+        Rule::kw_issuperset => "'ISSUPERSET'",
+        Rule::kw_issubset => "'ISSUBSET'",
+        Rule::kw_exists => "'EXISTS'",
+        Rule::kw_last => "'LAST'",
+        Rule::kw_in => "'IN'",
+        Rule::kw_start => "'START'",
+        Rule::kw_stop => "'STOP'",
+        Rule::kw_seconds => "'SECONDS'",
+        Rule::kw_true => "'true'",
+        Rule::kw_false => "'false'",
+        Rule::kw_within => "'WITHIN'",
+        Rule::kw_repeats => "'REPEATS'",
+        Rule::kw_times => "'TIMES'",
+        Rule::string_literal => "a quoted string",
+        Rule::timestamp_literal => "a timestamp",
+        Rule::hex_literal => "a hexadecimal literal",
+        Rule::binary_literal => "a binary literal",
+        Rule::int_pos => "a positive integer",
+        Rule::int_neg => "a negative integer",
+        Rule::float_pos => "a positive number",
+        Rule::float_neg => "a negative number",
+        Rule::bool_literal => "a boolean",
+        Rule::primitive_literal | Rule::orderable_literal => {
+            "a value (number, string, timestamp, boolean, binary, or hex)"
+        }
+        Rule::eq_op | Rule::neq_op | Rule::order_op => "a comparison operator",
+        Rule::object_path => "an object path",
+        Rule::object_type => "an object type",
+        Rule::first_path_component => "a property name",
+        Rule::path_component => "'.' or '['",
+        Rule::set_literal => "a set of values",
+        Rule::qualifier => "a qualifier (WITHIN, REPEATS, or START/STOP)",
+        Rule::comparison_expression | Rule::comparison_expression_and | Rule::prop_test => {
+            "a comparison"
+        }
+        Rule::observation_expression
+        | Rule::observation_expression_and
+        | Rule::observation_expression_or
+        | Rule::observation_expressions => "an observation expression",
+        Rule::comparison_observation => "a comparison observation",
+        Rule::compound_observation => "a parenthesised observation expression",
+        Rule::pattern => "a STIX pattern",
+        Rule::start_stop => "a START/STOP qualifier",
+        Rule::within => "a WITHIN qualifier",
+        Rule::repeats => "a REPEATS qualifier",
+        Rule::l_bracket => "'['",
+        Rule::r_bracket => "']'",
+        Rule::l_paren => "'('",
+        Rule::r_paren => "')'",
+        Rule::colon => "':'",
+        Rule::comma => "','",
+        Rule::dot => "'.'",
+        Rule::asterisk => "'*'",
+        Rule::year | Rule::month | Rule::day | Rule::hour | Rule::minute | Rule::second => {
+            "a timestamp component"
+        }
+        Rule::EOI => "the end of the pattern",
+        Rule::WHITESPACE | Rule::COMMENT => "whitespace or a comment",
+        Rule::ident_char | Rule::ident_no_hyphen | Rule::ident_with_hyphen => "a name",
+        Rule::keyword => "a keyword",
+        Rule::base64_char | Rule::base64_body => "a binary literal",
     }
 }
 
 #[cfg(test)]
-mod error_tests {
+mod tests {
+    use std::collections::{HashMap, HashSet};
+    use std::fs;
+    use std::path::Path;
+
     use super::*;
 
-    /// Parse failures are described in plain language with the failing input,
-    /// never nom's internal debug structures.
-    #[test]
-    fn bad_pattern_message_is_humanized() {
-        for pattern in [
-            "[ipv4-addr:value = ]",
-            "[ipv4-addr:value = 'x' AND]",
-            "AND [ipv4-addr:value = '198.51.100.1']",
-            "[ipv4-addr:value = 'x' OR ]",
-        ] {
-            let err = validate_pattern(pattern).unwrap_err();
-            match err {
-                StixError::ParsePatternError(actual_pattern, detail) => {
-                    assert_eq!(actual_pattern, pattern);
-                    assert!(
-                        !detail.contains("Error {") && !detail.contains("error "),
-                        "debug text leaked: {detail}"
-                    );
-                    assert!(!detail.is_empty(), "empty detail for {pattern}");
-                }
-                other => panic!("expected ParsePatternError for {pattern}, got {other:?}"),
+    fn fixture_dir(kind: &str) -> std::path::PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("testdata")
+            .join("stix")
+            .join(kind)
+            .join("patterns")
+    }
+
+    fn valid_patterns() -> Vec<String> {
+        let mut patterns = Vec::new();
+        for entry in fs::read_dir(fixture_dir("valid")).expect("valid fixture directory") {
+            let path = entry.expect("directory entry").path();
+            if path.extension().is_none_or(|ext| ext != "json") {
+                continue;
             }
+            let text = fs::read_to_string(&path).expect("read fixture");
+            let entries: Vec<serde_json::Value> =
+                serde_json::from_str(&text).expect("parse fixture");
+            for entry in entries {
+                patterns.push(entry["pattern"].as_str().expect("pattern").to_string());
+            }
+        }
+        patterns
+    }
+
+    #[test]
+    fn every_valid_fixture_parses() {
+        for pattern in valid_patterns() {
+            StixParser::parse(Rule::pattern, &pattern)
+                .unwrap_or_else(|error| panic!("{pattern}: {error}"));
         }
     }
 
     #[test]
-    fn describer_names_expected_constructs() {
-        let detail = describe_parse_error(nom::Err::Error(nom::error::Error::new(
-            "abc",
-            nom::error::ErrorKind::Digit,
-        )));
-        assert_eq!(detail, "expected a number near 'abc'");
+    fn parse_failures_name_a_position_and_an_expected_construct() {
+        for pattern in [
+            "[file:name = ]",
+            "[file:name = 'x' AND]",
+            "AND [file:name = '198.51.100.1']",
+            "[file:name = 'x' OR ]",
+        ] {
+            let error = StixParser::parse(Rule::pattern, pattern).unwrap_err();
+            let message = format_parse_error(pattern, &error);
+            assert!(message.contains(':'), "missing position: {message}");
+            assert!(
+                message.contains("expected"),
+                "missing expectation: {message}"
+            );
+            assert!(message.contains("found"), "missing found token: {message}");
+            assert!(!message.contains("kw_"), "rule name leaked: {message}");
+            assert!(!message.contains("Rule::"), "rule path leaked: {message}");
+            assert!(!message.contains("crate::"), "crate path leaked: {message}");
+        }
+    }
 
-        let detail = describe_parse_error(nom::Err::Error(nom::error::Error::new(
-            "",
-            nom::error::ErrorKind::Tag,
-        )));
-        assert_eq!(
-            detail,
-            "expected a keyword or symbol, but the pattern ended"
+    #[test]
+    fn diagnostics_snapshots() {
+        for (pattern, expected) in [
+            (
+                "[file:name = ]",
+                "1:14: expected a value (number, string, timestamp, boolean, binary, or hex), found ]",
+            ),
+            (
+                "[file:name = 'x' FALLOWEDBY [domain-name:value = 'y']]",
+                "1:18: expected 'AND' or 'OR' or ']', found FALLOWEDBY",
+            ),
+            (
+                "[file:created = t'2025-13-01T00:00:00Z']",
+                "1:17: expected a value (number, string, timestamp, boolean, binary, or hex), found t",
+            ),
+            (
+                "[NOT file:name = 'x']",
+                "1:6: expected 'EXISTS', found file",
+            ),
+            (
+                "[file:name = 'x'] WITHIN -5 SECONDS",
+                "1:26: expected a positive integer or a positive number, found -5",
+            ),
+            (
+                "[file:name = 'x'] FALLOWEDBY [domain-name:value = 'y']",
+                "1:19: expected the end of the pattern or a qualifier (WITHIN, REPEATS, or START/STOP) or 'AND' or 'OR' or 'FOLLOWEDBY', found FALLOWEDBY",
+            ),
+        ] {
+            let error = StixParser::parse(Rule::pattern, pattern).unwrap_err();
+            assert_eq!(format_parse_error(pattern, &error), expected, "{pattern}");
+        }
+    }
+
+    fn load_fixture_ids() -> HashSet<String> {
+        let mut ids = HashSet::new();
+        for kind in ["valid", "invalid"] {
+            for entry in fs::read_dir(fixture_dir(kind)).expect("fixture directory") {
+                let path = entry.expect("directory entry").path();
+                if path.extension().is_none_or(|ext| ext != "json") {
+                    continue;
+                }
+                let text = fs::read_to_string(&path).expect("read fixture");
+                let entries: Vec<serde_json::Value> =
+                    serde_json::from_str(&text).expect("parse fixture");
+                for entry in entries {
+                    ids.insert(entry["id"].as_str().expect("fixture id").to_string());
+                }
+            }
+        }
+        ids
+    }
+
+    fn load_coverage() -> HashMap<String, Vec<String>> {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("testdata")
+            .join("stix")
+            .join("pattern_coverage.json");
+        let text = fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
+        serde_json::from_str(&text)
+            .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()))
+    }
+
+    fn check_coverage(
+        coverage: &HashMap<String, Vec<String>>,
+        rules: &[Rule],
+        fixture_ids: &HashSet<String>,
+    ) -> Result<(), Vec<String>> {
+        let mut errors = Vec::new();
+        let mut known = HashSet::new();
+
+        for rule in rules {
+            let name = rule_name(*rule);
+            known.insert(name);
+            match coverage.get(name) {
+                None => errors.push(format!("rule '{name}' has no fixture case")),
+                Some(cases) if cases.is_empty() => {
+                    errors.push(format!("rule '{name}' has an empty case list"));
+                }
+                Some(cases) => {
+                    for case in cases {
+                        if !fixture_ids.contains(case) {
+                            errors.push(format!("rule '{name}' names unknown fixture '{case}'"));
+                        }
+                    }
+                }
+            }
+        }
+
+        for name in coverage.keys() {
+            if !known.contains(name.as_str()) {
+                errors.push(format!("coverage names unknown rule '{name}'"));
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+
+    #[test]
+    fn coverage_map_covers_every_rule() {
+        let coverage = load_coverage();
+        let fixture_ids = load_fixture_ids();
+        if let Err(errors) = check_coverage(&coverage, Rule::all_rules(), &fixture_ids) {
+            panic!("grammar coverage errors:\n{}", errors.join("\n"));
+        }
+    }
+
+    #[test]
+    fn coverage_check_rejects_an_uncovered_rule() {
+        let mut coverage = load_coverage();
+        coverage.remove("kw_last");
+        let fixture_ids = load_fixture_ids();
+
+        let errors = check_coverage(&coverage, Rule::all_rules(), &fixture_ids)
+            .expect_err("an uncovered rule must fail the check");
+        assert!(
+            errors.iter().any(|error| error.contains("kw_last")),
+            "expected kw_last in {errors:?}"
         );
     }
 }
