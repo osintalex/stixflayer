@@ -1,6 +1,6 @@
 # STIX Pattern Parser Comparison - Results
 
-**Status:** in progress. antlr-rust complete; pest, chumsky, nom, and the winner spike pending.
+**Status:** in progress. antlr-rust and pest complete; chumsky, nom, and the winner spike pending.
 
 ## 1. Environment
 
@@ -48,6 +48,18 @@ this data; it would need a vocabulary-level fuzzy match on the offending token.
 Structured fields that *are* available: line, column, half-open byte span, offending token text
 and token type. The expected set exists only as text inside `message`, not as a data structure.
 
+pest differs, and the difference matters:
+
+```
+I04  pest:  = expected kw_and, kw_or, or r_bracket
+I25  pest:  = expected EOI, qualifier, kw_and, kw_or, or kw_followedby
+```
+
+pest reports the union of farthest failures, so the comparison-operator alternatives survive for
+I04 (`AND`/`OR`/`]`, versus ANTLR's `]` alone), and `FOLLOWEDBY` is present for I25. "Did you mean
+FOLLOWEDBY?" is therefore feasible with pest for the after-bracket typo, but still not for the
+brief's inside-bracket case.
+
 ## 3. Correctness matrix
 
 See `results/*.jsonl` and `cargo run -p harness --bin compare`.
@@ -56,6 +68,7 @@ See `results/*.jsonl` and `cargo run -p harness --bin compare`.
 |---|---|---|---|
 | baseline (shipped, source-built) | 23 | 4 | 27/51 |
 | antlr | 0 | 0 | 51/51 |
+| pest | 0 | 0 | 51/51 |
 
 Baseline detail: 20 grammar-valid patterns rejected (including 5 of the reference validator's own
 23 `spec_examples.txt` cases) and 3 grammar-invalid patterns accepted (`007`, `STARTS/STOPS`,
@@ -64,20 +77,21 @@ compiled from `rust/` at the current commit.
 
 ## 4. Error-quality scoring
 
-| criterion | antlr |
-|---|---|
-| position accuracy | yes: line, column, byte span |
-| message clarity (raw) | ANTLR recovery vocabulary; confusing for I06 |
-| cascade behaviour | one diagnostic for most cases; I12 reports a single inserted-token message |
-| structured data | token text/type and span yes; expected set text-only |
-| multi-error | yes, listener receives each diagnostic |
-| formatted (<=50 LOC) | "1:17: expected ']' to close the observation expression, found 'FALLOWEDBY'." |
+| criterion | antlr | pest |
+|---|---|---|
+| position accuracy | line, column, byte span | line, column (span via `line_col` only) |
+| message clarity (raw) | recovery vocabulary; confusing for I06 | rule names (`kw_and`, `primitive_literal`) |
+| cascade behaviour | one diagnostic for most cases | one diagnostic |
+| structured data | token text/type and span; expected set text-only | expected/negative `Rule` sets as data |
+| multi-error | listener receives each diagnostic | one error per parse |
+| formatted (<=50 LOC) | "1:17: expected ']' to close the observation expression, found 'FALLOWEDBY'." | "1:18: expected 'AND' or 'OR' or ']'" |
 
 ## 5. Cost
 
 | implementation | PoC LOC | direct deps | dep tree lines | rebuild | generated source | debug binary | MSRV |
 |---|---|---|---|---|---|---|---|
 | antlr | 178 (168 runner + 10 build.rs) | 3 | 30 | 8 s | 314 KB | 28 MB | 1.95 |
+| pest | 207 (109 runner + 98 grammar) | 3 | 31 | 1 s | macro only | 6.8 MB | 1.88 |
 
 The grammar compiled unmodified; no lexer/parser split was required.
 
