@@ -13,6 +13,8 @@ use stixflayer::pattern::expr::{
 };
 use stixflayer::types::Timestamp;
 
+pub mod mirror;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BuildGap {
     /// `propTestParen`: `[(a OR b) AND c]`. The AST's `BooleanOp` right-hand

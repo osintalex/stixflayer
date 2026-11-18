@@ -156,6 +156,8 @@ port is about 100 lines.
 
 ## 7. AST integration spike
 
+### 7.1 The current AST
+
 The spike builds the real `stixflayer::pattern::expr` AST from pest's pair tree and runs the real
 `Stix::stix_check()`. Results are in `results/spike/report.jsonl`.
 
@@ -165,23 +167,58 @@ unexpected stix_check rejects among built cases: 0
 semantic mismatches vs baseline: 2  (V43 REPEATS 0, V44 WITHIN 0)
 ```
 
-Four must-pass patterns cannot be represented by the current AST:
+The four misses are contract gaps, not parser gaps:
 
-| case | pattern feature | AST gap |
+| case | pattern feature | why the current AST cannot hold it |
 |---|---|---|
-| V17 | `[(a OR b) AND c]` | `ComparisonComponent::BooleanOp`'s right-hand side is a single `ComparisonExpression`, so a nested comparison group has no shape |
-| V28 | `[file:name NOT = 'x']` | no negation flag on `ComparisonExpression` |
-| V49 | `[file:name NOT IN (...)]` | same missing negation flag |
-| V29 | `[NOT EXISTS file:name]` | same missing negation flag |
+| V17 | `[(a OR b) AND c]` | left-side group: representable in principle, but the spike builder rejected every parenthesis |
+| V28 | `[file:name NOT = 'x']` | no negation field |
+| V49 | `[file:name NOT IN (...)]` | no negation field |
+| V29 | `[NOT EXISTS file:name]` | no negation field |
 
-The two semantic mismatches are the same finding seen from the other side: the shipped front end
-enforces `REPEATS > 0` and `WITHIN > 0` inside `parse_qualifier`, so `stix_check()` never sees those
-values. With pest building the AST, `stix_check()` accepts both. The adoption change has to decide
-whether the range rule belongs to the grammar layer or the semantic layer, and move it accordingly.
+The same asymmetry also blocks an unexercised case: `a AND (b OR c)` puts a group on the right, and
+`BooleanOp`'s right-hand side is a single comparison.
 
-The AST bridge itself works: left-associative folds, one qualification node per qualifier, flattened
-object paths, and lossless `Like`/`Hex`/`Binary`/`Neq` variants all pass assertions. The gaps are in
-the *contract*, not the parser.
+The two semantic mismatches are separate: the shipped front end enforces `REPEATS > 0` and
+`WITHIN > 0` inside `parse_qualifier`, so `stix_check()` never sees those values. With pest building
+the AST, `stix_check()` accepts both.
+
+### 7.2 Proof that the extension handles everything
+
+`spike-poc/src/mirror.rs` is a local copy of the proposed extension, kept out of `rust/` on purpose:
+
+- `Comparison { ..., negated: bool }` preserves `NOT` instead of rewriting it.
+- `Component::BooleanOp(Box<Component>, op, Box<Component>)` accepts a group on either side.
+- The semantic checks mirror `stix_check` and move the qualifier range rules into the semantic layer.
+
+Results are in `results/spike/mirror.jsonl`:
+
+```
+mirror: built 51/51; 0 failures
+previously gapped, now built: V17, V28, V29, V49
+```
+
+Assertions in `spike-poc/tests/mirror_ast.rs` cover: every must-pass pattern builds; `NOT =`,
+`NOT IN`, and `NOT EXISTS` keep their operator and set `negated`; groups work on both sides;
+`REPEATS 0` and `WITHIN 0` are rejected by the semantic layer; and the four former gaps are
+semantically valid.
+
+`V43` and `V44` now reject, matching the shipped baseline and the spec's "positive integer" rule.
+The reference validator accepts both, so this remains a policy choice; the mirror deliberately
+takes the spec side.
+
+### 7.3 What the adoption change inherits
+
+The front end is not the whole job. The adoption change should:
+
+1. Add `negated` to `ComparisonExpression` and change `BooleanOp`'s right-hand side to a
+   `ComparisonComponent`.
+2. Update `stix_check` to recurse on both sides and move the `REPEATS`/`WITHIN` range rules into the
+   semantic layer.
+3. Port the grammar to pest, build the AST from pest pairs, and map `kw_not`/parentheses directly.
+4. Keep the existing error contract.
+
+The `pest-poc`, `spike-poc`, and `mirror.rs` are the seeds for that work.
 
 ## 8. Verdict
 
@@ -210,9 +247,8 @@ costs above. The fresh nom probe is not recommended for a rewrite: `alt` discard
 so expected sets need custom machinery. chumsky is not recommended: its trivia and char-level
 keyword handling make every message noisy, and fixing it needs a lexer.
 
-**What the adoption change inherits.** The spike shows the front end is not the whole job. `expr.rs`
-cannot represent parenthesised comparison groups (`V17`) or `NOT` on comparisons and `EXISTS`
-(`V28`, `V29`, `V49`), and the `REPEATS > 0` / `WITHIN > 0` rule currently lives in the shipped front
-end rather than `stix_check`. The follow-up change should extend the AST, decide where the range rule
-belongs, port the grammar to pest, build the AST from pest pairs, and keep the existing semantic layer
-and error contract. The `pest-poc` and `spike-poc` crates are the seeds for that work.
+**What the adoption change inherits.** The mirror proof shows the front end is not the whole job.
+`expr.rs` needs a `negated` field and a component right-hand side on `BooleanOp`, and the
+`REPEATS > 0` / `WITHIN > 0` rule belongs in `stix_check` rather than the shipped front end. With
+those changes, pest builds and checks all 51 must-pass patterns, including the four that the current
+AST cannot represent. The `pest-poc`, `spike-poc`, and `mirror.rs` are the seeds for that work.
