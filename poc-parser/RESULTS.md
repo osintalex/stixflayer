@@ -1,6 +1,6 @@
 # STIX Pattern Parser Comparison - Results
 
-**Status:** in progress. antlr-rust and pest complete; chumsky, nom, and the winner spike pending.
+**Status:** in progress. antlr-rust, pest, and chumsky complete; nom and the winner spike pending.
 
 ## 1. Environment
 
@@ -69,6 +69,7 @@ See `results/*.jsonl` and `cargo run -p harness --bin compare`.
 | baseline (shipped, source-built) | 23 | 4 | 27/51 |
 | antlr | 0 | 0 | 51/51 |
 | pest | 0 | 0 | 51/51 |
+| chumsky | 0 | 0 | 51/51 |
 
 Baseline detail: 20 grammar-valid patterns rejected (including 5 of the reference validator's own
 23 `spec_examples.txt` cases) and 3 grammar-invalid patterns accepted (`007`, `STARTS/STOPS`,
@@ -77,14 +78,21 @@ compiled from `rust/` at the current commit.
 
 ## 4. Error-quality scoring
 
-| criterion | antlr | pest |
-|---|---|---|
-| position accuracy | line, column, byte span | line, column (span via `line_col` only) |
-| message clarity (raw) | recovery vocabulary; confusing for I06 | rule names (`kw_and`, `primitive_literal`) |
-| cascade behaviour | one diagnostic for most cases | one diagnostic |
-| structured data | token text/type and span; expected set text-only | expected/negative `Rule` sets as data |
-| multi-error | listener receives each diagnostic | one error per parse |
-| formatted (<=50 LOC) | "1:17: expected ']' to close the observation expression, found 'FALLOWEDBY'." | "1:18: expected 'AND' or 'OR' or ']'" |
+| criterion | antlr | pest | chumsky |
+|---|---|---|---|
+| position accuracy | line, column, byte span | line, column (span via `line_col` only) | byte span only |
+| message clarity (raw) | recovery vocabulary; confusing for I06 | rule names (`kw_and`, `primitive_literal`) | trivia expectations dominate; keywords fail mid-token |
+| cascade behaviour | one diagnostic for most cases | one diagnostic | one diagnostic |
+| structured data | token text/type and span; expected set text-only | expected/negative `Rule` sets as data | found/expected sets and span, polluted by trivia |
+| multi-error | listener receives each diagnostic | one error per parse | available, but one per case here |
+| formatted (<=50 LOC) | "1:17: expected ']' to close the observation expression, found 'FALLOWEDBY'." | "1:18: expected 'AND' or 'OR' or ']'" | labels add to, rather than replace, the expected set |
+
+chumsky is the weakest diagnostic surface of the three. Every token is padded by a `trivia` parser,
+so the expected set includes all 25 whitespace characters and `/`; keywords are matched by
+`just("FOLLOWEDBY")`, so a typo reports the first *mismatching character* rather than the token
+(`I25`: "found 'A' expected 'O'"). Labels do not suppress the inner expectations. Reaching
+user-quality messages here needs a lexer or a custom error filter, which is more work than either
+antlr or pest required.
 
 ## 5. Cost
 
@@ -92,6 +100,7 @@ compiled from `rust/` at the current commit.
 |---|---|---|---|---|---|---|---|
 | antlr | 178 (168 runner + 10 build.rs) | 3 | 30 | 8 s | 314 KB | 28 MB | 1.95 |
 | pest | 207 (109 runner + 98 grammar) | 3 | 31 | 1 s | macro only | 6.8 MB | 1.88 |
+| chumsky | 397 | 2 | 29 | 19 s | none | 381 MB (debug) | 1.65 |
 
 The grammar compiled unmodified; no lexer/parser split was required.
 
