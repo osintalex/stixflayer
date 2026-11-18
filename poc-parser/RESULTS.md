@@ -113,6 +113,76 @@ antlr or pest required.
 
 The grammar compiled unmodified; no lexer/parser split was required.
 
-## 6. Verdict
+## 6. Why the other approaches were eliminated
 
-Pending the remaining front ends and the winner spike.
+Only the shipped parser actually failed. The other three passed the corpus with zero wrong verdicts;
+they were eliminated on diagnostics and cost.
+
+**The shipped nom parser.** 23 wrong verdicts: 20 grammar-valid patterns rejected and 3 invalid ones
+accepted, including five of the reference validator's own 23 `spec_examples.txt` cases. The causes
+are ordinary: the integer branch wins before the float branch, so `7.0` fails while `.5` works;
+`parse_string` stops at the first space, so `'Conference Info'` fails; parenthesised comparison
+groups were never implemented; `>=`/`<=` lose to `>`/`<` because of alternative ordering; the
+qualifier keywords are `STARTS`/`STOPS` instead of `START`/`STOP`. Comments, escaped quotes,
+non-breaking-space whitespace, and binary literals are all missing. Every failure echoes the whole
+pattern with no column.
+
+**ANTLR.** It reached 51/51 and has the best structured error data of any candidate: line, column,
+byte span, offending token text and token type. But its reason for being favoured was the claim that
+computed expected sets would enable "did you mean FOLLOWEDBY?". That does not survive contact: ANTLR
+reports at the state *after* the left-recursive operator loop has exited, so the expected set is
+`']'` inside the bracket and `<EOF>` outside it. The operator alternatives are structurally absent
+from the event, and no formatter can recover them. Add MSRV 1.95, a codegen crate that pulls
+`rustpython-vm` and needed a `libc` pin to compile, 314 KB of generated source, and a 28 MB binary.
+
+**chumsky.** It also reached 51/51, but its premise was that labels plus spans produce good messages
+cheaply. Every token is padded by a trivia parser, so the expected set includes all 25 whitespace
+characters and `/`; keywords are matched by `just("FOLLOWEDBY")`, so a typo reports the first
+*mismatching character* rather than the token (`found 'A' expected 'O'`). Labels add to, rather than
+replace, the expected set. Reaching user quality needs a lexer or a custom error filter, at 397 LOC
+and a 381 MB debug binary.
+
+**The fresh nom probe.** `VerboseError` plus `context()` produces positions and a readable
+`convert_error` trace, and coverage was 51/51. But `alt` returns the *last* alternative's error
+rather than the deepest one, so a missing value reports "expected a keyword or symbol" instead of the
+value kinds. Recovering expected sets needs a custom error type. It took 547 lines, the most code of
+any candidate, for the weakest diagnostics.
+
+**pest.** It records the farthest failure of every alternative and unions them, so `I04` reports
+`AND`/`OR`/`']'` where ANTLR reported only `']'`, and `I25` includes `FOLLOWEDBY`. It is also the
+cheapest: 1 s rebuild, 6.8 MB binary, MSRV 1.88, no codegen dependency. Its one weakness,
+hand-maintaining the grammar port, is bounded: the grammar is 237 lines, STIX 2.1 is fixed, and the
+port is about 100 lines.
+
+## 7. AST integration spike
+
+The spike builds the real `stixflayer::pattern::expr` AST from pest's pair tree and runs the real
+`Stix::stix_check()`. Results are in `results/spike.jsonl`.
+
+```
+must-pass ASTs built:  47/51
+unexpected stix_check rejects among built cases: 0
+semantic mismatches vs baseline: 2  (V43 REPEATS 0, V44 WITHIN 0)
+```
+
+Four must-pass patterns cannot be represented by the current AST:
+
+| case | pattern feature | AST gap |
+|---|---|---|
+| V17 | `[(a OR b) AND c]` | `ComparisonComponent::BooleanOp`'s right-hand side is a single `ComparisonExpression`, so a nested comparison group has no shape |
+| V28 | `[file:name NOT = 'x']` | no negation flag on `ComparisonExpression` |
+| V49 | `[file:name NOT IN (...)]` | same missing negation flag |
+| V29 | `[NOT EXISTS file:name]` | same missing negation flag |
+
+The two semantic mismatches are the same finding seen from the other side: the shipped front end
+enforces `REPEATS > 0` and `WITHIN > 0` inside `parse_qualifier`, so `stix_check()` never sees those
+values. With pest building the AST, `stix_check()` accepts both. The adoption change has to decide
+whether the range rule belongs to the grammar layer or the semantic layer, and move it accordingly.
+
+The AST bridge itself works: left-associative folds, one qualification node per qualifier, flattened
+object paths, and lossless `Like`/`Hex`/`Binary`/`Neq` variants all pass assertions. The gaps are in
+the *contract*, not the parser.
+
+## 8. Verdict
+
+Pending the final review.

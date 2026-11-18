@@ -7,4 +7,5 @@ members = [
     "pest-poc",
     "antlr-poc",
     "chumsky-poc",
+    "spike-poc",
 ]
