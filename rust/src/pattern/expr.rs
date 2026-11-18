@@ -92,7 +92,7 @@ pub enum ComparisonComponent {
     BooleanOp(
         Box<ComparisonComponent>,
         BooleanOperator,
-        ComparisonExpression,
+        Box<ComparisonComponent>,
     ),
 }
 
@@ -101,9 +101,16 @@ impl ComparisonComponent {
     fn get_matching_object(&self) -> Option<&str> {
         match self {
             Self::ComparisonExpression(expression) => Some(expression.get_object()),
-            Self::BooleanOp(lhs, _, rhs) => lhs
-                .get_matching_object()
-                .filter(|&lhs_object| lhs_object == rhs.get_object()),
+            Self::BooleanOp(lhs, _, rhs) => {
+                let lhs_object = lhs.get_matching_object();
+                let rhs_object = rhs.get_matching_object();
+                match (lhs_object, rhs_object) {
+                    (Some(lhs_object), Some(rhs_object)) if lhs_object == rhs_object => {
+                        Some(lhs_object)
+                    }
+                    _ => None,
+                }
+            }
         }
     }
 
@@ -112,7 +119,8 @@ impl ComparisonComponent {
 
         match self {
             Self::ComparisonExpression(comparison) => add_error(&mut errors, comparison.validate()),
-            Self::BooleanOp(_, operator, rhs) => {
+            Self::BooleanOp(lhs, operator, rhs) => {
+                add_error(&mut errors, lhs.validate());
                 add_error(&mut errors, rhs.validate());
                 // Check that if comparison expressions are connect by an AND, both of them refer to the same object type
                 if let BooleanOperator::And = operator {
@@ -136,6 +144,11 @@ pub struct ComparisonExpression {
     pub operator: ComparisonOperator,
     /// The constant compared against the object path; `None` for `EXISTS` comparisons.
     pub constant: Option<Constant>,
+    /// Whether the comparison is negated with `NOT`.
+    ///
+    /// Negation is preserved rather than rewritten to the opposite operator, so
+    /// `NOT IN`, `NOT LIKE`, and `NOT EXISTS` keep the operator the user wrote.
+    pub negated: bool,
 }
 
 impl ComparisonExpression {
@@ -298,8 +311,26 @@ pub enum Qualifier {
 impl Qualifier {
     fn check_qualifier(&self, qualifiers: &mut HashSet<String>) -> Result<(), Error> {
         match self {
-            Qualifier::Repeats(_) => check_insert_qualifier("Repeats", qualifiers),
-            Qualifier::Within(_) => check_insert_qualifier("Within", qualifiers),
+            Qualifier::Repeats(count) => {
+                if *count <= 0 {
+                    return Err(Error::ValidationError(
+                        "An Observation Expression in the pattern has a REPEATS Qualifier that is not a positive integer."
+                            .to_string(),
+                    ));
+                }
+                check_insert_qualifier("Repeats", qualifiers)
+            }
+            Qualifier::Within(seconds) => {
+                if *seconds <= OrderedFloat(0.0) {
+                    return Err(Error::ValidationError(
+                        "An Observation Expression in the pattern has a WITHIN Qualifier that is not a positive number of seconds."
+                            .to_string(),
+                    ));
+                }
+                check_insert_qualifier("Within", qualifiers)
+            }
+            // The specification defines the START/STOP range as x <= observation < y
+            // but does not prohibit x >= y, so a reversed or empty range is valid.
             Qualifier::StartStop(..) => check_insert_qualifier("Start Stop", qualifiers),
         }
     }
@@ -312,5 +343,245 @@ fn check_insert_qualifier(qualifier: &str, qualifiers: &mut HashSet<String>) -> 
     } else {
         qualifiers.insert(qualifier.to_string());
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn comparison(sco: &str, property: &str, operator: ComparisonOperator) -> ComparisonExpression {
+        ComparisonExpression {
+            object_path: ObjectPath {
+                sco: sco.to_string(),
+                property: property.to_string(),
+            },
+            operator,
+            constant: Some(Constant::String("x".to_string())),
+            negated: false,
+        }
+    }
+
+    fn observation(component: ComparisonComponent) -> ObservationExpression {
+        ObservationExpression::Comparison(component)
+    }
+
+    #[test]
+    fn negation_is_preserved_with_the_underlying_operator() {
+        let expression = ComparisonExpression {
+            object_path: ObjectPath {
+                sco: "file".to_string(),
+                property: "name".to_string(),
+            },
+            operator: ComparisonOperator::Neq,
+            constant: Some(Constant::String("x".to_string())),
+            negated: true,
+        };
+
+        assert!(expression.negated);
+        assert_eq!(expression.operator, ComparisonOperator::Neq);
+    }
+
+    #[test]
+    fn groups_are_preserved_on_both_sides() {
+        let a = comparison("file", "name", ComparisonOperator::Eq);
+        let b = comparison("file", "name", ComparisonOperator::Neq);
+        let c = comparison("file", "size", ComparisonOperator::Gt);
+
+        let left_group = ComparisonComponent::BooleanOp(
+            Box::new(ComparisonComponent::ComparisonExpression(a)),
+            BooleanOperator::Or,
+            Box::new(ComparisonComponent::ComparisonExpression(b)),
+        );
+        let right_group = ComparisonComponent::BooleanOp(
+            Box::new(ComparisonComponent::ComparisonExpression(comparison(
+                "file",
+                "size",
+                ComparisonOperator::Eq,
+            ))),
+            BooleanOperator::Or,
+            Box::new(ComparisonComponent::ComparisonExpression(c)),
+        );
+
+        let component = ComparisonComponent::BooleanOp(
+            Box::new(left_group),
+            BooleanOperator::And,
+            Box::new(right_group),
+        );
+
+        assert_eq!(component.get_matching_object(), Some("file"));
+        assert!(observation(component).stix_check().is_ok());
+    }
+
+    #[test]
+    fn boolean_op_validates_both_sides() {
+        let invalid = ComparisonExpression {
+            object_path: ObjectPath {
+                sco: "file".to_string(),
+                property: "name".to_string(),
+            },
+            operator: ComparisonOperator::In,
+            constant: Some(Constant::String("not a set".to_string())),
+            negated: false,
+        };
+        let valid = comparison("file", "size", ComparisonOperator::Gt);
+
+        let component = ComparisonComponent::BooleanOp(
+            Box::new(ComparisonComponent::ComparisonExpression(invalid)),
+            BooleanOperator::Or,
+            Box::new(ComparisonComponent::ComparisonExpression(valid)),
+        );
+
+        assert!(observation(component).stix_check().is_err());
+    }
+
+    #[test]
+    fn and_across_different_objects_is_rejected() {
+        let component = ComparisonComponent::BooleanOp(
+            Box::new(ComparisonComponent::ComparisonExpression(comparison(
+                "ipv4-addr",
+                "value",
+                ComparisonOperator::Eq,
+            ))),
+            BooleanOperator::And,
+            Box::new(ComparisonComponent::ComparisonExpression(comparison(
+                "ipv6-addr",
+                "value",
+                ComparisonOperator::Eq,
+            ))),
+        );
+
+        let error = observation(component).stix_check().unwrap_err();
+        assert!(error.to_string().contains("different objects"));
+    }
+
+    #[test]
+    fn or_across_different_objects_is_accepted() {
+        let component = ComparisonComponent::BooleanOp(
+            Box::new(ComparisonComponent::ComparisonExpression(comparison(
+                "ipv4-addr",
+                "value",
+                ComparisonOperator::Eq,
+            ))),
+            BooleanOperator::Or,
+            Box::new(ComparisonComponent::ComparisonExpression(comparison(
+                "ipv6-addr",
+                "value",
+                ComparisonOperator::Eq,
+            ))),
+        );
+
+        assert!(observation(component).stix_check().is_ok());
+    }
+
+    #[test]
+    fn repeats_must_be_positive() {
+        for count in [0, -1] {
+            let observation = ObservationExpression::Qualification(
+                Box::new(observation(ComparisonComponent::ComparisonExpression(
+                    comparison("file", "name", ComparisonOperator::Eq),
+                ))),
+                Qualifier::Repeats(count),
+            );
+            let error = observation.stix_check().unwrap_err();
+            assert!(error.to_string().contains("positive integer"));
+        }
+    }
+
+    #[test]
+    fn within_must_be_positive() {
+        for seconds in [0.0, -1.0] {
+            let observation = ObservationExpression::Qualification(
+                Box::new(observation(ComparisonComponent::ComparisonExpression(
+                    comparison("file", "name", ComparisonOperator::Eq),
+                ))),
+                Qualifier::Within(OrderedFloat(seconds)),
+            );
+            let error = observation.stix_check().unwrap_err();
+            assert!(error.to_string().contains("positive number"));
+        }
+    }
+
+    #[test]
+    fn empty_start_stop_ranges_are_accepted() {
+        let start = Timestamp::new("2025-01-01T00:00:00Z").unwrap();
+        let stop = Timestamp::new("2025-02-01T00:00:00Z").unwrap();
+
+        for (start, stop) in [
+            (stop.clone(), start.clone()),
+            (start.clone(), start.clone()),
+            (start, stop),
+        ] {
+            let observation = ObservationExpression::Qualification(
+                Box::new(observation(ComparisonComponent::ComparisonExpression(
+                    comparison("file", "name", ComparisonOperator::Eq),
+                ))),
+                Qualifier::StartStop(start, stop),
+            );
+            assert!(observation.stix_check().is_ok());
+        }
+    }
+
+    #[test]
+    fn duplicate_qualifiers_are_rejected() {
+        let observation = ObservationExpression::Qualification(
+            Box::new(ObservationExpression::Qualification(
+                Box::new(observation(ComparisonComponent::ComparisonExpression(
+                    comparison("file", "name", ComparisonOperator::Eq),
+                ))),
+                Qualifier::Within(OrderedFloat(600.0)),
+            )),
+            Qualifier::Within(OrderedFloat(300.0)),
+        );
+
+        let error = observation.stix_check().unwrap_err();
+        assert!(error.to_string().contains("more than one Qualifier"));
+    }
+
+    #[test]
+    fn operator_and_literal_kinds_must_agree() {
+        for (operator, constant) in [
+            (
+                ComparisonOperator::In,
+                Constant::String("not a set".to_string()),
+            ),
+            (ComparisonOperator::Like, Constant::Integer(5)),
+            (ComparisonOperator::Matches, Constant::Integer(5)),
+            (ComparisonOperator::IsSubset, Constant::Integer(5)),
+            (ComparisonOperator::IsSuperset, Constant::Integer(5)),
+        ] {
+            let expression = ComparisonExpression {
+                object_path: ObjectPath {
+                    sco: "file".to_string(),
+                    property: "name".to_string(),
+                },
+                operator,
+                constant: Some(constant),
+                negated: false,
+            };
+            assert!(
+                observation(ComparisonComponent::ComparisonExpression(expression))
+                    .stix_check()
+                    .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn exists_must_not_carry_a_constant() {
+        let expression = ComparisonExpression {
+            object_path: ObjectPath {
+                sco: "file".to_string(),
+                property: "name".to_string(),
+            },
+            operator: ComparisonOperator::Exists,
+            constant: Some(Constant::String("x".to_string())),
+            negated: true,
+        };
+        assert!(
+            observation(ComparisonComponent::ComparisonExpression(expression))
+                .stix_check()
+                .is_err()
+        );
     }
 }

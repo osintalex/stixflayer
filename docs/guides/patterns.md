@@ -15,20 +15,36 @@ stixflayer.validate_pattern("[ipv4-addr:value = '203.0.113.7']")
 ## Invalid patterns raise
 
 Syntactically invalid patterns raise `ValidationError` with an
-`invalid_pattern` entry — the pattern itself plus a plain-language parse
-failure.
+`invalid_pattern` entry. The message names the line and column of the failure,
+the construct that was expected, and the token that was found.
 
 ```python
 import stixflayer
 
 try:
-    stixflayer.validate_pattern("[ipv4-addr:value = 203.0.113.7]")
+    stixflayer.validate_pattern("[ipv4-addr:value = ]")
 except Exception as e:
     entry = e.errors[0]
     print(entry["kind"])
     #> invalid_pattern
     print(entry["got"])
-    #> expected a specific character near '[ipv4-addr:value = 203.0.113.7]'
+    #> 1:20: expected a value (number, string, timestamp, boolean, binary, or hex), found ]
+```
+
+## Semantic errors raise too
+
+A pattern can follow the grammar and still break a patterning rule. Those
+failures also raise `ValidationError`, with a plain-language message instead of
+a parse position.
+
+```python
+import stixflayer
+
+try:
+    stixflayer.validate_pattern("[file:name = 'x'] REPEATS 0 TIMES")
+except Exception as e:
+    print(e.errors[0]["kind"])
+    #> validation_error
 ```
 
 ## Composite patterns

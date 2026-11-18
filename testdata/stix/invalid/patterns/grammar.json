@@ -1,0 +1,210 @@
+[
+    {
+        "id": "I01",
+        "description": "Missing comparison value",
+        "pattern": "[file:name = ]",
+        "spec": "9.6.1",
+        "layer": "grammar",
+        "expected_error": "expected a value"
+    },
+    {
+        "id": "I02",
+        "description": "Unknown operator '~='",
+        "pattern": "[file:name ~= 'evil']",
+        "spec": "9.6.1",
+        "layer": "grammar",
+        "expected_error": "a comparison operator"
+    },
+    {
+        "id": "I03",
+        "description": "Dangling AND inside a comparison",
+        "pattern": "[file:name = 'x' AND]",
+        "spec": "9.6",
+        "layer": "grammar",
+        "expected_error": "a comparison"
+    },
+    {
+        "id": "I04",
+        "description": "Operator typo inside the bracket",
+        "pattern": "[file:name = 'x' FALLOWEDBY [domain-name:value = 'y']]",
+        "spec": "9.5.2",
+        "layer": "grammar",
+        "expected_error": "']'"
+    },
+    {
+        "id": "I05",
+        "description": "Unterminated string literal",
+        "pattern": "[file:name = 'x",
+        "spec": "9.2",
+        "layer": "grammar",
+        "expected_error": "a value"
+    },
+    {
+        "id": "I06",
+        "description": "Timestamp with an invalid month",
+        "pattern": "[file:created = t'2025-13-01T00:00:00Z']",
+        "spec": "9.2",
+        "layer": "grammar",
+        "expected_error": "timestamp"
+    },
+    {
+        "id": "I07",
+        "description": "Observation missing brackets",
+        "pattern": "file:name = 'x'",
+        "spec": "9.4",
+        "layer": "grammar",
+        "expected_error": "an observation expression"
+    },
+    {
+        "id": "I08",
+        "description": "Comparison missing an operator",
+        "pattern": "[file:name]",
+        "spec": "9.6",
+        "layer": "grammar",
+        "expected_error": "a comparison operator"
+    },
+    {
+        "id": "I09",
+        "description": "Malformed set literal",
+        "pattern": "[file:name IN (]",
+        "spec": "9.6.1",
+        "layer": "grammar",
+        "expected_error": "a value"
+    },
+    {
+        "id": "I10",
+        "description": "Trailing garbage after the pattern",
+        "pattern": "[file:name = 'x']]",
+        "spec": "9.3",
+        "layer": "grammar",
+        "expected_error": "the end of the pattern"
+    },
+    {
+        "id": "I11",
+        "description": "Missing closing bracket at end of input",
+        "pattern": "[file:name = 'x' AND file:size > 0",
+        "spec": "9.4",
+        "layer": "grammar",
+        "expected_error": "']'"
+    },
+    {
+        "id": "I12",
+        "description": "NOT is not a prefix on comparisons",
+        "pattern": "[NOT file:name = 'x']",
+        "spec": "9.6.1",
+        "layer": "grammar",
+        "expected_error": "'EXISTS'"
+    },
+    {
+        "id": "I13",
+        "description": "WITHIN rejects a negative value",
+        "pattern": "[file:name = 'x'] WITHIN -5 SECONDS",
+        "spec": "9.5.1",
+        "layer": "grammar",
+        "expected_error": "positive number"
+    },
+    {
+        "id": "I14",
+        "description": "Keyword case is significant",
+        "pattern": "[file:name = 'x' oR file:size > 0]",
+        "spec": "9.5.2",
+        "layer": "grammar",
+        "expected_error": "'OR'"
+    },
+    {
+        "id": "I15",
+        "description": "Qualifier keyword case is significant",
+        "pattern": "[file:name = 'x'] WITHIN 600 seconds",
+        "spec": "9.5.1",
+        "layer": "grammar",
+        "expected_error": "'SECONDS'"
+    },
+    {
+        "id": "I17",
+        "description": "Integer with a leading zero",
+        "pattern": "[file:size = 007]",
+        "spec": "9.2",
+        "layer": "grammar",
+        "expected_error": "']'"
+    },
+    {
+        "id": "I18",
+        "description": "REPEATS rejects a negative value",
+        "pattern": "[file:name = 'x'] REPEATS -1 TIMES",
+        "spec": "9.5.1",
+        "layer": "grammar",
+        "expected_error": "positive integer"
+    },
+    {
+        "id": "I19",
+        "description": "LAST is not a patterning operator",
+        "pattern": "[file:name = 'x'] LAST 5",
+        "spec": "9.5.1",
+        "layer": "grammar",
+        "expected_error": "the end of the pattern"
+    },
+    {
+        "id": "I20",
+        "description": "Wrong qualifier keywords STARTS/STOPS",
+        "pattern": "[file:name = 'x'] STARTS t'2025-01-01T00:00:00Z' STOPS t'2025-02-01T00:00:00Z'",
+        "spec": "9.5.1",
+        "layer": "grammar",
+        "expected_error": "a qualifier"
+    },
+    {
+        "id": "I21",
+        "description": "Empty observation expression",
+        "pattern": "[]",
+        "spec": "9.4",
+        "layer": "grammar",
+        "expected_error": "a comparison"
+    },
+    {
+        "id": "I22",
+        "description": "Invalid string escape",
+        "pattern": "[file:name = 'a\\nb']",
+        "spec": "9.2",
+        "layer": "grammar",
+        "expected_error": "a value"
+    },
+    {
+        "id": "I23",
+        "description": "Leading observation operator",
+        "pattern": "AND [file:name = 'x']",
+        "spec": "9.5.2",
+        "layer": "grammar",
+        "expected_error": "an observation expression"
+    },
+    {
+        "id": "I25",
+        "description": "Operator typo after the closing bracket",
+        "pattern": "[file:name = 'x'] FALLOWEDBY [domain-name:value = 'y']",
+        "spec": "9.5.2",
+        "layer": "grammar",
+        "expected_error": "'FOLLOWEDBY'"
+    },
+    {
+        "id": "I26",
+        "description": "Dangling observation operator",
+        "pattern": "[file:name = 'x'] AND",
+        "spec": "9.5.2",
+        "layer": "grammar",
+        "expected_error": "observation expression"
+    },
+    {
+        "id": "I27",
+        "description": "WITHIN missing SECONDS",
+        "pattern": "[file:name = 'x'] WITHIN 600",
+        "spec": "9.5.1",
+        "layer": "grammar",
+        "expected_error": "'SECONDS'"
+    },
+    {
+        "id": "I28",
+        "description": "WITHIN missing value and SECONDS",
+        "pattern": "[file:name = 'x'] WITHIN",
+        "spec": "9.5.1",
+        "layer": "grammar",
+        "expected_error": "positive number"
+    }
+]

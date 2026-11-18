@@ -1,0 +1,176 @@
+[
+    {
+        "id": "V24",
+        "description": "No whitespace between tokens",
+        "pattern": "[file:name='x']",
+        "spec": "9.4"
+    },
+    {
+        "id": "V25",
+        "description": "Equality accepts '=='",
+        "pattern": "[file:name == 'x']",
+        "spec": "9.6.1"
+    },
+    {
+        "id": "V26",
+        "description": "Inequality accepts '<>'",
+        "pattern": "[file:name <> 'x']",
+        "spec": "9.6.1"
+    },
+    {
+        "id": "V27",
+        "description": "IN accepts an empty set",
+        "pattern": "[file:name IN ()]",
+        "spec": "9.6.1"
+    },
+    {
+        "id": "V28",
+        "description": "NOT between the object path and operator",
+        "pattern": "[file:name NOT = 'x']",
+        "spec": "9.6.1"
+    },
+    {
+        "id": "V29",
+        "description": "NOT before EXISTS",
+        "pattern": "[NOT EXISTS file:name]",
+        "spec": "9.6.1"
+    },
+    {
+        "id": "V30",
+        "description": "Trailing line comment is skipped",
+        "pattern": "[file:name = 'x'] // trailing",
+        "spec": "9.3"
+    },
+    {
+        "id": "V31",
+        "description": "Leading block comment is skipped",
+        "pattern": "/* leading */ [file:name = 'x']",
+        "spec": "9.3"
+    },
+    {
+        "id": "V32",
+        "description": "Non-breaking space is grammar whitespace",
+        "pattern": "[ file:name = 'x']",
+        "spec": "9.3"
+    },
+    {
+        "id": "V33",
+        "description": "String escapes for quote and backslash",
+        "pattern": "[file:name = 'a\\'b\\\\c']",
+        "spec": "9.2"
+    },
+    {
+        "id": "V34",
+        "description": "Binary literal with '==' padding",
+        "pattern": "[file:name = b'YWJjZA==']",
+        "spec": "9.2"
+    },
+    {
+        "id": "V35",
+        "description": "Greater-than-or-equal operator",
+        "pattern": "[file:size >= 1000]",
+        "spec": "9.6.1"
+    },
+    {
+        "id": "V36",
+        "description": "Less-than-or-equal operator",
+        "pattern": "[file:size <= 1000]",
+        "spec": "9.6.1"
+    },
+    {
+        "id": "V37",
+        "description": "START/STOP qualifier",
+        "pattern": "[file:name = 'x'] START t'2025-01-01T00:00:00Z' STOP t'2025-02-01T00:00:00Z'",
+        "spec": "9.5.1"
+    },
+    {
+        "id": "V38",
+        "description": "Negative list index",
+        "pattern": "[email-message:body_multipart[-1].body_raw_ref.name = 'x']",
+        "spec": "9.7.2"
+    },
+    {
+        "id": "V39",
+        "description": "Leap-second timestamp",
+        "pattern": "[file:created = t'2016-12-31T23:59:60Z']",
+        "spec": "9.2"
+    },
+    {
+        "id": "V40",
+        "description": "Float WITHIN value",
+        "pattern": "[file:name = 'x'] WITHIN 600.5 SECONDS",
+        "spec": "9.5.1"
+    },
+    {
+        "id": "V41",
+        "description": "Positive integer with a leading plus",
+        "pattern": "[file:size = +5]",
+        "spec": "9.2"
+    },
+    {
+        "id": "V42",
+        "description": "Float with an empty integer part",
+        "pattern": "[file:size = .5]",
+        "spec": "9.2"
+    },
+    {
+        "id": "V46",
+        "description": "Hash format is not inspected; grammar and specification accept",
+        "pattern": "[file:hashes.'SHA-256' = 'x']",
+        "spec": "9.6.4"
+    },
+    {
+        "id": "V47",
+        "description": "Qualifier applies to a parenthesised observation group",
+        "pattern": "([file:name = 'a'] AND [file:name = 'b']) WITHIN 300 SECONDS",
+        "spec": "9.5.1"
+    },
+    {
+        "id": "V48",
+        "description": "Qualifiers may chain",
+        "pattern": "[file:name = 'x'] WITHIN 600 SECONDS REPEATS 5 TIMES",
+        "spec": "9.5.1"
+    },
+    {
+        "id": "V49",
+        "description": "NOT applies to IN",
+        "pattern": "[file:name NOT IN ('a','b')]",
+        "spec": "9.6.1"
+    },
+    {
+        "id": "V50",
+        "description": "Standalone REPEATS qualifier",
+        "pattern": "[file:name = 'x'] REPEATS 5 TIMES",
+        "spec": "9.5.1"
+    },
+    {
+        "id": "V64",
+        "description": "Boolean true literal",
+        "pattern": "[file:is_encrypted = true]",
+        "spec": "9.2"
+    },
+    {
+        "id": "V65",
+        "description": "Boolean false literal",
+        "pattern": "[file:is_encrypted = false]",
+        "spec": "9.2"
+    },
+    {
+        "id": "V66",
+        "description": "LIKE string comparison",
+        "pattern": "[file:name LIKE '%.exe']",
+        "spec": "9.6.2"
+    },
+    {
+        "id": "V67",
+        "description": "ISSUPERSET string comparison",
+        "pattern": "[ipv4-addr:value ISSUPERSET '192.0.2.0/24']",
+        "spec": "9.6.2"
+    },
+    {
+        "id": "V68",
+        "description": "Negative float literal",
+        "pattern": "[file:size = -1.5]",
+        "spec": "9.2"
+    }
+]
