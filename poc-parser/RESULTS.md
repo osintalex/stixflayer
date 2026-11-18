@@ -1,6 +1,6 @@
 # STIX Pattern Parser Comparison - Results
 
-**Status:** in progress. antlr-rust, pest, and chumsky complete; nom and the winner spike pending.
+**Status:** in progress. All four front ends complete; the winner spike is pending.
 
 ## 1. Environment
 
@@ -70,6 +70,7 @@ See `results/*.jsonl` and `cargo run -p harness --bin compare`.
 | antlr | 0 | 0 | 51/51 |
 | pest | 0 | 0 | 51/51 |
 | chumsky | 0 | 0 | 51/51 |
+| nom (fresh, VerboseError) | 0 | 0 | 51/51 |
 
 Baseline detail: 20 grammar-valid patterns rejected (including 5 of the reference validator's own
 23 `spec_examples.txt` cases) and 3 grammar-invalid patterns accepted (`007`, `STARTS/STOPS`,
@@ -78,16 +79,23 @@ compiled from `rust/` at the current commit.
 
 ## 4. Error-quality scoring
 
-| criterion | antlr | pest | chumsky |
-|---|---|---|---|
-| position accuracy | line, column, byte span | line, column (span via `line_col` only) | byte span only |
-| message clarity (raw) | recovery vocabulary; confusing for I06 | rule names (`kw_and`, `primitive_literal`) | trivia expectations dominate; keywords fail mid-token |
-| cascade behaviour | one diagnostic for most cases | one diagnostic | one diagnostic |
-| structured data | token text/type and span; expected set text-only | expected/negative `Rule` sets as data | found/expected sets and span, polluted by trivia |
-| multi-error | listener receives each diagnostic | one error per parse | available, but one per case here |
-| formatted (<=50 LOC) | "1:17: expected ']' to close the observation expression, found 'FALLOWEDBY'." | "1:18: expected 'AND' or 'OR' or ']'" | labels add to, rather than replace, the expected set |
+| criterion | antlr | pest | chumsky | nom (fresh) |
+|---|---|---|---|---|
+| position accuracy | line, column, byte span | line, column (span via `line_col` only) | byte span only | line/column, but `alt` collapses to the last alternative |
+| message clarity (raw) | recovery vocabulary; confusing for I06 | rule names (`kw_and`, `primitive_literal`) | trivia expectations dominate; keywords fail mid-token | `VerboseError` trace via `convert_error` |
+| cascade behaviour | one diagnostic for most cases | one diagnostic | one diagnostic | one diagnostic, sometimes at the wrong alternative |
+| structured data | token text/type and span; expected set text-only | expected/negative `Rule` sets as data | found/expected sets and span, polluted by trivia | context stack; no expected sets |
+| multi-error | listener receives each diagnostic | one error per parse | available, but one per case here | no |
+| formatted (<=50 LOC) | "1:17: expected ']' to close the observation expression, found 'FALLOWEDBY'." | "1:18: expected 'AND' or 'OR' or ']'" | labels add to, rather than replace, the expected set | "1:17: expected ']', found \"FALLOWEDBY \"" |
 
-chumsky is the weakest diagnostic surface of the three. Every token is padded by a `trivia` parser,
+nom's `VerboseError` + `context()` is workable, but `alt` returns the *last* alternative's error
+rather than the deepest one. I01 and I13 therefore report "expected a keyword or symbol" instead of
+the value or number that was actually missing; I04 happens to land on "expected ']'" because the
+dispatch was restructured around the first character. Recovering expected sets would need a custom
+error type that merges alternatives, which is more work than either antlr or pest required. Note
+also that nom 8 moved `VerboseError` and `convert_error` to the `nom-language` crate.
+
+chumsky is the weakest diagnostic surface of the four. Every token is padded by a `trivia` parser,
 so the expected set includes all 25 whitespace characters and `/`; keywords are matched by
 `just("FOLLOWEDBY")`, so a typo reports the first *mismatching character* rather than the token
 (`I25`: "found 'A' expected 'O'"). Labels do not suppress the inner expectations. Reaching
@@ -101,6 +109,7 @@ antlr or pest required.
 | antlr | 178 (168 runner + 10 build.rs) | 3 | 30 | 8 s | 314 KB | 28 MB | 1.95 |
 | pest | 207 (109 runner + 98 grammar) | 3 | 31 | 1 s | macro only | 6.8 MB | 1.88 |
 | chumsky | 397 | 2 | 29 | 19 s | none | 381 MB (debug) | 1.65 |
+| nom (fresh) | 547 | 3 | 22 | 1 s | none | 4.2 MB | 1.65 |
 
 The grammar compiled unmodified; no lexer/parser split was required.
 

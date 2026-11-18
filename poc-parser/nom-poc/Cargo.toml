@@ -6,3 +6,5 @@ publish = false
 
 [dependencies]
 harness = { path = "../harness" }
+nom = "8"
+nom-language = "0.1"
