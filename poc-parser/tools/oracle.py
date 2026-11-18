@@ -149,6 +149,10 @@ def build() -> list[dict]:
         if case["id"] in seen:
             raise SystemExit(f"duplicate id: {case['id']}")
         seen.add(case["id"])
+        if case["basis"] not in {"grammar", "reference", "spec", "shipped"}:
+            raise SystemExit(f"{case['id']}: unknown basis {case['basis']!r}")
+        if case["semantic"] and case["expected"] != "accept":
+            raise SystemExit(f"{case['id']}: semantic cases must be grammar-valid")
         actual = grammar_verdict(case["input"])
         if actual != case["expected"]:
             raise SystemExit(
