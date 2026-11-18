@@ -10,6 +10,13 @@ whitespace, escaped quotes, and `[file:name='x']` without spaces — while accep
 `[file:size = 007]`. Every failure reports the whole pattern and no column, e.g.
 `expected a specific character near '[file:name = ]'`.
 
+The gap is not limited to edge cases. Against the OASIS reference validator's own 23-pattern
+`spec_examples.txt`, all 23 are accepted by the reference and five fail here: extension paths ending
+in a float (`entropy > 7.0`), parenthesised comparison groups inside brackets (`[(a OR b) AND c]`),
+and values containing spaces (`'Conference Info'`). The root causes are ordinary: the integer branch
+consumes `7` and leaves `.0`, `parse_string` stops at the first space, and `propTestParen` was never
+implemented. Those are the patterns users write.
+
 The obvious quality bar, the reference `stix2patterns` validator, does not rescue this: it reports
 `[file:created = t'2025-13-01T00:00:00Z']` as `extraneous input 't' expecting {IntNegLiteral, ...}`
 (never mentioning the invalid month), and it crashes on the grammar-valid `[-1]` path index. Neither
