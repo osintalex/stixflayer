@@ -4,9 +4,10 @@
 //!
 //! For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_z4voa9ndw8v>
 
+use crate::error::CheckContext;
 use crate::{
     base::Stix,
-    common::validation::validate_vocab_list,
+    common::validation::warn_vocab_list,
     domain_objects::vocab::ToolType,
     error::{add_error, return_multiple_errors, StixError as Error},
     types::KillChainPhase,
@@ -34,21 +35,18 @@ pub struct Tool {
 }
 
 impl Stix for Tool {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(kill_chain_phases) = &self.kill_chain_phases {
-            add_error(&mut errors, kill_chain_phases.stix_check());
+            add_error(&mut errors, kill_chain_phases.check(ctx));
         }
         if let Some(tool_types) = &self.tool_types {
-            tool_types.stix_check()?;
-            add_error(
-                &mut errors,
-                validate_vocab_list::<ToolType, _>(tool_types, "tool-type-ov"),
-            );
+            tool_types.check(ctx)?;
+            warn_vocab_list::<ToolType, _>(ctx, tool_types, "tool-type-ov", "tool_types");
         }
         if let Some(aliases) = &self.aliases {
-            add_error(&mut errors, aliases.stix_check());
+            add_error(&mut errors, aliases.check(ctx));
         }
 
         return_multiple_errors(errors)
@@ -59,10 +57,10 @@ impl Stix for Tool {
 mod tests {
 
     use crate::{
+        base::Stix,
         domain_objects::sdo::{DomainObject, DomainObjectBuilder},
         types::KillChainPhase,
     };
-    use log::warn;
     use serde_json::Value;
 
     fn expected_tool() -> DomainObject {
@@ -119,7 +117,7 @@ mod tests {
     }
 
     #[test]
-    fn tool_invalid_kill_chain() {
+    fn tool_invalid_kill_chain_warns() {
         let test_vals = vec![
             "With Uppercase",
             "with_underscores",
@@ -129,69 +127,29 @@ mod tests {
             "trailing-hyphen-",
         ];
 
-        let mut all_invalid = true;
-
         for val in test_vals {
-            let tool = DomainObjectBuilder::new("tool")
-                .unwrap()
-                .name("Network Scanner".to_string())
-                .unwrap()
-                .description("A tool used for scanning and identifying network assets.".to_string())
-                .unwrap()
-                .tool_types(vec!["credential-exploitation".to_string()])
-                .unwrap()
-                .aliases(vec!["NetScan".to_string(), "Asset Mapper".to_string()])
-                .unwrap()
-                .kill_chain_phases(vec![KillChainPhase::new(val, val)])
-                .unwrap()
-                .tool_version("1.0.3".to_string())
-                .unwrap()
-                .build();
-            if tool.is_ok() {
-                all_invalid = false;
-                warn!(
-                    "Test String Value in Kill Chain '{}' should be invalid but passed",
-                    val
-                );
-            }
+            let outcome = KillChainPhase::new(val, val).outcome();
+            assert!(outcome.valid, "{val} should not fail validation");
+            assert!(
+                outcome
+                    .warnings
+                    .iter()
+                    .any(|w| w.kind == "value_not_lowercase_hyphenated"),
+                "{val} should warn: {:?}",
+                outcome.warnings
+            );
         }
-        assert!(
-            all_invalid,
-            "Not all Test String Value in Kill Chain were invalid"
-        );
     }
 
     #[test]
     fn tool_valid_kill_chain() {
         let test_vals = vec!["all-lowercase", "no-underscores", "no-spaces-here"];
 
-        let mut all_valid = true;
-
         for val in test_vals {
-            let tool = DomainObjectBuilder::new("tool")
-                .unwrap()
-                .name("Network Scanner".to_string())
-                .unwrap()
-                .description("A tool used for scanning and identifying network assets.".to_string())
-                .unwrap()
-                .tool_types(vec!["credential-exploitation".to_string()])
-                .unwrap()
-                .aliases(vec!["NetScan".to_string(), "Asset Mapper".to_string()])
-                .unwrap()
-                .kill_chain_phases(vec![KillChainPhase::new(val, val)])
-                .unwrap()
-                .tool_version("1.0.3".to_string())
-                .unwrap()
-                .build();
-            if tool.is_err() {
-                all_valid = false;
-                warn!(
-                    "Test String Value in Kill Chain '{}' should be valid but failed",
-                    val
-                );
-            }
+            let outcome = KillChainPhase::new(val, val).outcome();
+            assert!(outcome.valid, "{val} should be valid");
+            assert!(outcome.warnings.is_empty(), "{val} should not warn");
         }
-        assert!(all_valid, "All Test String Value in Kill Chain were valid");
     }
 
     #[test]

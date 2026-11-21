@@ -1,4 +1,5 @@
 use crate::base::Stix;
+use crate::error::CheckContext;
 use crate::error::StixError as Error;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -16,7 +17,7 @@ pub struct Mutex {
     pub name: String,
 }
 impl Stix for Mutex {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         Ok(())
     }
 }
@@ -31,7 +32,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;

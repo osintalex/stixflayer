@@ -14,7 +14,6 @@ mod test {
         },
         types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp},
     };
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;

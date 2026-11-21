@@ -1,0 +1,9 @@
+{
+    "type": "identity",
+    "spec_version": "2.1",
+    "id": "identity--550e8400-e29b-41d4-a716-446655440020",
+    "created": "2016-05-12T08:17:27Z",
+    "modified": "2016-05-12T08:17:27Z",
+    "name": "Acme",
+    "identity_class": "bogus-class"
+}

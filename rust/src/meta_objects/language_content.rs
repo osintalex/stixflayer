@@ -5,7 +5,7 @@ use stixflayer_derive::StixProperties;
 
 use crate::{
     base::{CommonProperties, CommonPropertiesBuilder, Stix},
-    error::{add_error, return_multiple_errors, StixError as Error},
+    error::{add_error, return_multiple_errors, CheckContext, Outcome, StixError as Error},
     relationship_objects::{Related, RelationshipObjectBuilder},
     types::{
         DictionaryValue, ExternalReference, GranularMarking, Identified, Identifier,
@@ -107,11 +107,12 @@ impl Related for LanguageContent {
 crate::impl_custom_properties_holder!(LanguageContent);
 
 impl Stix for LanguageContent {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
+        ctx.set_object_id(Some(self.get_id().to_string()));
         let mut errors = Vec::new();
 
         // Check common properties
-        add_error(&mut errors, self.common_properties.stix_check());
+        add_error(&mut errors, self.common_properties.check(ctx));
 
         // Check that required common properties fields are present and prohibited common properties fields are absent
 
@@ -154,7 +155,7 @@ impl Stix for LanguageContent {
         }
 
         // Validate that the `contents` field is a valid STIX Dictionary
-        add_error(&mut errors, self.contents.stix_check());
+        add_error(&mut errors, self.contents.check(ctx));
         for (key, value) in self.contents.iter() {
             // Check that a dictionary key is an RFC5646 language code
             match LanguageTag::parse(key) {
@@ -172,7 +173,7 @@ impl Stix for LanguageContent {
                 ))),
             }
             // Check that the nested dictionary is a valid STIX Dictionary
-            add_error(&mut errors, value.stix_check());
+            add_error(&mut errors, value.check(ctx));
             // Check that subkeys are valid property names: ^[a-z0-9_]{3,250}$
             for (subkey, _) in value.iter() {
                 let valid = subkey.len() >= 3
@@ -208,11 +209,11 @@ pub enum ContentType {
 }
 
 impl Stix for ContentType {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         match self {
-            ContentType::String(string) => string.stix_check(),
-            ContentType::List(list) => list.stix_check(),
-            ContentType::Object(content) => content.stix_check(),
+            ContentType::String(string) => string.check(ctx),
+            ContentType::List(list) => list.check(ctx),
+            ContentType::Object(content) => content.check(ctx),
         }
     }
 }
@@ -516,8 +517,19 @@ impl LanguageContentBuilder {
     /// This assembles the final `LanguageContent` object from the builder and
     /// then runs `stix_check()` on it.
     pub fn build(self) -> Result<LanguageContent, Error> {
-        let language_content = self.build_no_validate()?;
-        language_content.stix_check()?;
-        Ok(language_content)
+        let object = self.build_no_validate()?;
+        object.stix_check()?;
+        Ok(object)
+    }
+
+    /// Builds the object and returns its validation outcome, including warnings.
+    pub fn build_outcome(self) -> Outcome<LanguageContent> {
+        let object = match self.build_no_validate() {
+            Ok(object) => object,
+            Err(error) => return Outcome::err(error, Vec::new()),
+        };
+        let mut ctx = CheckContext::new();
+        let result = object.check(&mut ctx).map(|()| object);
+        Outcome::from_result(result, ctx.into_warnings())
     }
 }

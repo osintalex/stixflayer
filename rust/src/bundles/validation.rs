@@ -5,14 +5,19 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     base::Stix,
     bundles::Bundle,
-    error::{add_error, return_multiple_errors, StixError as Error},
+    error::{add_error, return_multiple_errors, CheckContext, StixError as Error},
     object::StixObject,
     relationship_objects::RelationshipObjectType,
     types::Identified,
 };
 
-impl Stix for Bundle {
-    fn stix_check(&self) -> Result<(), Error> {
+impl Bundle {
+    /// Runs only the invariants that are specific to the bundle container.
+    ///
+    /// Object-level validation is intentionally not repeated here: the
+    /// `from_json` path validates each object once, and [`Stix::check`] runs
+    /// this alongside the per-object checks for programmatic bundles.
+    pub fn check_invariants(&self) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         // Bundles must be of type "bundle"
@@ -24,7 +29,7 @@ impl Stix for Bundle {
         }
 
         // Validate the id
-        add_error(&mut errors, self.id.stix_check());
+        add_error(&mut errors, self.id.check(&mut CheckContext::discard()));
 
         // Bundles must contain at least one object
         if self.objects.is_empty() {
@@ -33,11 +38,9 @@ impl Stix for Bundle {
             ));
         }
 
-        // Validate all contained objects and check for duplicate IDs
+        // Check for duplicate IDs
         let mut seen_ids: HashMap<String, Option<String>> = HashMap::new();
         for object in self.objects.iter() {
-            add_error(&mut errors, object.stix_check());
-
             let id = object.get_id();
             let modified = object.get_modified();
 
@@ -80,6 +83,21 @@ impl Stix for Bundle {
                     }
                 }
             }
+        }
+
+        return_multiple_errors(errors)
+    }
+}
+
+impl Stix for Bundle {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
+        let mut errors = Vec::new();
+
+        add_error(&mut errors, self.check_invariants());
+
+        // Validate all contained objects.
+        for object in self.objects.iter() {
+            add_error(&mut errors, object.check(ctx));
         }
 
         return_multiple_errors(errors)

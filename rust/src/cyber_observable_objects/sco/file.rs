@@ -1,6 +1,6 @@
 use crate::base::Stix;
 use crate::common::validation::{is_valid_charset_name, is_valid_hex, is_valid_mime_type};
-use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::error::{add_error, return_multiple_errors, CheckContext, StixError as Error};
 use crate::types::{Hashes, Identifier, Timestamp};
 use serde::{Deserialize, Serialize};
 use serde_this_or_that::as_opt_u64;
@@ -42,9 +42,9 @@ pub struct File {
     pub content_ref: Option<Identifier>,
 }
 impl Stix for File {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         if let Some(hashes) = &self.hashes {
-            hashes.stix_check()?;
+            hashes.check(ctx)?;
         }
         let mut errors = Vec::new();
 
@@ -67,7 +67,7 @@ impl Stix for File {
         }
 
         if let Some(size) = &self.size {
-            add_error(&mut errors, size.stix_check());
+            add_error(&mut errors, size.check(ctx));
         }
         if let Some(magic_number_hex) = &self.magic_number_hex {
             if !is_valid_hex(magic_number_hex) {
@@ -77,7 +77,7 @@ impl Stix for File {
             }
         }
         if let Some(parent_directory_ref) = &self.parent_directory_ref {
-            parent_directory_ref.stix_check()?;
+            parent_directory_ref.check(ctx)?;
             if parent_directory_ref.get_type() != "directory" {
                 errors.push(Error::ValidationError(
                     "parent_directory_ref must be of type directory".to_string(),
@@ -85,11 +85,11 @@ impl Stix for File {
             }
         }
         if let Some(contains_refs) = &self.contains_refs {
-            add_error(&mut errors, contains_refs.stix_check());
+            add_error(&mut errors, contains_refs.check(ctx));
         }
 
         if let Some(content_ref) = &self.content_ref {
-            content_ref.stix_check()?;
+            content_ref.check(ctx)?;
             if content_ref.get_type() != "artifact" {
                 errors.push(Error::ValidationError(
                     "content_ref must be of type artifact".to_string(),
@@ -116,7 +116,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;

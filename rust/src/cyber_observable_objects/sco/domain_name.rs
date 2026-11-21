@@ -1,6 +1,6 @@
 use crate::base::Stix;
 use crate::common::validation::validate_refs_are_type;
-use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::error::{add_error, return_multiple_errors, CheckContext, StixError as Error};
 use crate::types::Identifier;
 use addr::parse_domain_name;
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,7 @@ pub struct DomainName {
     pub resolves_to_refs: Option<Vec<Identifier>>,
 }
 impl Stix for DomainName {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         // Check if the domain name is in the correct format using the `addr` crate
@@ -33,7 +33,7 @@ impl Stix for DomainName {
 
         // Validate resolves_to_refs if present
         if let Some(resolves_to_refs) = &self.resolves_to_refs {
-            resolves_to_refs.stix_check()?;
+            resolves_to_refs.check(ctx)?;
             add_error(
                 &mut errors,
                 validate_refs_are_type(
@@ -58,7 +58,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;

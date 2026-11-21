@@ -4,6 +4,7 @@
 //!
 //! For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_gudodcg1sbb9>
 
+use crate::error::CheckContext;
 use crate::{
     base::Stix,
     error::{add_error, return_multiple_errors, StixError as Error},
@@ -29,13 +30,13 @@ pub struct Note {
 }
 
 impl Stix for Note {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(authors) = &self.authors {
-            add_error(&mut errors, authors.stix_check());
+            add_error(&mut errors, authors.check(ctx));
         }
-        add_error(&mut errors, self.object_refs.stix_check());
+        add_error(&mut errors, self.object_refs.check(ctx));
 
         return_multiple_errors(errors)
     }

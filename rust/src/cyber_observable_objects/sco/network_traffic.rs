@@ -1,8 +1,7 @@
 use crate::base::Stix;
 use crate::common::validation::validate_refs_are_type;
-use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::error::{add_error, return_multiple_errors, CheckContext, Entry, StixError as Error};
 use crate::types::{DictionaryValue, Identifier, StixDictionary, Timestamp};
-use log::warn;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_this_or_that::as_opt_u64;
@@ -82,33 +81,48 @@ pub struct NetworkTraffic {
     pub encapsulated_by_ref: Option<Identifier>,
 }
 impl Stix for NetworkTraffic {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(src_port) = &self.src_port {
-            add_error(&mut errors, src_port.stix_check());
+            add_error(&mut errors, src_port.check(ctx));
         }
         if let Some(dst_port) = &self.dst_port {
-            add_error(&mut errors, dst_port.stix_check());
+            add_error(&mut errors, dst_port.check(ctx));
         }
         if let Some(src_byte_count) = &self.src_byte_count {
-            add_error(&mut errors, src_byte_count.stix_check());
+            add_error(&mut errors, src_byte_count.check(ctx));
         }
         if let Some(dst_byte_count) = &self.dst_byte_count {
-            add_error(&mut errors, dst_byte_count.stix_check());
+            add_error(&mut errors, dst_byte_count.check(ctx));
         }
         if let Some(src_packets) = &self.src_packets {
-            add_error(&mut errors, src_packets.stix_check());
+            add_error(&mut errors, src_packets.check(ctx));
         }
         if let Some(dst_packets) = &self.dst_packets {
-            add_error(&mut errors, dst_packets.stix_check());
+            add_error(&mut errors, dst_packets.check(ctx));
         }
 
-        if self.src_port.is_none() || self.dst_port.is_none() {
-            warn!("Network traffic should contain both the src_port and dst_port properties.");
+        if self.src_port.is_none() {
+            ctx.warn(
+                Entry::new(
+                    "network_traffic_missing_port",
+                    "Network traffic should contain both the src_port and dst_port properties.",
+                )
+                .property("src_port"),
+            );
+        }
+        if self.dst_port.is_none() {
+            ctx.warn(
+                Entry::new(
+                    "network_traffic_missing_port",
+                    "Network traffic should contain both the src_port and dst_port properties.",
+                )
+                .property("dst_port"),
+            );
         }
         if let Some(dst_payload_ref) = &self.dst_payload_ref {
-            dst_payload_ref.stix_check()?;
+            dst_payload_ref.check(ctx)?;
             if dst_payload_ref.get_type() != "artifact" {
                 errors.push(Error::ValidationError(format!(
                     "dst_payload_ref {} MUST be of type artifact.",
@@ -117,7 +131,7 @@ impl Stix for NetworkTraffic {
             }
         }
         if let Some(encapsulated_by_ref) = &self.encapsulated_by_ref {
-            encapsulated_by_ref.stix_check()?;
+            encapsulated_by_ref.check(ctx)?;
             if encapsulated_by_ref.get_type() != "network-traffic" {
                 errors.push(Error::ValidationError(format!(
                     "encapsulated_by_ref {} MUST be of type network-traffic.",
@@ -140,7 +154,7 @@ impl Stix for NetworkTraffic {
             }
         }
         if let Some(dst_ref) = &self.dst_ref {
-            add_error(&mut errors, dst_ref.stix_check());
+            add_error(&mut errors, dst_ref.check(ctx));
             if dst_ref.get_type() != "ipv4-addr"
                 && dst_ref.get_type() != "ipv6-addr"
                 && dst_ref.get_type() != "mac-addr"
@@ -152,7 +166,7 @@ impl Stix for NetworkTraffic {
             }
         }
         if let Some(encapsulates_refs) = &self.encapsulates_refs {
-            encapsulates_refs.stix_check()?;
+            encapsulates_refs.check(ctx)?;
             add_error(
                 &mut errors,
                 validate_refs_are_type(
@@ -180,7 +194,7 @@ impl Stix for NetworkTraffic {
         }
 
         if let Some(src_payload_ref) = &self.src_payload_ref {
-            src_payload_ref.stix_check()?;
+            src_payload_ref.check(ctx)?;
             if src_payload_ref.get_type() != "artifact" {
                 errors.push(Error::ValidationError(format!(
                     "src_payload_ref {} MUST be of type artifact.",
@@ -189,7 +203,7 @@ impl Stix for NetworkTraffic {
             }
         }
         if let Some(src_ref) = &self.src_ref {
-            add_error(&mut errors, src_ref.stix_check());
+            add_error(&mut errors, src_ref.check(ctx));
             if src_ref.get_type() != "ipv4-addr"
                 && src_ref.get_type() != "ipv6-addr"
                 && src_ref.get_type() != "mac-addr"
@@ -201,7 +215,7 @@ impl Stix for NetworkTraffic {
             }
         }
 
-        add_error(&mut errors, self.protocols.stix_check());
+        add_error(&mut errors, self.protocols.check(ctx));
 
         let protocols_joined = &self.protocols.join(",");
         if protocols_joined.contains("ip") && !protocols_joined.starts_with("ip") {
@@ -217,7 +231,7 @@ impl Stix for NetworkTraffic {
             }
         }
         if let Some(ipfix) = &self.ipfix {
-            add_error(&mut errors, ipfix.stix_check());
+            add_error(&mut errors, ipfix.check(ctx));
             for (key, val) in ipfix.iter() {
                 if !ipfix_key_re().is_match(key) {
                     errors.push(Error::ValidationError(format!(
@@ -225,8 +239,8 @@ impl Stix for NetworkTraffic {
                     )));
                 }
                 match val {
-                    DictionaryValue::String(string) => add_error(&mut errors,string.stix_check()),
-                    DictionaryValue::Int(int) => add_error(&mut errors,int.stix_check()),
+                    DictionaryValue::String(string) => add_error(&mut errors,string.check(ctx)),
+                    DictionaryValue::Int(int) => add_error(&mut errors,int.check(ctx)),
                     _ =>  errors.push(Error::ValidationError(
                         format!("Ipfix dictionary value {} SHOULD be a case-preserved version of the IPFIX element name, e.g., octetDeltaCount. Each dictionary value MUST be either an integer or a string, as well as a valid IPFIX property.",val)
                     )),
@@ -248,7 +262,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;

@@ -1,6 +1,7 @@
 //! External references and reference URLs for STIX objects.
+use crate::error::CheckContext;
+use crate::error::Entry;
 use crate::{error::StixError as Error, hashes::Hashes};
-use log::warn;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -59,7 +60,7 @@ impl ExternalReference {
 }
 
 impl crate::base::Stix for ExternalReference {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         if self.description.is_none() && self.url.is_none() && self.external_id.is_none() {
             return Err(Error::ValidationError(format!(
                 "External reference '{}' must have at least one of a description, a URL, or an external ID",
@@ -68,7 +69,7 @@ impl crate::base::Stix for ExternalReference {
         }
 
         if let Some(url) = &self.url {
-            url.stix_check()?;
+            url.check(ctx)?;
         }
 
         let source_lower = self.source_name.to_lowercase();
@@ -124,9 +125,6 @@ impl ReferenceUrl {
         let url =
             Url::parse(raw_url).map_err(|e| Error::ValidationError(format!("invalid URL: {e}")))?;
 
-        if hashes.is_none() {
-            warn!("An external reference URL should always come with a dictionary of hashes")
-        };
         Ok(Self { url, hashes })
     }
 
@@ -138,11 +136,18 @@ impl ReferenceUrl {
 
 impl crate::base::Stix for ReferenceUrl {
     /// Verifies the hash type is correct for Reference Url
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         if let Some(hashes) = &self.hashes {
-            hashes.stix_check()?;
+            hashes.check(ctx)?;
         } else {
-            warn!("An external reference URL should always come with a dictionary of hashes");
+            ctx.warn(
+                Entry::new(
+                    "external_reference_url_without_hashes",
+                    "An external reference URL should always come with a dictionary of hashes.",
+                )
+                .property("hashes")
+                .value(self.url.to_string()),
+            );
         }
         Ok(())
     }

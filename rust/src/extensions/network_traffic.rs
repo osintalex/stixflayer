@@ -1,3 +1,4 @@
+use crate::error::CheckContext;
 use crate::{
     base::Stix,
     common::validation::{is_exact_vocab_value, is_valid_hex},
@@ -5,7 +6,6 @@ use crate::{
     error::{add_error, return_multiple_errors, StixError as Error},
     types::{DictionaryValue, Identifier, StixDictionary},
 };
-use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_this_or_that::as_opt_u64;
 use serde_with::skip_serializing_none;
@@ -40,7 +40,7 @@ pub struct IcmpExtension {
 }
 
 impl Stix for IcmpExtension {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
         let icmp_type_hex = &self.icmp_type_hex;
         if !is_valid_hex(icmp_type_hex) {
@@ -58,57 +58,6 @@ impl Stix for IcmpExtension {
         return_multiple_errors(errors)
     }
 }
-
-/// Valid HTTP request header names as defined by stix2validator v3.3.1.
-const HTTP_REQUEST_HEADERS: &[&str] = &[
-    "Accept",
-    "Accept-Charset",
-    "Accept-Encoding",
-    "Accept-Language",
-    "Accept-Datetime",
-    "Authorization",
-    "Cache-Control",
-    "Connection",
-    "Cookie",
-    "Content-Length",
-    "Content-MD5",
-    "Content-Type",
-    "Date",
-    "Expect",
-    "Forwarded",
-    "From",
-    "Host",
-    "If-Match",
-    "If-Modified-Since",
-    "If-None-Match",
-    "If-Range",
-    "If-Unmodified-Since",
-    "Max-Forwards",
-    "Origin",
-    "Pragma",
-    "Proxy-Authorization",
-    "Range",
-    "Referer",
-    "TE",
-    "User-Agent",
-    "Upgrade",
-    "Via",
-    "Warning",
-    "X-Requested-With",
-    "DNT",
-    "X-Forwarded-For",
-    "X-Forwarded-Host",
-    "X-Forwarded-Proto",
-    "Front-End-Https",
-    "X-Http-Method-Override",
-    "X-ATT-DeviceId",
-    "X-Wap-Profile",
-    "Proxy-Connection",
-    "X-UIDH",
-    "X-Csrf-Token",
-    "X-Request-ID",
-    "X-Correlation-ID",
-];
 
 /// The HTTP request extension specifies a default extension for capturing network traffic properties specific to HTTP requests.
 ///
@@ -133,14 +82,14 @@ pub struct HttpRequestExtension {
 }
 
 impl Stix for HttpRequestExtension {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(message_body_length) = &self.message_body_length {
-            add_error(&mut errors, message_body_length.stix_check());
+            add_error(&mut errors, message_body_length.check(ctx));
         }
         if let Some(message_body_data_ref) = &self.message_body_data_ref {
-            message_body_data_ref.stix_check()?;
+            message_body_data_ref.check(ctx)?;
             if message_body_data_ref.get_type() != "artifact" {
                 errors.push(Error::ValidationError(format!(
                     "message_body_data_ref {} must be of type 'artifact'.",
@@ -149,15 +98,10 @@ impl Stix for HttpRequestExtension {
             }
         }
         if let Some(request_header) = &self.request_header {
-            add_error(&mut errors, request_header.stix_check());
-            for (key, _) in request_header.iter() {
-                if !HTTP_REQUEST_HEADERS.contains(&key.as_str()) {
-                    errors.push(Error::ValidationError(format!(
-                        "The 'request_header' property contains an invalid HTTP request header ('{}').",
-                        key
-                    )));
-                }
-            }
+            // Any valid header field name is accepted; STIX 2.1 does not
+            // restrict this dictionary to a fixed list, and headers SHOULD
+            // preserve case, so no lowercase warning is applied.
+            add_error(&mut errors, request_header.check(ctx));
         }
 
         return_multiple_errors(errors)
@@ -190,11 +134,11 @@ pub struct SocketExtenion {
 }
 
 impl Stix for SocketExtenion {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(socket_descriptor) = &self.socket_descriptor {
-            add_error(&mut errors, socket_descriptor.stix_check());
+            add_error(&mut errors, socket_descriptor.check(ctx));
         }
         if let Some(address_family) = &self.address_family {
             if !is_exact_vocab_value::<NetworkSocketAddressFamilyEnum, _>(address_family) {
@@ -213,7 +157,7 @@ impl Stix for SocketExtenion {
             }
         }
         if let Some(options) = &self.options {
-            add_error(&mut errors, options.stix_check());
+            add_error(&mut errors, options.check(ctx));
         }
 
         return_multiple_errors(errors)
@@ -234,13 +178,7 @@ pub struct TcpExtension {
 }
 
 impl Stix for TcpExtension {
-    fn stix_check(&self) -> Result<(), Error> {
-        if let Some(src_flags_hex) = &self.src_flags_hex {
-            warn!("If the start and end times of the traffic are not specified, src_flags_hex {} SHOULD be interpreted as the union of all TCP flags observed over the entirety of the network traffic being reported upon.",src_flags_hex);
-        }
-        if let Some(dst_flags_hex) = &self.dst_flags_hex {
-            warn!("If the start and end times of the traffic are not specified, dst_flags_hex {} SHOULD be interpreted as the union of all TCP flags observed over the entirety of the network traffic being reported upon.",dst_flags_hex);
-        }
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
         if let Some(src_flags_hex) = &self.src_flags_hex {
             if !is_valid_hex(src_flags_hex) {

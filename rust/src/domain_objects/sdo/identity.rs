@@ -4,9 +4,10 @@
 //!
 //! For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_wh296fiwpklp>
 
+use crate::error::CheckContext;
 use crate::{
     base::Stix,
-    common::validation::{validate_vocab_list, validate_vocab_value},
+    common::validation::{warn_vocab_list, warn_vocab_value},
     domain_objects::vocab::{IdentityClass, IdentitySectors},
     error::{add_error, return_multiple_errors, StixError as Error},
 };
@@ -33,24 +34,23 @@ pub struct Identity {
 }
 
 impl Stix for Identity {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(identity_class) = &self.identity_class {
-            add_error(
-                &mut errors,
-                validate_vocab_value::<IdentityClass, _>(identity_class, "identity-class-ov"),
+            warn_vocab_value::<IdentityClass, _>(
+                ctx,
+                identity_class,
+                "identity-class-ov",
+                "identity_class",
             );
         }
         if let Some(sectors) = &self.sectors {
-            add_error(&mut errors, sectors.stix_check());
-            add_error(
-                &mut errors,
-                validate_vocab_list::<IdentitySectors, _>(sectors, "industry-sector-ov"),
-            );
+            add_error(&mut errors, sectors.check(ctx));
+            warn_vocab_list::<IdentitySectors, _>(ctx, sectors, "industry-sector-ov", "sectors");
         }
         if let Some(roles) = &self.roles {
-            add_error(&mut errors, roles.stix_check());
+            add_error(&mut errors, roles.check(ctx));
         }
         return_multiple_errors(errors)
     }

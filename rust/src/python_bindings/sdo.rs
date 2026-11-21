@@ -4,15 +4,16 @@
 // Remove this allow when pyo3 is upgraded past 0.22.
 #![allow(clippy::useless_conversion)]
 use crate::domain_objects::sdo::DomainObjectBuilder;
-use crate::python_bindings::builder::build_sdo_envelope;
+use crate::error::Entry;
+use crate::python_bindings::builder::{build_sdo_envelope, parse_sdo_builder};
 use crate::python_bindings::convert::{custom_properties_dict, dynamic_getattr};
-use crate::python_bindings::error::{stix_to_pyerr, StixError};
+use crate::python_bindings::error::{entries_to_py, stix_to_pyerr, StixError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
 /// Python binding for the Campaign domain object.
 #[pyclass]
-pub struct Campaign(pub DomainObjectBuilder);
+pub struct Campaign(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Campaign {
@@ -23,8 +24,8 @@ impl Campaign {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("campaign", kwargs, strict, allow_custom)?;
-        Ok(Campaign(builder))
+        let (builder, warnings) = build_sdo_envelope("campaign", kwargs, strict, allow_custom)?;
+        Ok(Campaign(builder, warnings))
     }
 
     #[staticmethod]
@@ -35,10 +36,8 @@ impl Campaign {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(Campaign(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Campaign(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -49,6 +48,11 @@ impl Campaign {
     #[getter]
     fn r#type(&self) -> String {
         "campaign".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -64,7 +68,7 @@ impl Campaign {
 
 /// Python binding for the CourseOfAction domain object.
 #[pyclass]
-pub struct CourseOfAction(pub DomainObjectBuilder);
+pub struct CourseOfAction(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl CourseOfAction {
@@ -75,8 +79,9 @@ impl CourseOfAction {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("course-of-action", kwargs, strict, allow_custom)?;
-        Ok(CourseOfAction(builder))
+        let (builder, warnings) =
+            build_sdo_envelope("course-of-action", kwargs, strict, allow_custom)?;
+        Ok(CourseOfAction(builder, warnings))
     }
 
     #[staticmethod]
@@ -87,10 +92,8 @@ impl CourseOfAction {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(CourseOfAction(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(CourseOfAction(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -101,6 +104,11 @@ impl CourseOfAction {
     #[getter]
     fn r#type(&self) -> String {
         "course-of-action".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -116,7 +124,7 @@ impl CourseOfAction {
 
 /// Python binding for the Grouping domain object.
 #[pyclass]
-pub struct Grouping(pub DomainObjectBuilder);
+pub struct Grouping(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Grouping {
@@ -127,8 +135,8 @@ impl Grouping {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("grouping", kwargs, strict, allow_custom)?;
-        Ok(Grouping(builder))
+        let (builder, warnings) = build_sdo_envelope("grouping", kwargs, strict, allow_custom)?;
+        Ok(Grouping(builder, warnings))
     }
 
     #[staticmethod]
@@ -139,10 +147,8 @@ impl Grouping {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(Grouping(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Grouping(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -153,6 +159,11 @@ impl Grouping {
     #[getter]
     fn r#type(&self) -> String {
         "grouping".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -168,7 +179,7 @@ impl Grouping {
 
 /// Python binding for the Identity domain object.
 #[pyclass]
-pub struct Identity(pub DomainObjectBuilder);
+pub struct Identity(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Identity {
@@ -179,8 +190,8 @@ impl Identity {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("identity", kwargs, strict, allow_custom)?;
-        Ok(Identity(builder))
+        let (builder, warnings) = build_sdo_envelope("identity", kwargs, strict, allow_custom)?;
+        Ok(Identity(builder, warnings))
     }
 
     #[staticmethod]
@@ -191,10 +202,8 @@ impl Identity {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(Identity(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Identity(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -205,6 +214,11 @@ impl Identity {
     #[getter]
     fn r#type(&self) -> String {
         "identity".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -220,7 +234,7 @@ impl Identity {
 
 /// Python binding for the Incident domain object.
 #[pyclass]
-pub struct Incident(pub DomainObjectBuilder);
+pub struct Incident(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Incident {
@@ -231,8 +245,8 @@ impl Incident {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("incident", kwargs, strict, allow_custom)?;
-        Ok(Incident(builder))
+        let (builder, warnings) = build_sdo_envelope("incident", kwargs, strict, allow_custom)?;
+        Ok(Incident(builder, warnings))
     }
 
     #[staticmethod]
@@ -243,10 +257,8 @@ impl Incident {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(Incident(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Incident(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -257,6 +269,11 @@ impl Incident {
     #[getter]
     fn r#type(&self) -> String {
         "incident".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -272,7 +289,7 @@ impl Incident {
 
 /// Python binding for the Infrastructure domain object.
 #[pyclass]
-pub struct Infrastructure(pub DomainObjectBuilder);
+pub struct Infrastructure(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Infrastructure {
@@ -283,8 +300,9 @@ impl Infrastructure {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("infrastructure", kwargs, strict, allow_custom)?;
-        Ok(Infrastructure(builder))
+        let (builder, warnings) =
+            build_sdo_envelope("infrastructure", kwargs, strict, allow_custom)?;
+        Ok(Infrastructure(builder, warnings))
     }
 
     #[staticmethod]
@@ -295,10 +313,8 @@ impl Infrastructure {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(Infrastructure(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Infrastructure(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -309,6 +325,11 @@ impl Infrastructure {
     #[getter]
     fn r#type(&self) -> String {
         "infrastructure".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -324,7 +345,7 @@ impl Infrastructure {
 
 /// Python binding for the IntrusionSet domain object.
 #[pyclass]
-pub struct IntrusionSet(pub DomainObjectBuilder);
+pub struct IntrusionSet(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl IntrusionSet {
@@ -335,8 +356,9 @@ impl IntrusionSet {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("intrusion-set", kwargs, strict, allow_custom)?;
-        Ok(IntrusionSet(builder))
+        let (builder, warnings) =
+            build_sdo_envelope("intrusion-set", kwargs, strict, allow_custom)?;
+        Ok(IntrusionSet(builder, warnings))
     }
 
     #[staticmethod]
@@ -347,10 +369,8 @@ impl IntrusionSet {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(IntrusionSet(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(IntrusionSet(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -361,6 +381,11 @@ impl IntrusionSet {
     #[getter]
     fn r#type(&self) -> String {
         "intrusion-set".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -376,7 +401,7 @@ impl IntrusionSet {
 
 /// Python binding for the Location domain object.
 #[pyclass]
-pub struct Location(pub DomainObjectBuilder);
+pub struct Location(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Location {
@@ -387,8 +412,8 @@ impl Location {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("location", kwargs, strict, allow_custom)?;
-        Ok(Location(builder))
+        let (builder, warnings) = build_sdo_envelope("location", kwargs, strict, allow_custom)?;
+        Ok(Location(builder, warnings))
     }
 
     #[staticmethod]
@@ -399,10 +424,8 @@ impl Location {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(Location(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Location(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -413,6 +436,11 @@ impl Location {
     #[getter]
     fn r#type(&self) -> String {
         "location".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -428,7 +456,7 @@ impl Location {
 
 /// Python binding for the MalwareAnalysis domain object.
 #[pyclass]
-pub struct MalwareAnalysis(pub DomainObjectBuilder);
+pub struct MalwareAnalysis(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl MalwareAnalysis {
@@ -439,8 +467,9 @@ impl MalwareAnalysis {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("malware-analysis", kwargs, strict, allow_custom)?;
-        Ok(MalwareAnalysis(builder))
+        let (builder, warnings) =
+            build_sdo_envelope("malware-analysis", kwargs, strict, allow_custom)?;
+        Ok(MalwareAnalysis(builder, warnings))
     }
 
     #[staticmethod]
@@ -451,10 +480,8 @@ impl MalwareAnalysis {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(MalwareAnalysis(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(MalwareAnalysis(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -465,6 +492,11 @@ impl MalwareAnalysis {
     #[getter]
     fn r#type(&self) -> String {
         "malware-analysis".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -480,7 +512,7 @@ impl MalwareAnalysis {
 
 /// Python binding for the Note domain object.
 #[pyclass]
-pub struct Note(pub DomainObjectBuilder);
+pub struct Note(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Note {
@@ -491,8 +523,8 @@ impl Note {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("note", kwargs, strict, allow_custom)?;
-        Ok(Note(builder))
+        let (builder, warnings) = build_sdo_envelope("note", kwargs, strict, allow_custom)?;
+        Ok(Note(builder, warnings))
     }
 
     #[staticmethod]
@@ -503,10 +535,8 @@ impl Note {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(Note(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Note(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -517,6 +547,11 @@ impl Note {
     #[getter]
     fn r#type(&self) -> String {
         "note".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -532,7 +567,7 @@ impl Note {
 
 /// Python binding for the ObservedData domain object.
 #[pyclass]
-pub struct ObservedData(pub DomainObjectBuilder);
+pub struct ObservedData(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl ObservedData {
@@ -543,8 +578,9 @@ impl ObservedData {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("observed-data", kwargs, strict, allow_custom)?;
-        Ok(ObservedData(builder))
+        let (builder, warnings) =
+            build_sdo_envelope("observed-data", kwargs, strict, allow_custom)?;
+        Ok(ObservedData(builder, warnings))
     }
 
     #[staticmethod]
@@ -555,10 +591,8 @@ impl ObservedData {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(ObservedData(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(ObservedData(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -569,6 +603,11 @@ impl ObservedData {
     #[getter]
     fn r#type(&self) -> String {
         "observed-data".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -584,7 +623,7 @@ impl ObservedData {
 
 /// Python binding for the Opinion domain object.
 #[pyclass]
-pub struct Opinion(pub DomainObjectBuilder);
+pub struct Opinion(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Opinion {
@@ -595,8 +634,8 @@ impl Opinion {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("opinion", kwargs, strict, allow_custom)?;
-        Ok(Opinion(builder))
+        let (builder, warnings) = build_sdo_envelope("opinion", kwargs, strict, allow_custom)?;
+        Ok(Opinion(builder, warnings))
     }
 
     #[staticmethod]
@@ -607,10 +646,8 @@ impl Opinion {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(Opinion(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Opinion(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -621,6 +658,11 @@ impl Opinion {
     #[getter]
     fn r#type(&self) -> String {
         "opinion".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -636,7 +678,7 @@ impl Opinion {
 
 /// Python binding for the Report domain object.
 #[pyclass]
-pub struct Report(pub DomainObjectBuilder);
+pub struct Report(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Report {
@@ -647,8 +689,8 @@ impl Report {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("report", kwargs, strict, allow_custom)?;
-        Ok(Report(builder))
+        let (builder, warnings) = build_sdo_envelope("report", kwargs, strict, allow_custom)?;
+        Ok(Report(builder, warnings))
     }
 
     #[staticmethod]
@@ -659,10 +701,8 @@ impl Report {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(Report(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Report(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -673,6 +713,11 @@ impl Report {
     #[getter]
     fn r#type(&self) -> String {
         "report".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -688,7 +733,7 @@ impl Report {
 
 /// Python binding for the ThreatActor domain object.
 #[pyclass]
-pub struct ThreatActor(pub DomainObjectBuilder);
+pub struct ThreatActor(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl ThreatActor {
@@ -699,8 +744,8 @@ impl ThreatActor {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("threat-actor", kwargs, strict, allow_custom)?;
-        Ok(ThreatActor(builder))
+        let (builder, warnings) = build_sdo_envelope("threat-actor", kwargs, strict, allow_custom)?;
+        Ok(ThreatActor(builder, warnings))
     }
 
     #[staticmethod]
@@ -711,10 +756,8 @@ impl ThreatActor {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(ThreatActor(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(ThreatActor(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -725,6 +768,11 @@ impl ThreatActor {
     #[getter]
     fn r#type(&self) -> String {
         "threat-actor".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -740,7 +788,7 @@ impl ThreatActor {
 
 /// Python binding for the Tool domain object.
 #[pyclass]
-pub struct Tool(pub DomainObjectBuilder);
+pub struct Tool(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Tool {
@@ -751,8 +799,8 @@ impl Tool {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("tool", kwargs, strict, allow_custom)?;
-        Ok(Tool(builder))
+        let (builder, warnings) = build_sdo_envelope("tool", kwargs, strict, allow_custom)?;
+        Ok(Tool(builder, warnings))
     }
 
     #[staticmethod]
@@ -763,10 +811,8 @@ impl Tool {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(Tool(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Tool(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -777,6 +823,11 @@ impl Tool {
     #[getter]
     fn r#type(&self) -> String {
         "tool".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -792,7 +843,7 @@ impl Tool {
 
 /// Python binding for the Vulnerability domain object.
 #[pyclass]
-pub struct Vulnerability(pub DomainObjectBuilder);
+pub struct Vulnerability(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Vulnerability {
@@ -803,8 +854,9 @@ impl Vulnerability {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("vulnerability", kwargs, strict, allow_custom)?;
-        Ok(Vulnerability(builder))
+        let (builder, warnings) =
+            build_sdo_envelope("vulnerability", kwargs, strict, allow_custom)?;
+        Ok(Vulnerability(builder, warnings))
     }
 
     #[staticmethod]
@@ -815,10 +867,8 @@ impl Vulnerability {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(Vulnerability(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Vulnerability(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -829,6 +879,11 @@ impl Vulnerability {
     #[getter]
     fn r#type(&self) -> String {
         "vulnerability".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -848,7 +903,7 @@ impl Vulnerability {
 
 /// Python binding for the Malware domain object.
 #[pyclass]
-pub struct Malware(pub DomainObjectBuilder);
+pub struct Malware(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Malware {
@@ -859,8 +914,8 @@ impl Malware {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("malware", kwargs, strict, allow_custom)?;
-        Ok(Malware(builder))
+        let (builder, warnings) = build_sdo_envelope("malware", kwargs, strict, allow_custom)?;
+        Ok(Malware(builder, warnings))
     }
 
     #[staticmethod]
@@ -871,10 +926,8 @@ impl Malware {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(Malware(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Malware(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -885,6 +938,11 @@ impl Malware {
     #[getter]
     fn r#type(&self) -> String {
         "malware".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -904,7 +962,7 @@ impl Malware {
 
 /// Python binding for the AttackPattern domain object.
 #[pyclass]
-pub struct AttackPattern(pub DomainObjectBuilder);
+pub struct AttackPattern(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl AttackPattern {
@@ -915,8 +973,9 @@ impl AttackPattern {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("attack-pattern", kwargs, strict, allow_custom)?;
-        Ok(AttackPattern(builder))
+        let (builder, warnings) =
+            build_sdo_envelope("attack-pattern", kwargs, strict, allow_custom)?;
+        Ok(AttackPattern(builder, warnings))
     }
 
     #[staticmethod]
@@ -927,10 +986,8 @@ impl AttackPattern {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(AttackPattern(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(AttackPattern(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -941,6 +998,11 @@ impl AttackPattern {
     #[getter]
     fn r#type(&self) -> String {
         "attack-pattern".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -960,7 +1022,7 @@ impl AttackPattern {
 
 /// Python binding for the Indicator domain object.
 #[pyclass]
-pub struct Indicator(pub DomainObjectBuilder);
+pub struct Indicator(pub DomainObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Indicator {
@@ -971,8 +1033,8 @@ impl Indicator {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sdo_envelope("indicator", kwargs, strict, allow_custom)?;
-        Ok(Indicator(builder))
+        let (builder, warnings) = build_sdo_envelope("indicator", kwargs, strict, allow_custom)?;
+        Ok(Indicator(builder, warnings))
     }
 
     #[staticmethod]
@@ -983,10 +1045,8 @@ impl Indicator {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sdo = crate::object::parse_sdo(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = DomainObjectBuilder::from_parsed(&sdo).map_err(stix_to_pyerr)?;
-        Ok(Indicator(builder))
+        let (builder, warnings) = parse_sdo_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Indicator(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -997,6 +1057,11 @@ impl Indicator {
     #[getter]
     fn r#type(&self) -> String {
         "indicator".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {

@@ -1,4 +1,5 @@
 use crate::base::Stix;
+use crate::error::CheckContext;
 use crate::error::StixError as Error;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -26,7 +27,7 @@ pub struct MacAddr {
 }
 
 impl Stix for MacAddr {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         // Check if the MAC address is in the correct format
         if !mac_addr_re().is_match(&self.value) {
             return Err(Error::ValidationError(
@@ -47,7 +48,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;
@@ -116,7 +116,6 @@ mod tests {
                 .build();
             if mac_address.is_ok() {
                 all_invalid = false;
-                eprintln!("Address '{}' should be invalid but passed", address);
             }
         }
 

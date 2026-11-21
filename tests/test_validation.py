@@ -49,18 +49,18 @@ class TestInvalidFixtures:
             stixflayer.Indicator.from_json(json_str)
 
     def test_invalid_indicator_bad_pattern_type(self):
-        """Indicator with invalid pattern_type raises ValidationError."""
+        """Indicator with a non-suggested pattern_type parses and warns."""
         json_str = load_fixture("invalid/sdo/indicator-bad-pattern-type.json")
-        with pytest.raises(
-            stixflayer.ValidationError, match="pattern type should come from the STIX pattern type open vocabulary"
-        ):
-            stixflayer.Indicator.from_json(json_str)
+        obj = stixflayer.Indicator.from_json(json_str)
+        assert obj.type == "indicator"
+        assert any(w["kind"] == "open_vocab_value_not_suggested" for w in obj.warnings)
 
     def test_invalid_malware_bad_types(self):
-        """Malware with invalid malware_types raises ValidationError."""
+        """Malware with non-suggested malware_types parses and warns."""
         json_str = load_fixture("invalid/sdo/malware-bad-malware-types.json")
-        with pytest.raises(stixflayer.ValidationError, match="malware_types"):
-            stixflayer.Malware.from_json(json_str)
+        obj = stixflayer.Malware.from_json(json_str)
+        assert obj.type == "malware"
+        assert any(w["kind"] == "open_vocab_value_not_suggested" for w in obj.warnings)
 
     def test_invalid_ipv4_bad_format(self):
         """IPv4 address with invalid format raises ValidationError."""
@@ -124,15 +124,14 @@ class TestInvalidFixtures:
         """Passing a Python value of the wrong type to a constructor raises ValidationError."""
         with pytest.raises(stixflayer.ValidationError, match="invalid value for property 'name'") as exc_info:
             stixflayer.Malware(name=2)
-        assert exc_info.value.errors == [
-            {
-                "kind": "invalid_property_type",
-                "message": str(exc_info.value),
-                "property": "name",
-                "expected": "a string",
-                "got": "integer `2`",
-            }
-        ]
+        entry = exc_info.value.errors[0]
+        assert entry["kind"] == "invalid_property_type"
+        assert entry["property"] == "name"
+        assert entry["message"] == str(exc_info.value)
+        assert "a string" in entry["message"]
+        assert "integer `2`" in entry["message"]
+        assert "expected" not in entry
+        assert "got" not in entry
 
     def test_validation_error_errors_attribute(self):
         """ValidationError exposes a structured .errors attribute."""
@@ -143,7 +142,7 @@ class TestInvalidFixtures:
         assert len(errors) == 2
         assert {e["kind"] for e in errors} == {"missing_property", "unknown_property"}
         assert any(e["kind"] == "missing_property" and e["property"] == "name" for e in errors)
-        assert any(e["kind"] == "unknown_property" and e["properties"] == ["y"] for e in errors)
+        assert any(e["kind"] == "unknown_property" and e["property"] == "y" for e in errors)
 
     def test_deserialization_error_carries_entry(self):
         """Even unclassifiable deserialization failures carry a structured entry.
@@ -165,23 +164,28 @@ class TestInvalidFixtures:
 
 
 class TestNestedValidationMessages:
-    def test_invalid_vocab_threat_actor_single_prefix(self):
-        """A vocab failure nested in an object-level failure keeps the prefix once."""
+    def test_invalid_vocab_single_prefix(self):
+        """A closed-enum vocab failure keeps the prefix once."""
         with pytest.raises(stixflayer.ValidationError) as exc_info:
-            stixflayer.ThreatActor(name="Bogus Actor", sophistication="not-a-real-level")
+            stixflayer.Identity(
+                name="Acme",
+                identity_class="organization",
+                extensions={
+                    "extension-definition--550e8400-e29b-41d4-a716-446655440000": {
+                        "extension_type": "definitely-not-a-type"
+                    }
+                },
+            )
 
         message = str(exc_info.value)
         assert message.count("STIX validation error:") == 1, f"message: {message}"
-        assert "not-a-real-level" in message
-        assert "threat-actor-sophistication-ov" in message
+        assert "extension-type-enum" in message
 
-        # The structured entries carry the vocabulary context even through the
-        # object-level nesting.
         entries = exc_info.value.errors
         vocab_entries = [e for e in entries if e["kind"] == "invalid_vocab_value"]
         assert vocab_entries, f"no vocab entry: {entries}"
-        assert vocab_entries[0]["value"] == "not-a-real-level"
-        assert vocab_entries[0]["vocabulary"] == "threat-actor-sophistication-ov"
+        assert vocab_entries[0]["value"] == "definitely-not-a-type"
+        assert vocab_entries[0]["vocabulary"] == "extension-type-enum"
 
 
 class TestVocabularyErrorMessages:

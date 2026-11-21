@@ -1,5 +1,6 @@
 //! Data structures used by the STIX Patterning parser
 
+use crate::error::CheckContext;
 use std::collections::HashSet;
 
 use crate::{
@@ -76,7 +77,7 @@ impl ObservationExpression {
 }
 
 impl Stix for ObservationExpression {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
         let mut qualifiers = HashSet::new();
 

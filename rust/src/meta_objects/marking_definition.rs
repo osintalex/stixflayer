@@ -1,13 +1,13 @@
 //! Data structures and functions for implementing Marking Definition SMOs
 
+use crate::error::Entry;
 use crate::{
     base::{CommonProperties, CommonPropertiesBuilder, Stix},
-    error::{return_multiple_errors, StixError as Error},
+    error::{return_multiple_errors, CheckContext, Outcome, StixError as Error},
     relationship_objects::{Related, RelationshipObjectBuilder},
     types::{ExternalReference, GranularMarking, Identified, Identifier, Timestamp},
     validation::validate_value,
 };
-use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::skip_serializing_none;
@@ -96,7 +96,8 @@ impl Related for MarkingDefinition {
 }
 
 impl Stix for MarkingDefinition {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
+        ctx.set_object_id(Some(self.get_id().to_string()));
         let mut errors = Vec::new();
 
         if self.common_properties.spec_version.is_none() {
@@ -118,7 +119,17 @@ impl Stix for MarkingDefinition {
         }
         if let Some(definition_type) = &self.definition_type {
             if definition_type != "tlp" && definition_type != "statement" {
-                warn!("defnition_type SHOULD be from open-vocab either tlp or statement")
+                ctx.warn(
+                    Entry::new(
+                        "marking_definition_type_not_suggested",
+                        format!(
+                            "`definition_type` SHOULD be from the open vocabulary, either 'tlp' or 'statement'. Found '{}'.",
+                            definition_type
+                        ),
+                    )
+                    .property("definition_type")
+                    .value(definition_type.clone()),
+                );
             }
         }
         if self.common_properties.defanged.is_some() {
@@ -294,9 +305,20 @@ impl MarkingDefinitionBuilder {
     /// This assembles the final `MarkingDefinition` object from the builder and
     /// then runs `stix_check()` on it.
     pub fn build(self) -> Result<MarkingDefinition, Error> {
-        let marking_definition = self.build_no_validate()?;
-        marking_definition.stix_check()?;
-        Ok(marking_definition)
+        let object = self.build_no_validate()?;
+        object.stix_check()?;
+        Ok(object)
+    }
+
+    /// Builds the object and returns its validation outcome, including warnings.
+    pub fn build_outcome(self) -> Outcome<MarkingDefinition> {
+        let object = match self.build_no_validate() {
+            Ok(object) => object,
+            Err(error) => return Outcome::err(error, Vec::new()),
+        };
+        let mut ctx = CheckContext::new();
+        let result = object.check(&mut ctx).map(|()| object);
+        Outcome::from_result(result, ctx.into_warnings())
     }
 
     /// Create a builder from an existing MarkingDefinition
@@ -339,7 +361,7 @@ pub enum MarkingTypes {
 }
 
 impl Stix for MarkingTypes {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         Ok(())
     }
 }
@@ -351,7 +373,7 @@ pub struct TLP {
 }
 
 impl Stix for TLP {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         if self.tlp != "white" && self.tlp != "red" && self.tlp != "amber" && self.tlp != "green" {
             return Err(Error::ValidationError(
                 "TLP value must be one of the four TLP levels".to_string(),
@@ -368,7 +390,7 @@ pub struct Statement {
 }
 
 impl Stix for Statement {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         Ok(())
     }
 }

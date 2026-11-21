@@ -4,9 +4,10 @@
 //!
 //! For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_t56pn7elv6u7>
 
+use crate::error::CheckContext;
 use crate::{
     base::Stix,
-    common::validation::validate_vocab_value,
+    common::validation::warn_vocab_value,
     domain_objects::vocab::ContextType,
     error::{add_error, return_multiple_errors, StixError as Error},
     types::Identifier,
@@ -30,15 +31,12 @@ pub struct Grouping {
 }
 
 impl Stix for Grouping {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
-        add_error(
-            &mut errors,
-            validate_vocab_value::<ContextType, _>(&self.context, "grouping-context-ov"),
-        );
+        warn_vocab_value::<ContextType, _>(ctx, &self.context, "grouping-context-ov", "context");
 
-        add_error(&mut errors, self.object_refs.stix_check());
+        add_error(&mut errors, self.object_refs.check(ctx));
         return_multiple_errors(errors)
     }
 }

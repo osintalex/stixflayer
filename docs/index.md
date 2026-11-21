@@ -53,16 +53,16 @@ industry-standard Python validator — with *stricter* spec enforcement.
   reimplemented per language, so the same document can be valid in one and
   rejected in another. stixflayer ships a single Rust core into every
   language, so data validates the same way everywhere.
-- ⚔️ **Battle-tested, but faster** — built from OASIS's reference
-  implementation, with full parity against the industry-standard validator,
-  at 10–40× the speed.
-- 🧐 **Stricter where it matters** — rejects empty bundles, invalid
-  vocabulary values, and incorrect SCO UUIDv5 hashes that other validators
-  skip.
+- ⚔️ **Spec-first, not tool-first** — follows the OASIS STIX 2.1
+  specification, including its MUST/SHOULD distinction. MUST violations fail;
+  SHOULD findings are reported as warnings.
+- 🧐 **Complete structural validation** — rejects empty bundles, malformed
+  identifiers, closed-enumeration violations, and incorrect SCO UUIDv5
+  hashes, at 10–40× the speed.
 
 ## Performance 🚀
 
-| Operation                          | stix2-validator | stixflayer | speedup   |
+| Operation                          | Baseline        | stixflayer | speedup   |
 | ---------------------------------- | --------------- | ---------- | --------- |
 | Parse + validate `apt1` bundle     | ~47 ms          | ~1.6 ms    | **~30×** 🏎️ |
 | Parse + validate `poisonivy` bundle | ~99 ms         | ~2.3 ms    | **~40×** 🏎️ |
@@ -81,5 +81,4 @@ Requires Python 3.11+. Rust users: `cargo add stixflayer` 🦀 — API docs at
 ## Credits 🙏
 
 Built on [OASIS CTI's `cti-rust-stix`](https://github.com/oasis-open/cti-rust-stix),
-the official STIX 2.1 reference implementation in Rust, and benchmarked
-against [`cti-stix-validator`](https://github.com/oasis-open/cti-stix-validator).
+the official STIX 2.1 reference implementation in Rust.

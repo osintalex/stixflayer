@@ -1,3 +1,4 @@
+use crate::error::CheckContext;
 use crate::{base::Stix, error::StixError as Error};
 use serde::{Deserialize, Serialize};
 use serde_this_or_that::as_opt_i64;
@@ -34,7 +35,7 @@ pub struct UnixAccountExtension {
 }
 
 impl Stix for UnixAccountExtension {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         if self.gid.is_none()
             && self.groups.is_none()
             && self.home_dir.is_none()
@@ -45,7 +46,7 @@ impl Stix for UnixAccountExtension {
             ));
         }
         if let Some(gid) = &self.gid {
-            gid.stix_check()?;
+            gid.check(ctx)?;
         }
         Ok(())
     }

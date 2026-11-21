@@ -64,12 +64,11 @@ pub use x509_certificate::{X509Certificate, X509V3Extensions};
 
 use crate::{
     base::{CommonProperties, Stix},
-    error::{add_error, return_multiple_errors, StixError as Error},
+    error::{add_error, return_multiple_errors, CheckContext, Entry, StixError as Error},
     relationship_objects::{Related, RelationshipObjectBuilder},
     types::{Identified, Identifier},
     validation::validate_value,
 };
-use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::{collections::HashMap, sync::LazyLock};
@@ -211,18 +210,185 @@ impl Related for CyberObject {
 
 crate::impl_custom_properties_holder!(CyberObject);
 
+/// Required-property checks shared by builder assembly and semantic validation.
+///
+/// These used to live in the builder, which meant `from_json` accepted empty
+/// required values that constructors rejected. Running them from `check`
+/// gives both paths identical behavior.
+fn check_required_fields(object_type: &CyberObjectType) -> Result<(), Error> {
+    // Note: Many SCOs have all optional fields, but require that at least one such field be present.
+    // This is checked as part of stix_check() to guarantee that an error will occur during building or deserialization.
+    match object_type {
+        CyberObjectType::AutonomousSystem(ref automomous_system) => {
+            if automomous_system.number == 0 {
+                return Err(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "number".to_string(),
+                });
+            }
+        }
+        CyberObjectType::Directory(ref directory) => {
+            if directory.path.is_empty() {
+                return Err(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "path".to_string(),
+                });
+            }
+        }
+        CyberObjectType::DomainName(ref domain_name) => {
+            if domain_name.value.is_empty() {
+                return Err(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "value".to_string(),
+                });
+            }
+        }
+        CyberObjectType::EmailAddress(ref email_address) => {
+            if email_address.value.is_empty() {
+                return Err(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "value".to_string(),
+                });
+            }
+        }
+        CyberObjectType::Ipv4Addr(ref ipv4_addr) => {
+            if ipv4_addr.value.is_empty() {
+                return Err(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "value".to_string(),
+                });
+            }
+        }
+        CyberObjectType::Ipv6Addr(ref ipv6_addr) => {
+            if ipv6_addr.value.is_empty() {
+                return Err(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "value".to_string(),
+                });
+            }
+        }
+        CyberObjectType::MacAddr(ref mac_address) => {
+            if mac_address.value.is_empty() {
+                return Err(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "value".to_string(),
+                });
+            }
+        }
+        CyberObjectType::Mutex(ref mutex) => {
+            if mutex.name.is_empty() {
+                return Err(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "name".to_string(),
+                });
+            }
+        }
+        CyberObjectType::Process(ref process) => {
+            // A Process object MUST contain at least one property (other than type) from this object (or one of its extensions)
+            if process.is_hidden.is_none()
+                && process.pid.is_none()
+                && process.created_time.is_none()
+                && process.cwd.is_none()
+                && process.command_line.is_none()
+                && process.environment_variables.is_none()
+                && process.opened_connection_refs.is_none()
+                && process.creator_user_ref.is_none()
+                && process.image_ref.is_none()
+                && process.parent_ref.is_none()
+                && process.child_refs.is_none()
+            {
+                return Err(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "extensions, is_hidden, pid, created_time, cwd, command_line, environment_variables,opened_connection_refs, creator_user_ref, image_ref, parent_ref, child_refs "
+                        .to_string(),
+                });
+            }
+        }
+        // stix_check() will fail is the `protocols` field is an empty Vec, but we check here to provide a more specific error in this situation
+        CyberObjectType::NetworkTraffic(ref network_traffic) => {
+            if network_traffic.protocols.is_empty() {
+                return Err(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "protocols".to_string(),
+                });
+            }
+            if network_traffic.src_ref.is_none() && network_traffic.dst_ref.is_none() {
+                return Err(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "src_ref, dst_ref".to_string(),
+                });
+            }
+        }
+        CyberObjectType::Software(ref software) => {
+            if software.name.is_empty() {
+                return Err(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "name".to_string(),
+                });
+            }
+        }
+        CyberObjectType::Url(ref url) => {
+            if &url.value.to_string() == "http://example.com" {
+                return Err(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "value".to_string(),
+                });
+            }
+        }
+        CyberObjectType::WindowsRegistryKey(ref windows_registry_key) => {
+            if windows_registry_key.key.is_none()
+                && windows_registry_key.values.is_none()
+                && windows_registry_key.modified_time.is_none()
+                && windows_registry_key.creator_user_ref.is_none()
+                && windows_registry_key.number_of_subkeys.is_none()
+            {
+                return Err(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "key, values, creator_user_ref, number_of_subkeys".to_string(),
+                });
+            }
+        }
+        CyberObjectType::X509Certificate(ref x509_certificate)
+            if x509_certificate.is_self_signed.is_none()
+                && x509_certificate.hashes.is_none()
+                && x509_certificate.version.is_none()
+                && x509_certificate.serial_number.is_none()
+                && x509_certificate.signature_algorithm.is_none()
+                && x509_certificate.issuer.is_none()
+                && x509_certificate.validity_not_before.is_none()
+                && x509_certificate.validity_not_after.is_none()
+                && x509_certificate.subject.is_none()
+                && x509_certificate.subject_public_key_algorithm.is_none()
+                && x509_certificate.subject_public_key_modulus.is_none()
+                && x509_certificate.subject_public_key_exponent.is_none()
+                && x509_certificate.x509_v3_extensions.is_none() =>
+        {
+            return Err(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "is_self_signed, hashes, version, serial_number, signature_algorithm, issuer, validity_not_before, validity_not_after, subject, subject_public_key_algorithm, subject_public_key_modulus, subject_public_key_exponent, x509_v3_extensions".to_string(),
+                });
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 impl Stix for CyberObject {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
+        ctx.set_object_id(Some(self.get_id().to_string()));
         let mut errors = Vec::new();
 
         // Check that we have the correct common properties for an SCO
         add_error(&mut errors, check_sco_properties(&self.common_properties));
 
         // Check common properties
-        add_error(&mut errors, self.common_properties.stix_check());
+        add_error(&mut errors, self.common_properties.check(ctx));
+
+        // Required fields that must also be non-empty.
+        add_error(&mut errors, check_required_fields(&self.object_type));
 
         // Check the identifier (enforces UUIDv5 for SCOs)
-        add_error(&mut errors, self.common_properties.id.stix_check());
+        add_error(&mut errors, self.common_properties.id.check(ctx));
 
         // Special check for NetworkTraffic that looks at both a NetworkTraffic property and a CommonProperty
         // If a protocol extension is present for a NetworkTraffic SCO, the corresponding protocol value for that extension **SHOULD** be listed in the protocols property.
@@ -234,7 +400,19 @@ impl Stix for CyberObject {
                 if let Some(protocol) = PROTOCOLS_MAP.get(key) {
                     // If it is, check that the corresponding protocol is in the protocols property list, otherwise warn the user
                     if !network_traffic.protocols.contains(protocol) {
-                        warn!("A {} extension is present for the Network Traffic Cyber Object {}, but it is missing the protocol {} in its protocols property.", key, self.get_id(), protocol);
+                        ctx.warn(
+                            Entry::new(
+                                "protocol_missing_from_protocols",
+                                format!(
+                                    "A {} extension is present for network-traffic {}, but the protocol {} is missing from its protocols property.",
+                                    key,
+                                    self.get_id(),
+                                    protocol
+                                ),
+                            )
+                            .property("protocols")
+                            .value(protocol.clone()),
+                        );
                     }
                 }
             }
@@ -244,7 +422,7 @@ impl Stix for CyberObject {
         add_error(
             &mut errors,
             self.object_type
-                .stix_check()
+                .check(ctx)
                 .map_err(|e| Error::InvalidNestedObject {
                     context: format!(
                         "Cyber Object {} is not a valid {}",
@@ -308,31 +486,31 @@ pub fn check_sco_properties(properties: &CommonProperties) -> Result<(), Error> 
 }
 
 impl Stix for CyberObjectType {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         match self {
-            CyberObjectType::Artifact(artifact) => artifact.stix_check(),
-            CyberObjectType::AutonomousSystem(automomous_system) => automomous_system.stix_check(),
-            CyberObjectType::Directory(directory) => directory.stix_check(),
-            CyberObjectType::DomainName(domain_name) => domain_name.stix_check(),
-            CyberObjectType::EmailAddress(email_address) => email_address.stix_check(),
-            CyberObjectType::EmailMessage(email_message) => email_message.stix_check(),
-            CyberObjectType::File(file) => file.stix_check(),
-            CyberObjectType::Ipv4Addr(ipv4_addr) => ipv4_addr.stix_check(),
-            CyberObjectType::Ipv6Addr(ipv6_addr) => ipv6_addr.stix_check(),
-            CyberObjectType::MacAddr(mac_address) => mac_address.stix_check(),
-            CyberObjectType::Mutex(mutex) => mutex.stix_check(),
-            CyberObjectType::NetworkTraffic(network_traffic) => network_traffic.stix_check(),
-            CyberObjectType::Process(process) => process.stix_check(),
-            CyberObjectType::Software(software) => software.stix_check(),
-            CyberObjectType::Url(url) => url.stix_check(),
-            CyberObjectType::UserAccount(user_account) => user_account.stix_check(),
+            CyberObjectType::Artifact(artifact) => artifact.check(ctx),
+            CyberObjectType::AutonomousSystem(automomous_system) => automomous_system.check(ctx),
+            CyberObjectType::Directory(directory) => directory.check(ctx),
+            CyberObjectType::DomainName(domain_name) => domain_name.check(ctx),
+            CyberObjectType::EmailAddress(email_address) => email_address.check(ctx),
+            CyberObjectType::EmailMessage(email_message) => email_message.check(ctx),
+            CyberObjectType::File(file) => file.check(ctx),
+            CyberObjectType::Ipv4Addr(ipv4_addr) => ipv4_addr.check(ctx),
+            CyberObjectType::Ipv6Addr(ipv6_addr) => ipv6_addr.check(ctx),
+            CyberObjectType::MacAddr(mac_address) => mac_address.check(ctx),
+            CyberObjectType::Mutex(mutex) => mutex.check(ctx),
+            CyberObjectType::NetworkTraffic(network_traffic) => network_traffic.check(ctx),
+            CyberObjectType::Process(process) => process.check(ctx),
+            CyberObjectType::Software(software) => software.check(ctx),
+            CyberObjectType::Url(url) => url.check(ctx),
+            CyberObjectType::UserAccount(user_account) => user_account.check(ctx),
             CyberObjectType::WindowsRegistryKey(windows_registry_key) => {
-                windows_registry_key.stix_check()
+                windows_registry_key.check(ctx)
             }
             CyberObjectType::WindowsRegistryKeyType(windows_registry_key_type) => {
-                windows_registry_key_type.stix_check()
+                windows_registry_key_type.check(ctx)
             }
-            CyberObjectType::X509Certificate(x509_certificate) => x509_certificate.stix_check(),
+            CyberObjectType::X509Certificate(x509_certificate) => x509_certificate.check(ctx),
         }
     }
 }

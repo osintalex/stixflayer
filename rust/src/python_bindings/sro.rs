@@ -3,16 +3,17 @@
 // `ok_wrap`), and clippy attributes the warning span to our return types.
 // Remove this allow when pyo3 is upgraded past 0.22.
 #![allow(clippy::useless_conversion)]
-use crate::python_bindings::builder::build_sro_envelope;
+use crate::error::Entry;
+use crate::python_bindings::builder::{build_sro_envelope, parse_sro_builder};
 use crate::python_bindings::convert::{custom_properties_dict, dynamic_getattr};
-use crate::python_bindings::error::{stix_to_pyerr, StixError};
+use crate::python_bindings::error::{entries_to_py, stix_to_pyerr, StixError};
 use crate::relationship_objects::RelationshipObjectBuilder;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
 /// Python binding for the Relationship relationship object.
 #[pyclass]
-pub struct Relationship(pub RelationshipObjectBuilder);
+pub struct Relationship(pub RelationshipObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Relationship {
@@ -23,8 +24,8 @@ impl Relationship {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sro_envelope("relationship", kwargs, strict, allow_custom)?;
-        Ok(Relationship(builder))
+        let (builder, warnings) = build_sro_envelope("relationship", kwargs, strict, allow_custom)?;
+        Ok(Relationship(builder, warnings))
     }
 
     #[staticmethod]
@@ -35,10 +36,8 @@ impl Relationship {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sro = crate::object::parse_sro(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = RelationshipObjectBuilder::from_parsed(&sro).map_err(stix_to_pyerr)?;
-        Ok(Relationship(builder))
+        let (builder, warnings) = parse_sro_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Relationship(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -55,6 +54,11 @@ impl Relationship {
         "relationship".to_string()
     }
 
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
+    }
+
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         if name == "custom_properties" {
@@ -68,7 +72,7 @@ impl Relationship {
 
 /// Python binding for the Sighting relationship object.
 #[pyclass]
-pub struct Sighting(pub RelationshipObjectBuilder);
+pub struct Sighting(pub RelationshipObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Sighting {
@@ -79,8 +83,8 @@ impl Sighting {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sro_envelope("sighting", kwargs, strict, allow_custom)?;
-        Ok(Sighting(builder))
+        let (builder, warnings) = build_sro_envelope("sighting", kwargs, strict, allow_custom)?;
+        Ok(Sighting(builder, warnings))
     }
 
     #[staticmethod]
@@ -91,10 +95,8 @@ impl Sighting {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sro = crate::object::parse_sro(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = RelationshipObjectBuilder::from_parsed(&sro).map_err(stix_to_pyerr)?;
-        Ok(Sighting(builder))
+        let (builder, warnings) = parse_sro_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Sighting(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -109,6 +111,11 @@ impl Sighting {
     #[getter]
     fn r#type(&self) -> String {
         "sighting".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {

@@ -8,6 +8,7 @@
 use crate::custom_objects::CustomObjectBuilder;
 use crate::cyber_observable_objects::sco::{CyberObjectBuilder, CyberObjectType};
 use crate::domain_objects::sdo::{DomainObjectBuilder, DomainObjectType};
+use crate::error::Entry;
 use crate::meta_objects::extension_definition::ExtensionDefinitionBuilder;
 use crate::meta_objects::language_content::LanguageContentBuilder;
 use crate::meta_objects::marking_definition::MarkingDefinitionBuilder;
@@ -34,15 +35,15 @@ pub mod sro;
 pub mod vocab;
 
 pub use builder::{
-    build_sco_envelope, build_sdo_envelope, build_sro_envelope, validate_marking_builder,
-    validate_sco_builder, validate_sdo_builder, validate_sro_builder,
+    build_sco_envelope, build_sdo_envelope, build_sro_envelope, parse_sco_builder,
+    parse_sdo_builder, parse_sro_builder,
 };
 pub use convert::{
     classify_top_level_type_error, custom_properties_dict, dynamic_getattr, json_to_py,
     json_value_to_py, py_to_json,
 };
 pub use error::{stix_to_pyerr, DeserializationError, StixError, ValidationError};
-pub use functions::{parse_extension_type, validate_pattern, version};
+pub use functions::{check, parse_extension_type, validate_pattern, version, PyOutcome};
 pub use meta::{Bundle, CustomObject, ExtensionDefinition, LanguageContent, MarkingDefinition};
 pub use sco::{
     Artifact, AutonomousSystem, Directory, DomainName, EmailAddress, EmailMessage, File,
@@ -61,43 +62,71 @@ pub use vocab::{
 };
 
 /// Convert a typed [`StixObject`](crate::object::StixObject) into its corresponding Python wrapper class.
-pub fn wrap_stix_object(py: Python<'_>, obj: crate::object::StixObject) -> Result<PyObject, PyErr> {
+pub fn wrap_stix_object(
+    py: Python<'_>,
+    obj: crate::object::StixObject,
+    warnings: Vec<Entry>,
+) -> Result<PyObject, PyErr> {
     match obj {
         crate::object::StixObject::Sdo(domain_obj) => {
             let builder = DomainObjectBuilder::from_parsed(&domain_obj).map_err(stix_to_pyerr)?;
             Ok(match domain_obj.object_type {
                 DomainObjectType::AttackPattern(_) => {
-                    Py::new(py, AttackPattern(builder))?.into_py(py)
+                    Py::new(py, AttackPattern(builder, warnings.clone()))?.into_py(py)
                 }
-                DomainObjectType::Campaign(_) => Py::new(py, Campaign(builder))?.into_py(py),
+                DomainObjectType::Campaign(_) => {
+                    Py::new(py, Campaign(builder, warnings.clone()))?.into_py(py)
+                }
                 DomainObjectType::CourseOfAction(_) => {
-                    Py::new(py, CourseOfAction(builder))?.into_py(py)
+                    Py::new(py, CourseOfAction(builder, warnings.clone()))?.into_py(py)
                 }
-                DomainObjectType::Grouping(_) => Py::new(py, Grouping(builder))?.into_py(py),
-                DomainObjectType::Identity(_) => Py::new(py, Identity(builder))?.into_py(py),
-                DomainObjectType::Incident(_) => Py::new(py, Incident(builder))?.into_py(py),
-                DomainObjectType::Indicator(_) => Py::new(py, Indicator(builder))?.into_py(py),
+                DomainObjectType::Grouping(_) => {
+                    Py::new(py, Grouping(builder, warnings.clone()))?.into_py(py)
+                }
+                DomainObjectType::Identity(_) => {
+                    Py::new(py, Identity(builder, warnings.clone()))?.into_py(py)
+                }
+                DomainObjectType::Incident(_) => {
+                    Py::new(py, Incident(builder, warnings.clone()))?.into_py(py)
+                }
+                DomainObjectType::Indicator(_) => {
+                    Py::new(py, Indicator(builder, warnings.clone()))?.into_py(py)
+                }
                 DomainObjectType::Infrastructure(_) => {
-                    Py::new(py, Infrastructure(builder))?.into_py(py)
+                    Py::new(py, Infrastructure(builder, warnings.clone()))?.into_py(py)
                 }
                 DomainObjectType::IntrusionSet(_) => {
-                    Py::new(py, IntrusionSet(builder))?.into_py(py)
+                    Py::new(py, IntrusionSet(builder, warnings.clone()))?.into_py(py)
                 }
-                DomainObjectType::Location(_) => Py::new(py, Location(builder))?.into_py(py),
-                DomainObjectType::Malware(_) => Py::new(py, Malware(builder))?.into_py(py),
+                DomainObjectType::Location(_) => {
+                    Py::new(py, Location(builder, warnings.clone()))?.into_py(py)
+                }
+                DomainObjectType::Malware(_) => {
+                    Py::new(py, Malware(builder, warnings.clone()))?.into_py(py)
+                }
                 DomainObjectType::MalwareAnalysis(_) => {
-                    Py::new(py, MalwareAnalysis(builder))?.into_py(py)
+                    Py::new(py, MalwareAnalysis(builder, warnings.clone()))?.into_py(py)
                 }
-                DomainObjectType::Note(_) => Py::new(py, Note(builder))?.into_py(py),
+                DomainObjectType::Note(_) => {
+                    Py::new(py, Note(builder, warnings.clone()))?.into_py(py)
+                }
                 DomainObjectType::ObservedData(_) => {
-                    Py::new(py, ObservedData(builder))?.into_py(py)
+                    Py::new(py, ObservedData(builder, warnings.clone()))?.into_py(py)
                 }
-                DomainObjectType::Opinion(_) => Py::new(py, Opinion(builder))?.into_py(py),
-                DomainObjectType::Report(_) => Py::new(py, Report(builder))?.into_py(py),
-                DomainObjectType::ThreatActor(_) => Py::new(py, ThreatActor(builder))?.into_py(py),
-                DomainObjectType::Tool(_) => Py::new(py, Tool(builder))?.into_py(py),
+                DomainObjectType::Opinion(_) => {
+                    Py::new(py, Opinion(builder, warnings.clone()))?.into_py(py)
+                }
+                DomainObjectType::Report(_) => {
+                    Py::new(py, Report(builder, warnings.clone()))?.into_py(py)
+                }
+                DomainObjectType::ThreatActor(_) => {
+                    Py::new(py, ThreatActor(builder, warnings.clone()))?.into_py(py)
+                }
+                DomainObjectType::Tool(_) => {
+                    Py::new(py, Tool(builder, warnings.clone()))?.into_py(py)
+                }
                 DomainObjectType::Vulnerability(_) => {
-                    Py::new(py, Vulnerability(builder))?.into_py(py)
+                    Py::new(py, Vulnerability(builder, warnings.clone()))?.into_py(py)
                 }
             })
         }
@@ -106,36 +135,64 @@ pub fn wrap_stix_object(py: Python<'_>, obj: crate::object::StixObject) -> Resul
                 RelationshipObjectBuilder::from_parsed(&rel_obj).map_err(stix_to_pyerr)?;
             Ok(match rel_obj.object_type {
                 RelationshipObjectType::Relationship(_) => {
-                    Py::new(py, Relationship(builder))?.into_py(py)
+                    Py::new(py, Relationship(builder, warnings.clone()))?.into_py(py)
                 }
-                RelationshipObjectType::Sighting(_) => Py::new(py, Sighting(builder))?.into_py(py),
+                RelationshipObjectType::Sighting(_) => {
+                    Py::new(py, Sighting(builder, warnings.clone()))?.into_py(py)
+                }
             })
         }
         crate::object::StixObject::Sco(cyber_obj) => {
             let builder = CyberObjectBuilder::from_parsed(&cyber_obj).map_err(stix_to_pyerr)?;
             Ok(match cyber_obj.object_type {
-                CyberObjectType::Artifact(_) => Py::new(py, Artifact(builder))?.into_py(py),
+                CyberObjectType::Artifact(_) => {
+                    Py::new(py, Artifact(builder, warnings.clone()))?.into_py(py)
+                }
                 CyberObjectType::AutonomousSystem(_) => {
-                    Py::new(py, AutonomousSystem(builder))?.into_py(py)
+                    Py::new(py, AutonomousSystem(builder, warnings.clone()))?.into_py(py)
                 }
-                CyberObjectType::Directory(_) => Py::new(py, Directory(builder))?.into_py(py),
-                CyberObjectType::DomainName(_) => Py::new(py, DomainName(builder))?.into_py(py),
-                CyberObjectType::EmailAddress(_) => Py::new(py, EmailAddress(builder))?.into_py(py),
-                CyberObjectType::EmailMessage(_) => Py::new(py, EmailMessage(builder))?.into_py(py),
-                CyberObjectType::File(_) => Py::new(py, File(builder))?.into_py(py),
-                CyberObjectType::Ipv4Addr(_) => Py::new(py, IPv4Address(builder))?.into_py(py),
-                CyberObjectType::Ipv6Addr(_) => Py::new(py, IPv6Address(builder))?.into_py(py),
-                CyberObjectType::MacAddr(_) => Py::new(py, MacAddr(builder))?.into_py(py),
-                CyberObjectType::Mutex(_) => Py::new(py, Mutex(builder))?.into_py(py),
+                CyberObjectType::Directory(_) => {
+                    Py::new(py, Directory(builder, warnings.clone()))?.into_py(py)
+                }
+                CyberObjectType::DomainName(_) => {
+                    Py::new(py, DomainName(builder, warnings.clone()))?.into_py(py)
+                }
+                CyberObjectType::EmailAddress(_) => {
+                    Py::new(py, EmailAddress(builder, warnings.clone()))?.into_py(py)
+                }
+                CyberObjectType::EmailMessage(_) => {
+                    Py::new(py, EmailMessage(builder, warnings.clone()))?.into_py(py)
+                }
+                CyberObjectType::File(_) => {
+                    Py::new(py, File(builder, warnings.clone()))?.into_py(py)
+                }
+                CyberObjectType::Ipv4Addr(_) => {
+                    Py::new(py, IPv4Address(builder, warnings.clone()))?.into_py(py)
+                }
+                CyberObjectType::Ipv6Addr(_) => {
+                    Py::new(py, IPv6Address(builder, warnings.clone()))?.into_py(py)
+                }
+                CyberObjectType::MacAddr(_) => {
+                    Py::new(py, MacAddr(builder, warnings.clone()))?.into_py(py)
+                }
+                CyberObjectType::Mutex(_) => {
+                    Py::new(py, Mutex(builder, warnings.clone()))?.into_py(py)
+                }
                 CyberObjectType::NetworkTraffic(_) => {
-                    Py::new(py, NetworkTraffic(builder))?.into_py(py)
+                    Py::new(py, NetworkTraffic(builder, warnings.clone()))?.into_py(py)
                 }
-                CyberObjectType::Process(_) => Py::new(py, Process(builder))?.into_py(py),
-                CyberObjectType::Software(_) => Py::new(py, Software(builder))?.into_py(py),
-                CyberObjectType::Url(_) => Py::new(py, URL(builder))?.into_py(py),
-                CyberObjectType::UserAccount(_) => Py::new(py, UserAccount(builder))?.into_py(py),
+                CyberObjectType::Process(_) => {
+                    Py::new(py, Process(builder, warnings.clone()))?.into_py(py)
+                }
+                CyberObjectType::Software(_) => {
+                    Py::new(py, Software(builder, warnings.clone()))?.into_py(py)
+                }
+                CyberObjectType::Url(_) => Py::new(py, URL(builder, warnings.clone()))?.into_py(py),
+                CyberObjectType::UserAccount(_) => {
+                    Py::new(py, UserAccount(builder, warnings.clone()))?.into_py(py)
+                }
                 CyberObjectType::WindowsRegistryKey(_) => {
-                    Py::new(py, WindowsRegistryKey(builder))?.into_py(py)
+                    Py::new(py, WindowsRegistryKey(builder, warnings.clone()))?.into_py(py)
                 }
                 CyberObjectType::WindowsRegistryKeyType(_) => {
                     // Not a top-level SCO; fall back to a JSON dict.
@@ -144,25 +201,25 @@ pub fn wrap_stix_object(py: Python<'_>, obj: crate::object::StixObject) -> Resul
                     json_to_py(py, &value)?
                 }
                 CyberObjectType::X509Certificate(_) => {
-                    Py::new(py, X509Certificate(builder))?.into_py(py)
+                    Py::new(py, X509Certificate(builder, warnings.clone()))?.into_py(py)
                 }
             })
         }
         crate::object::StixObject::LanguageContent(lc) => {
             let builder = LanguageContentBuilder::from_parsed(&lc).map_err(stix_to_pyerr)?;
-            Ok(Py::new(py, LanguageContent(builder))?.into_py(py))
+            Ok(Py::new(py, LanguageContent(builder, warnings.clone()))?.into_py(py))
         }
         crate::object::StixObject::ExtensionDefinition(ed) => {
             let builder = ExtensionDefinitionBuilder::from_parsed(&ed).map_err(stix_to_pyerr)?;
-            Ok(Py::new(py, ExtensionDefinition(builder))?.into_py(py))
+            Ok(Py::new(py, ExtensionDefinition(builder, warnings.clone()))?.into_py(py))
         }
         crate::object::StixObject::MarkingDefinition(md) => {
             let builder = MarkingDefinitionBuilder::from_parsed(&md).map_err(stix_to_pyerr)?;
-            Ok(Py::new(py, MarkingDefinition(builder))?.into_py(py))
+            Ok(Py::new(py, MarkingDefinition(builder, warnings.clone()))?.into_py(py))
         }
         crate::object::StixObject::Custom(custom) => {
             let builder = CustomObjectBuilder::from_parsed(&custom).map_err(stix_to_pyerr)?;
-            Ok(Py::new(py, CustomObject(builder))?.into_py(py))
+            Ok(Py::new(py, CustomObject(builder, warnings.clone()))?.into_py(py))
         }
     }
 }
@@ -174,6 +231,7 @@ pub fn stixflayer_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_function(wrap_pyfunction!(version, m)?)?;
     m.add_function(wrap_pyfunction!(validate_pattern, m)?)?;
+    m.add_function(wrap_pyfunction!(check, m)?)?;
 
     m.add_class::<AttackPattern>()?;
     m.add_class::<Campaign>()?;
@@ -221,6 +279,7 @@ pub fn stixflayer_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ExtensionDefinition>()?;
     m.add_class::<LanguageContent>()?;
     m.add_class::<Bundle>()?;
+    m.add_class::<PyOutcome>()?;
 
     // Errors
     m.add("StixError", py.get_type_bound::<StixError>())?;

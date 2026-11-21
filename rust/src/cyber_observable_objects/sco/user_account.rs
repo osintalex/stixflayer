@@ -1,7 +1,7 @@
 use crate::base::Stix;
-use crate::common::validation::is_vocab_value;
+use crate::common::validation::warn_vocab_value;
 use crate::cyber_observable_objects::vocab::AccountTypeVocabulary;
-use crate::error::{return_multiple_errors, StixError as Error};
+use crate::error::{return_multiple_errors, CheckContext, StixError as Error};
 use crate::types::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -50,16 +50,16 @@ pub struct UserAccount {
 }
 
 impl Stix for UserAccount {
-    fn stix_check(&self) -> Result<(), Error> {
-        let mut errors = Vec::new();
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
+        let errors = Vec::new();
 
         if let Some(account_type_str) = &self.account_type {
-            if !is_vocab_value::<AccountTypeVocabulary, _>(account_type_str) {
-                errors.push(Error::ValidationError(format!(
-                    "The account_type property should come from the `account-type-ov` open vocabulary. Account type '{}' is not in the vocabulary.",
-                    account_type_str
-                )));
-            }
+            warn_vocab_value::<AccountTypeVocabulary, _>(
+                ctx,
+                account_type_str,
+                "account-type-ov",
+                "account_type",
+            );
         }
 
         return_multiple_errors(errors)
@@ -76,7 +76,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;

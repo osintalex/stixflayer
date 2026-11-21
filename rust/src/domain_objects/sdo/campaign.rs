@@ -5,6 +5,7 @@
 //!
 //! For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_pcpvfz4ik6d6>
 
+use crate::error::CheckContext;
 use crate::{
     base::{check_timestamp_ordering, Stix},
     error::{add_error, return_multiple_errors, StixError as Error},
@@ -33,7 +34,7 @@ pub struct Campaign {
 }
 
 impl Stix for Campaign {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let (Some(start), Some(stop)) = (&self.first_seen, &self.last_seen) {
@@ -43,7 +44,7 @@ impl Stix for Campaign {
             );
         }
         if let Some(aliases) = &self.aliases {
-            add_error(&mut errors, aliases.stix_check());
+            add_error(&mut errors, aliases.check(ctx));
         }
 
         return_multiple_errors(errors)

@@ -5,22 +5,26 @@
 #![allow(clippy::useless_conversion)]
 use crate::bundles::Bundle as StixBundle;
 use crate::custom_objects::CustomObjectBuilder;
+use crate::error::Entry;
 use crate::error::StixError as RustStixError;
-use crate::meta_objects::extension_definition::{
-    ExtensionDefinition as StixExtensionDefinition, ExtensionDefinitionBuilder,
-};
+use crate::meta_objects::extension_definition::ExtensionDefinitionBuilder;
 use crate::meta_objects::language_content::LanguageContent as StixLanguageContent;
 use crate::meta_objects::language_content::LanguageContentBuilder;
 use crate::meta_objects::marking_definition::MarkingDefinitionBuilder;
-use crate::python_bindings::builder::validate_marking_builder;
+use crate::python_bindings::builder::{
+    parse_custom_builder, parse_extension_builder, parse_language_builder, parse_marking_builder,
+};
 use crate::python_bindings::convert::{
     custom_properties_dict, dynamic_getattr, json_to_py, py_to_json,
 };
-use crate::python_bindings::error::{stix_to_pyerr, StixError, ValidationError};
+use crate::python_bindings::error::{
+    entries_to_py, entries_to_validation_pyerr, stix_to_pyerr, stix_to_pyerr_with, StixError,
+    ValidationError,
+};
 use crate::python_bindings::functions::parse_extension_type;
 use crate::python_bindings::wrap_stix_object;
 use crate::types::{DictionaryValue, ExtensionType, Identifier, Timestamp};
-use crate::validation::validate_value;
+use crate::validation::validate_value_from_object_parts;
 use jiff::Timestamp as JiffTimestamp;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
@@ -29,7 +33,7 @@ use std::str::FromStr;
 
 /// Python binding for the MarkingDefinition meta object.
 #[pyclass]
-pub struct MarkingDefinition(pub MarkingDefinitionBuilder);
+pub struct MarkingDefinition(pub MarkingDefinitionBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl MarkingDefinition {
@@ -98,9 +102,19 @@ impl MarkingDefinition {
             builder = builder.custom_properties(custom_properties);
         }
 
-        Ok(MarkingDefinition(validate_marking_builder(
-            builder, strict,
-        )?))
+        let warnings = if strict {
+            let outcome = builder.clone().build_outcome();
+            if !outcome.valid {
+                return Err(entries_to_validation_pyerr(
+                    &outcome.errors,
+                    &outcome.warnings,
+                ));
+            }
+            outcome.warnings
+        } else {
+            Vec::new()
+        };
+        Ok(MarkingDefinition(builder, warnings))
     }
 
     #[staticmethod]
@@ -111,14 +125,8 @@ impl MarkingDefinition {
         _version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let md = crate::meta_objects::marking_definition::MarkingDefinition::from_json(
-            &json_str,
-            strict,
-            allow_custom,
-        )
-        .map_err(stix_to_pyerr)?;
-        let builder = MarkingDefinitionBuilder::from_parsed(&md).map_err(stix_to_pyerr)?;
-        Ok(MarkingDefinition(builder))
+        let (builder, warnings) = parse_marking_builder(&json_str, strict, _version, allow_custom)?;
+        Ok(MarkingDefinition(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -230,7 +238,7 @@ fn insert_custom_property(
 
 /// Python binding for the CustomObject custom STIX object type.
 #[pyclass]
-pub struct CustomObject(pub CustomObjectBuilder);
+pub struct CustomObject(pub CustomObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl CustomObject {
@@ -356,12 +364,20 @@ impl CustomObject {
             builder = builder.modified(Timestamp(ts));
         }
 
-        // Validate at construction time unless asked otherwise.
-        if strict {
-            builder.clone().build().map_err(stix_to_pyerr)?;
-        }
+        let warnings = if strict {
+            let outcome = builder.clone().build_outcome();
+            if !outcome.valid {
+                return Err(entries_to_validation_pyerr(
+                    &outcome.errors,
+                    &outcome.warnings,
+                ));
+            }
+            outcome.warnings
+        } else {
+            Vec::new()
+        };
 
-        Ok(CustomObject(builder))
+        Ok(CustomObject(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -377,15 +393,8 @@ impl CustomObject {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let obj = <crate::custom_objects::CustomObject as crate::object::FromJson>::from_json(
-            &json_str,
-            strict,
-            version,
-            allow_custom,
-        )
-        .map_err(stix_to_pyerr)?;
-        let builder = CustomObjectBuilder::from_parsed(&obj).map_err(stix_to_pyerr)?;
-        Ok(CustomObject(builder))
+        let (builder, warnings) = parse_custom_builder(&json_str, strict, version, allow_custom)?;
+        Ok(CustomObject(builder, warnings))
     }
 
     #[getter]
@@ -488,7 +497,7 @@ impl CustomObject {
 
 /// Python binding for the ExtensionDefinition meta object.
 #[pyclass]
-pub struct ExtensionDefinition(pub ExtensionDefinitionBuilder);
+pub struct ExtensionDefinition(pub ExtensionDefinitionBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl ExtensionDefinition {
@@ -599,11 +608,19 @@ impl ExtensionDefinition {
             builder = builder.custom_properties(custom_properties);
         }
 
-        // Validate at construction time unless asked otherwise.
-        if strict {
-            builder.clone().build().map_err(stix_to_pyerr)?;
-        }
-        Ok(ExtensionDefinition(builder))
+        let warnings = if strict {
+            let outcome = builder.clone().build_outcome();
+            if !outcome.valid {
+                return Err(entries_to_validation_pyerr(
+                    &outcome.errors,
+                    &outcome.warnings,
+                ));
+            }
+            outcome.warnings
+        } else {
+            Vec::new()
+        };
+        Ok(ExtensionDefinition(builder, warnings))
     }
 
     #[staticmethod]
@@ -614,15 +631,9 @@ impl ExtensionDefinition {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let ext_def = <StixExtensionDefinition as crate::object::FromJson>::from_json(
-            &json_str,
-            strict,
-            version,
-            allow_custom,
-        )
-        .map_err(stix_to_pyerr)?;
-        let builder = ExtensionDefinitionBuilder::from_parsed(&ext_def).map_err(stix_to_pyerr)?;
-        Ok(ExtensionDefinition(builder))
+        let (builder, warnings) =
+            parse_extension_builder(&json_str, strict, version, allow_custom)?;
+        Ok(ExtensionDefinition(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -753,7 +764,7 @@ impl ExtensionDefinition {
 
 /// Python binding for the LanguageContent meta object.
 #[pyclass]
-pub struct LanguageContent(pub LanguageContentBuilder);
+pub struct LanguageContent(pub LanguageContentBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl LanguageContent {
@@ -795,10 +806,12 @@ impl LanguageContent {
         }
         // Use validate_value so unknown keys respect `allow_custom` and are stored
         // in the custom-property bag.
-        let lc: StixLanguageContent =
-            validate_value(json_obj, allow_custom, strict).map_err(stix_to_pyerr)?;
-        let builder = LanguageContentBuilder::from_parsed(&lc).map_err(stix_to_pyerr)?;
-        Ok(LanguageContent(builder))
+        let (result, warnings) =
+            validate_value_from_object_parts::<StixLanguageContent>(json_obj, allow_custom, strict);
+        let lc = result.map_err(|e| stix_to_pyerr_with(e, &warnings))?;
+        let builder = LanguageContentBuilder::from_parsed(&lc)
+            .map_err(|e| stix_to_pyerr_with(e, &warnings))?;
+        Ok(LanguageContent(builder, warnings))
     }
 
     #[staticmethod]
@@ -809,15 +822,8 @@ impl LanguageContent {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let lc = <StixLanguageContent as crate::object::FromJson>::from_json(
-            &json_str,
-            strict,
-            version,
-            allow_custom,
-        )
-        .map_err(stix_to_pyerr)?;
-        let builder = LanguageContentBuilder::from_parsed(&lc).map_err(stix_to_pyerr)?;
-        Ok(LanguageContent(builder))
+        let (builder, warnings) = parse_language_builder(&json_str, strict, version, allow_custom)?;
+        Ok(LanguageContent(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -996,7 +1002,7 @@ impl LanguageContent {
 
 /// Python binding for the Bundle bundle container.
 #[pyclass]
-pub struct Bundle(pub StixBundle);
+pub struct Bundle(pub StixBundle, pub Vec<Entry>);
 
 #[pymethods]
 impl Bundle {
@@ -1032,7 +1038,7 @@ impl Bundle {
                 "Bundle must contain at least one object",
             ));
         }
-        Ok(Bundle(bundle))
+        Ok(Bundle(bundle, Vec::new()))
     }
 
     fn add(&mut self, stix_json: String) -> Result<(), PyErr> {
@@ -1040,6 +1046,12 @@ impl Bundle {
         Ok(())
     }
 
+    /// Parse a bundle from JSON.
+    ///
+    /// `strict` and `allow_custom` are accepted for signature compatibility but
+    /// are not supported by the bundle path: every contained object is validated
+    /// strictly, with custom properties allowed, as STIX bundle interchange
+    /// expects.
     #[staticmethod]
     #[pyo3(signature = (json_str, _strict = true, _version = "2.1", _allow_custom = false))]
     fn from_json(
@@ -1048,8 +1060,9 @@ impl Bundle {
         _version: &str,
         _allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let bundle = StixBundle::from_json(&json_str).map_err(stix_to_pyerr)?;
-        Ok(Bundle(bundle))
+        let (result, warnings) = StixBundle::from_json_parts(&json_str);
+        let bundle = result.map_err(|e| stix_to_pyerr_with(e, &warnings))?;
+        Ok(Bundle(bundle, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -1077,10 +1090,22 @@ impl Bundle {
     fn objects<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyList>, PyErr> {
         let list = PyList::empty_bound(py);
         for obj in self.0.get_objects() {
-            let py_obj = wrap_stix_object(py, obj)?;
+            let object_id = obj.get_id();
+            let object_warnings: Vec<Entry> = self
+                .1
+                .iter()
+                .filter(|warning| warning.object_id.as_deref() == Some(object_id.as_str()))
+                .cloned()
+                .collect();
+            let py_obj = wrap_stix_object(py, obj, object_warnings)?;
             list.append(py_obj)?;
         }
         Ok(list)
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 }
 

@@ -38,3 +38,100 @@ pub fn parse_extension_type(val: &str) -> Result<ExtensionType, PyErr> {
         ))),
     }
 }
+
+/// Non-raising validation outcome returned by `stixflayer.check()`.
+#[pyclass(name = "Outcome")]
+pub struct PyOutcome {
+    valid: bool,
+    errors: Vec<crate::error::Entry>,
+    warnings: Vec<crate::error::Entry>,
+    value: Option<crate::object::StixObject>,
+}
+
+#[pymethods]
+impl PyOutcome {
+    /// Whether validation succeeded (no errors).
+    #[getter]
+    fn valid(&self) -> bool {
+        self.valid
+    }
+
+    /// MUST-level findings.
+    #[getter]
+    fn errors(&self, py: Python<'_>) -> PyObject {
+        crate::python_bindings::error::entries_to_py(py, &self.errors)
+    }
+
+    /// SHOULD-level findings.
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        crate::python_bindings::error::entries_to_py(py, &self.warnings)
+    }
+
+    /// The validated object, or `None` when validation failed.
+    #[getter]
+    fn value(&self, py: Python<'_>) -> PyResult<PyObject> {
+        match &self.value {
+            Some(object) => {
+                let object_id = object.get_id();
+                let object_warnings: Vec<crate::error::Entry> = self
+                    .warnings
+                    .iter()
+                    .filter(|warning| warning.object_id.as_deref() == Some(object_id.as_str()))
+                    .cloned()
+                    .collect();
+                crate::python_bindings::wrap_stix_object(py, object.clone(), object_warnings)
+            }
+            None => Ok(py.None()),
+        }
+    }
+
+    /// Serialize the outcome to its language-agnostic JSON object.
+    fn to_json(&self) -> String {
+        let mut map = serde_json::Map::new();
+        map.insert("valid".to_string(), serde_json::Value::Bool(self.valid));
+        map.insert(
+            "errors".to_string(),
+            serde_json::to_value(&self.errors).expect("entries serialize"),
+        );
+        map.insert(
+            "warnings".to_string(),
+            serde_json::to_value(&self.warnings).expect("entries serialize"),
+        );
+        if let Some(value) = &self.value {
+            map.insert(
+                "value".to_string(),
+                serde_json::to_value(value).expect("object serializes"),
+            );
+        }
+        serde_json::Value::Object(map).to_string()
+    }
+}
+
+/// Validate a STIX object without raising, returning the raw outcome.
+#[pyfunction]
+#[pyo3(signature = (json_str, strict = true, version = "2.1", allow_custom = false))]
+pub fn check(
+    json_str: &str,
+    strict: bool,
+    version: &str,
+    allow_custom: bool,
+) -> PyResult<PyOutcome> {
+    let value = crate::python_bindings::builder::parse_value(json_str, version)?;
+    let (result, warnings) =
+        crate::object::StixObject::from_value_parts(value, allow_custom, strict);
+    match result {
+        Ok(object) => Ok(PyOutcome {
+            valid: true,
+            errors: Vec::new(),
+            warnings,
+            value: Some(object),
+        }),
+        Err(error) => Ok(PyOutcome {
+            valid: false,
+            errors: error.errors(),
+            warnings,
+            value: None,
+        }),
+    }
+}

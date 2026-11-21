@@ -55,6 +55,10 @@ def test_validation_rule(key: str, entry: dict[str, Any]) -> None:
     if behavior == "parses_successfully":
         obj = parse_fixture(cls, json_str, entry)
         assert obj.type == entry["object_type"]
+        expected_warnings = entry.get("expected_warnings", [])
+        actual = [warning["kind"] for warning in obj.warnings]
+        for expected in expected_warnings:
+            assert expected in actual, (key, expected, actual)
     else:
         exc_class = ERROR_CLASSES.get(behavior, sf.ValidationError)
         with pytest.raises(

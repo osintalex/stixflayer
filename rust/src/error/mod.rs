@@ -1,6 +1,4 @@
 //! A custom STIX Error type, with its associated functions.
-use std::num::ParseIntError;
-
 use jiff::Error as JiffError;
 use strum::ParseError;
 use thiserror::Error;
@@ -10,12 +8,60 @@ pub mod envelope;
 pub mod helpers;
 
 pub use classify::{classify_serde_error, json_kind, non_object_json_message};
-pub use envelope::{ErrorEntry, ErrorEnvelope};
+pub use envelope::{CheckContext, Entry, Outcome};
 pub use helpers::{add_error, return_multiple_errors};
+
+/// Every error `kind` the engine can currently produce.
+///
+/// This is the machine-readable contract; the docs catalog and the
+/// `all_variants` drift test keep it in sync with the implementation.
+pub const KNOWN_ERROR_KINDS: &[&str] = &[
+    "custom_missing_extension",
+    "deserialization_error",
+    "empty_list",
+    "illegal_builder_property",
+    "invalid_hash",
+    "invalid_hex",
+    "invalid_identifier",
+    "invalid_nested_object",
+    "invalid_pattern",
+    "invalid_property_type",
+    "invalid_relationship",
+    "invalid_timestamp",
+    "invalid_uuid",
+    "invalid_vocab_value",
+    "json_null",
+    "missing_property",
+    "serialization_error",
+    "unable_to_version",
+    "unexpected_json_format",
+    "unknown_extension",
+    "unknown_property",
+    "unrecognized_object",
+    "validation_error",
+    "validation_errors",
+    "wrong_extension",
+];
+
+/// Every warning `kind` the engine can currently produce.
+pub const KNOWN_WARNING_KINDS: &[&str] = &[
+    "dictionary_key_not_lowercase",
+    "extension_key_not_extension_definition",
+    "external_reference_url_without_hashes",
+    "hash_not_sha256",
+    "marking_definition_type_not_suggested",
+    "network_traffic_missing_port",
+    "observed_data_no_recognized_sco",
+    "observed_data_unrecognized_ref",
+    "open_vocab_value_not_suggested",
+    "protocol_missing_from_protocols",
+    "relationship_type_not_suggested",
+    "value_not_lowercase_hyphenated",
+];
 
 /// Custom Error type for rust-stix
 ///
-/// Every variant yields at least one structured [`ErrorEntry`] via
+/// Every variant yields at least one structured [`Entry`] via
 /// [`StixError::errors`]; variants with natural structure produce rich entries
 /// (see `to_entry`), all others fall back to a catch-all entry whose `kind` is
 /// the variant name in snake_case. Kind strings are cross-language API surface:
@@ -88,9 +134,6 @@ pub enum StixError {
     /// The given string could not be parsed as a STIX 2.1 identifier.
     #[error("Could not parse String {0} as a valid STIX 2.1 Identifier")]
     ParseIdentifierError(String),
-    /// The given string could not be parsed as an integer.
-    #[error("Error parsing integer: {0}")]
-    ParseIntegerError(ParseIntError),
     /// The given string could not be parsed as a STIX 2.1 timestamp.
     #[error("Could not parse timestamp {0} as a valid STIX 2.1 Timestamp")]
     ParseTimestampError(String),
@@ -133,9 +176,6 @@ pub enum StixError {
     /// The object cannot be versioned; the string explains why.
     #[error("Cannot version this object: {0}")]
     UnableToVersion(String),
-    /// The given string is not a valid version timestamp.
-    #[error("{0} is not valid version timestamp: {1}")]
-    BadVersion(String, JiffError),
     // Customization errors
     /// A custom object must carry an extension with an appropriate
     /// `new_object` extension type.
@@ -148,9 +188,6 @@ pub enum StixError {
     /// The JSON value did not have the expected shape.
     #[error("Unexpected JSON format")]
     UnexpectedJsonFormat,
-    /// The object contained fields that are not part of its STIX type.
-    #[error("Unknown fields in JSON: {0:?}")]
-    UnknownFields(Vec<String>),
     /// The JSON value is not a recognized STIX object type.
     #[error("Unrecognized STIX Object or Object Type")]
     UnrecognizedObject(ParseError),
@@ -236,79 +273,60 @@ impl StixError {
             .to_string()
     }
 
-    /// Converts a structured validation variant into an [`ErrorEntry`].
-    fn to_entry(&self) -> Option<ErrorEntry> {
+    /// Converts a structured validation variant into one or more [`Entry`]s.
+    ///
+    /// Entries are sparse: one entry per property, with the message carrying
+    /// the detail that older envelopes split into `expected`/`got`/`properties`.
+    fn to_entries(&self) -> Vec<Entry> {
         match self {
-            StixError::MissingProperty { property, .. } => Some(ErrorEntry {
-                kind: "missing_property".to_string(),
-                message: self.to_string(),
-                property: Some(property.clone()),
-                ..Default::default()
-            }),
-            StixError::UnknownProperties { fields, .. } => Some(ErrorEntry {
-                kind: "unknown_property".to_string(),
-                message: self.to_string(),
-                properties: Some(fields.clone()),
-                ..Default::default()
-            }),
-            StixError::InvalidPropertyType {
-                property,
-                expected,
-                got,
-                ..
-            } => Some(ErrorEntry {
-                kind: "invalid_property_type".to_string(),
-                message: self.to_string(),
-                property: Some(property.clone()),
-                expected: Some(expected.clone()),
-                got: Some(got.clone()),
-                ..Default::default()
-            }),
-            StixError::InvalidNestedObject { source, .. } => source.to_entry().map(|mut entry| {
-                // Keep the composed, context-aware message on the entry while
-                // preserving the inner error's structured fields.
-                entry.message = self.to_string();
-                entry
-            }),
-            StixError::InvalidVocabValue { value, vocabulary } => Some(ErrorEntry {
-                kind: "invalid_vocab_value".to_string(),
-                message: self.to_string(),
-                value: Some(value.clone()),
-                vocabulary: Some(vocabulary.clone()),
-                ..Default::default()
-            }),
-            StixError::InvalidHash {
-                hash_type,
-                hash_identity,
-                hash_string,
-            } => Some(ErrorEntry {
-                kind: "invalid_hash".to_string(),
-                message: self.to_string(),
-                value: Some(hash_string.clone()),
-                expected: Some(hash_type.clone()),
-                got: Some(hash_identity.clone()),
-                ..Default::default()
-            }),
-            StixError::ParseTimestampError(timestamp) => Some(ErrorEntry {
-                kind: "invalid_timestamp".to_string(),
-                message: self.to_string(),
-                value: Some(timestamp.clone()),
-                ..Default::default()
-            }),
-            StixError::ParseIdentifierError(identifier) => Some(ErrorEntry {
-                kind: "invalid_identifier".to_string(),
-                message: self.to_string(),
-                value: Some(identifier.clone()),
-                ..Default::default()
-            }),
-            StixError::ParsePatternError(pattern, detail) => Some(ErrorEntry {
-                kind: "invalid_pattern".to_string(),
-                message: self.to_string(),
-                value: Some(pattern.clone()),
-                got: Some(detail.clone()),
-                ..Default::default()
-            }),
-            _ => None,
+            StixError::MissingProperty { property, .. }
+            | StixError::MissingBuilderProperty { property, .. } => {
+                vec![Entry::new("missing_property", self.to_string()).property(property.clone())]
+            }
+            StixError::UnknownProperties { fields, .. } => fields
+                .iter()
+                .map(|field| {
+                    Entry::new("unknown_property", self.to_string()).property(field.clone())
+                })
+                .collect(),
+            StixError::InvalidPropertyType { property, .. } => {
+                vec![Entry::new("invalid_property_type", self.to_string())
+                    .property(property.clone())]
+            }
+            StixError::InvalidNestedObject { source, .. } => source
+                .to_entries()
+                .into_iter()
+                .map(|mut entry| {
+                    // Keep the composed, context-aware message on the entry while
+                    // preserving the inner error's structured fields.
+                    entry.message = self.to_string();
+                    entry
+                })
+                .collect(),
+            StixError::InvalidVocabValue { value, vocabulary } => {
+                vec![Entry::new("invalid_vocab_value", self.to_string())
+                    .value(value.clone())
+                    .vocabulary(vocabulary.clone())]
+            }
+            StixError::InvalidHash { hash_string, .. } => {
+                vec![Entry::new("invalid_hash", self.to_string()).value(hash_string.clone())]
+            }
+            StixError::ParseTimestampError(timestamp) => {
+                vec![Entry::new("invalid_timestamp", self.to_string()).value(timestamp.clone())]
+            }
+            StixError::DateTimeError(_) => {
+                vec![Entry::new("invalid_timestamp", self.to_string())]
+            }
+            StixError::ParseIdentifierError(identifier) => {
+                vec![Entry::new("invalid_identifier", self.to_string()).value(identifier.clone())]
+            }
+            StixError::ParsePatternError(pattern, _detail) => {
+                vec![Entry::new("invalid_pattern", self.to_string()).value(pattern.clone())]
+            }
+            StixError::ParseHexError(value) => {
+                vec![Entry::new("invalid_hex", self.to_string()).value(value.clone())]
+            }
+            _ => Vec::new(),
         }
     }
 
@@ -316,12 +334,11 @@ impl StixError {
     ///
     /// Guarantees the total `.errors` contract: the `kind` is the variant name
     /// in snake_case and `message` is the display string.
-    fn catch_all_entry(&self) -> ErrorEntry {
-        ErrorEntry {
-            kind: StixErrorDiscriminants::from(self).as_ref().to_string(),
-            message: self.to_string(),
-            ..Default::default()
-        }
+    fn catch_all_entry(&self) -> Entry {
+        Entry::new(
+            StixErrorDiscriminants::from(self).as_ref(),
+            self.to_string(),
+        )
     }
 
     /// Human-readable summary for the envelope top-level `message` field.
@@ -361,13 +378,13 @@ impl StixError {
     /// Every other error yields at least one entry: a rich entry when the
     /// variant has natural structure, otherwise a catch-all entry
     /// (`catch_all_entry`).
-    pub fn errors(&self) -> Vec<ErrorEntry> {
+    pub fn errors(&self) -> Vec<Entry> {
         match self {
             StixError::ValidationErrors(errors) if !errors.is_empty() => {
                 errors.iter().flat_map(|e| e.errors()).collect()
             }
             _ => {
-                let mut entries: Vec<ErrorEntry> = self.to_entry().into_iter().collect();
+                let mut entries = self.to_entries();
                 if entries.is_empty() {
                     entries.push(self.catch_all_entry());
                 }
@@ -376,14 +393,11 @@ impl StixError {
         }
     }
 
-    /// Serializes this error as the cross-language JSON envelope.
+    /// Serializes this error as a failed [`Outcome`] JSON object.
+    ///
+    /// The shape is `{ "valid": false, "errors": [...], "warnings": [] }`.
     pub fn to_json(&self) -> serde_json::Value {
-        serde_json::to_value(ErrorEnvelope {
-            error: self.envelope_category().to_string(),
-            message: self.envelope_message(),
-            errors: self.errors(),
-        })
-        .expect("ErrorEnvelope serializes to JSON")
+        Outcome::<()>::err(self.clone(), Vec::new()).to_json()
     }
 }
 
@@ -474,41 +488,38 @@ mod tests {
     fn missing_property_envelope() {
         let error = classify("{}");
         let envelope = error.to_json();
-        assert_eq!(envelope["error"], "validation");
-        assert_eq!(
-            envelope["message"],
-            "`attack-pattern` is missing required property 'name'"
-        );
+        assert_eq!(envelope["valid"], false);
+        assert!(envelope["warnings"].as_array().unwrap().is_empty());
         let entries = envelope["errors"].as_array().unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0]["kind"], "missing_property");
         assert_eq!(entries[0]["property"], "name");
-        assert!(entries[0]["expected"].is_null());
+        assert!(entries[0].get("expected").is_none());
+        assert!(entries[0].get("got").is_none());
+        assert!(entries[0].get("properties").is_none());
+        assert!(entries[0].get("level").is_none());
     }
 
     #[test]
     fn invalid_property_type_envelope() {
         let error = classify(r#"{"name": 1}"#);
         let envelope = error.to_json();
-        assert_eq!(envelope["error"], "validation");
+        assert_eq!(envelope["valid"], false);
         let entries = envelope["errors"].as_array().unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0]["kind"], "invalid_property_type");
         assert_eq!(entries[0]["property"], "name");
-        assert_eq!(entries[0]["expected"], "a string");
-        assert_eq!(entries[0]["got"], "integer `1`");
+        // Detail lives in the message now.
+        let message = entries[0]["message"].as_str().unwrap();
+        assert!(message.contains("a string"), "message: {message}");
+        assert!(message.contains("integer `1`"), "message: {message}");
     }
 
     #[test]
     fn syntax_deserialization_envelope_keeps_position() {
         let error = classify("not json");
         let envelope = error.to_json();
-        assert_eq!(envelope["error"], "deserialization");
-        assert!(
-            envelope["message"].as_str().unwrap().contains("line 1"),
-            "position kept: {}",
-            envelope["message"]
-        );
+        assert_eq!(envelope["valid"], false);
         // Total contract: even syntax failures carry a catch-all entry.
         let entries = envelope["errors"].as_array().unwrap();
         assert_eq!(entries.len(), 1);
@@ -531,8 +542,7 @@ mod tests {
             },
         ]);
         let envelope = error.to_json();
-        assert_eq!(envelope["error"], "validation");
-        assert_eq!(envelope["message"], "2 validation errors occurred");
+        assert_eq!(envelope["valid"], false);
         let entries = envelope["errors"].as_array().unwrap();
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0]["kind"], "missing_property");
@@ -546,28 +556,30 @@ mod tests {
             fields: vec!["foo".to_string(), "bar".to_string()],
         };
         let envelope = error.to_json();
-        assert_eq!(envelope["error"], "validation");
+        assert_eq!(envelope["valid"], false);
         let entries = envelope["errors"].as_array().unwrap();
-        assert_eq!(entries.len(), 1);
+        // One entry per property, with no `properties` list.
+        assert_eq!(entries.len(), 2);
         assert_eq!(entries[0]["kind"], "unknown_property");
-        let props: Vec<String> = serde_json::from_value(entries[0]["properties"].clone()).unwrap();
-        assert_eq!(props, vec!["foo", "bar"]);
+        assert_eq!(entries[0]["property"], "foo");
+        assert_eq!(entries[1]["kind"], "unknown_property");
+        assert_eq!(entries[1]["property"], "bar");
+        assert!(entries[0].get("properties").is_none());
     }
 
     #[test]
     fn generic_stix_error_envelope() {
         let error = StixError::EmptyList;
         let envelope = error.to_json();
-        assert_eq!(envelope["error"], "stix");
-        assert_eq!(
-            envelope["message"],
-            "Empty Lists and dictionaries are prohibted in STIX"
-        );
+        assert_eq!(envelope["valid"], false);
         // Total contract: every variant yields at least one entry.
         let entries = envelope["errors"].as_array().unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0]["kind"], "empty_list");
-        assert_eq!(entries[0]["message"], envelope["message"]);
+        assert_eq!(
+            entries[0]["message"],
+            "Empty Lists and dictionaries are prohibted in STIX"
+        );
     }
 
     /// Constructs every `StixError` variant so the total `.errors` contract can
@@ -603,7 +615,6 @@ mod tests {
             },
             StixError::ParseHexError("zz".to_string()),
             StixError::ParseIdentifierError("nope".to_string()),
-            StixError::ParseIntegerError("x".parse::<u32>().unwrap_err()),
             StixError::ParseTimestampError("not-a-time".to_string()),
             StixError::ParsePatternError("AND OR".to_string(), "syntax error".to_string()),
             StixError::ValidationError("bad value".to_string()),
@@ -618,14 +629,9 @@ mod tests {
             StixError::UnknownExtension,
             StixError::WrongExtension,
             StixError::UnableToVersion("no timestamps".to_string()),
-            StixError::BadVersion(
-                "attack-pattern--12345678-1234-5678-1234-567812345678".to_string(),
-                "bad".parse::<jiff::Timestamp>().unwrap_err(),
-            ),
             StixError::CustomMissingExtension,
             StixError::JsonNull,
             StixError::UnexpectedJsonFormat,
-            StixError::UnknownFields(vec!["bogus".to_string()]),
             StixError::UnrecognizedObject(strum::ParseError::VariantNotFound),
             StixError::SerializationError("cannot serialize".to_string()),
             StixError::DeserializationError("cannot deserialize".to_string()),
@@ -644,6 +650,41 @@ mod tests {
                 got: "integer `1`".to_string(),
             },
         ]
+    }
+
+    #[test]
+    fn every_reachable_kind_is_in_the_catalog() {
+        let mut reachable = std::collections::BTreeSet::new();
+        for error in all_variants() {
+            for entry in error.errors() {
+                reachable.insert(entry.kind);
+            }
+        }
+        for kind in &reachable {
+            assert!(
+                KNOWN_ERROR_KINDS.contains(&kind.as_str()),
+                "reachable kind '{kind}' is missing from KNOWN_ERROR_KINDS"
+            );
+        }
+        for kind in KNOWN_ERROR_KINDS {
+            assert!(
+                reachable.contains(*kind),
+                "catalog kind '{kind}' is not reachable from any variant"
+            );
+        }
+    }
+
+    #[test]
+    fn warning_kinds_are_stable_snake_case() {
+        for kind in KNOWN_WARNING_KINDS {
+            assert!(
+                !kind.is_empty()
+                    && kind
+                        .chars()
+                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_'),
+                "warning kind '{kind}' is not snake_case"
+            );
+        }
     }
 
     #[test]
@@ -667,7 +708,7 @@ mod tests {
         assert_eq!(StixError::EmptyList.errors()[0].kind, "empty_list");
         assert_eq!(
             StixError::ParseHexError("zz".to_string()).errors()[0].kind,
-            "parse_hex_error"
+            "invalid_hex"
         );
         assert_eq!(StixError::JsonNull.errors()[0].kind, "json_null");
         // Rich variants keep their documented kinds.
@@ -684,7 +725,7 @@ mod tests {
 
     #[test]
     fn rich_entries_carry_natural_structure() {
-        // InvalidHash: value/expected/got mirror declared vs detected type.
+        // InvalidHash: the value is structured and the detail lives in the message.
         let hash = StixError::InvalidHash {
             hash_type: "MD5".to_string(),
             hash_identity: "unknown".to_string(),
@@ -696,8 +737,8 @@ mod tests {
             entry.value.as_deref(),
             Some("d41d8cd98f00b204e9800998ecf8427e")
         );
-        assert_eq!(entry.expected.as_deref(), Some("MD5"));
-        assert_eq!(entry.got.as_deref(), Some("unknown"));
+        assert!(entry.message.contains("MD5"));
+        assert!(entry.message.contains("unknown"));
         assert!(
             !hash.to_string().contains("and it is:"),
             "old wording removed: {}",
@@ -719,7 +760,7 @@ mod tests {
         let entry = &pattern.errors()[0];
         assert_eq!(entry.kind, "invalid_pattern");
         assert_eq!(entry.value.as_deref(), Some("AND OR"));
-        assert_eq!(entry.got.as_deref(), Some("syntax"));
+        assert!(entry.message.contains("syntax"));
     }
 
     #[test]

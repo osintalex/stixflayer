@@ -3,7 +3,7 @@
 use crate::{
     base::{BuilderType, CommonPropertiesBuilder, Stix},
     cyber_observable_objects::vocab::EncryptionAlgorithm,
-    error::{add_error, return_multiple_errors, StixError as Error},
+    error::{add_error, return_multiple_errors, CheckContext, Outcome, StixError as Error},
     types::{
         get_field_by_name, is_sco_type_name, stix_case, DictionaryValue, ExternalReference,
         GranularMarking, Hashes, Identifier, StixDictionary, Timestamp,
@@ -1902,160 +1902,6 @@ impl CyberObjectBuilder {
     /// that have already validated the object and only need its typed representation
     /// (e.g. serialization).
     pub fn build_no_validate(self) -> Result<CyberObject, Error> {
-        // Note: Many SCOs have all optional fields, but require that at least one such field be present.
-        // This is checked as part of stix_check() to guarantee that an error will occur during building or deserialization.
-        match self.object_type {
-            CyberObjectType::AutonomousSystem(ref automomous_system) => {
-                if automomous_system.number == 0 {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "number".to_string(),
-                    });
-                }
-            }
-            CyberObjectType::Directory(ref directory) => {
-                if directory.path.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "path".to_string(),
-                    });
-                }
-            }
-            CyberObjectType::DomainName(ref domain_name) => {
-                if domain_name.value.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "value".to_string(),
-                    });
-                }
-            }
-            CyberObjectType::EmailAddress(ref email_address) => {
-                if email_address.value.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "value".to_string(),
-                    });
-                }
-            }
-            CyberObjectType::Ipv4Addr(ref ipv4_addr) => {
-                if ipv4_addr.value.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "value".to_string(),
-                    });
-                }
-            }
-            CyberObjectType::Ipv6Addr(ref ipv6_addr) => {
-                if ipv6_addr.value.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "value".to_string(),
-                    });
-                }
-            }
-            CyberObjectType::MacAddr(ref mac_address) => {
-                if mac_address.value.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "value".to_string(),
-                    });
-                }
-            }
-            CyberObjectType::Mutex(ref mutex) => {
-                if mutex.name.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "name".to_string(),
-                    });
-                }
-            }
-            CyberObjectType::Process(ref process) => {
-                // A Process object MUST contain at least one property (other than type) from this object (or one of its extensions)
-                if process.is_hidden.is_none()
-                    && process.pid.is_none()
-                    && process.created_time.is_none()
-                    && process.cwd.is_none()
-                    && process.command_line.is_none()
-                    && process.environment_variables.is_none()
-                    && process.opened_connection_refs.is_none()
-                    && process.creator_user_ref.is_none()
-                    && process.image_ref.is_none()
-                    && process.parent_ref.is_none()
-                    && process.child_refs.is_none()
-                {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "extensions, is_hidden, pid, created_time, cwd, command_line, environment_variables,opened_connection_refs, creator_user_ref, image_ref, parent_ref, child_refs "
-                            .to_string(),
-                    });
-                }
-            }
-            // stix_check() will fail is the `protocols` field is an empty Vec, but we check here to provide a more specific error in this situation
-            CyberObjectType::NetworkTraffic(ref network_traffic) => {
-                if network_traffic.protocols.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "protocols".to_string(),
-                    });
-                }
-                if network_traffic.src_ref.is_none() && network_traffic.dst_ref.is_none() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "src_ref, dst_ref".to_string(),
-                    });
-                }
-            }
-            CyberObjectType::Software(ref software) => {
-                if software.name.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "name".to_string(),
-                    });
-                }
-            }
-            CyberObjectType::Url(ref url) => {
-                if &url.value.to_string() == "http://example.com" {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "value".to_string(),
-                    });
-                }
-            }
-            CyberObjectType::WindowsRegistryKey(ref windows_registry_key) => {
-                if windows_registry_key.key.is_none()
-                    && windows_registry_key.values.is_none()
-                    && windows_registry_key.modified_time.is_none()
-                    && windows_registry_key.creator_user_ref.is_none()
-                    && windows_registry_key.number_of_subkeys.is_none()
-                {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "key, values, creator_user_ref, number_of_subkeys".to_string(),
-                    });
-                }
-            }
-            CyberObjectType::X509Certificate(ref x509_certificate)
-                if x509_certificate.is_self_signed.is_none()
-                    && x509_certificate.hashes.is_none()
-                    && x509_certificate.version.is_none()
-                    && x509_certificate.serial_number.is_none()
-                    && x509_certificate.signature_algorithm.is_none()
-                    && x509_certificate.issuer.is_none()
-                    && x509_certificate.validity_not_before.is_none()
-                    && x509_certificate.validity_not_after.is_none()
-                    && x509_certificate.subject.is_none()
-                    && x509_certificate.subject_public_key_algorithm.is_none()
-                    && x509_certificate.subject_public_key_modulus.is_none()
-                    && x509_certificate.subject_public_key_exponent.is_none()
-                    && x509_certificate.x509_v3_extensions.is_none() =>
-            {
-                return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "is_self_signed, hashes, version, serial_number, signature_algorithm, issuer, validity_not_before, validity_not_after, subject, subject_public_key_algorithm, subject_public_key_modulus, subject_public_key_exponent, x509_v3_extensions".to_string(),
-                    });
-            }
-            _ => {}
-        }
         let mut common_properties = self.common_properties.build();
 
         // SCOs MUST use UUIDv5 when ID contributing properties exist.
@@ -2091,9 +1937,20 @@ impl CyberObjectBuilder {
     /// [`Self::build_no_validate`] and then runs `stix_check()` on the newly
     /// constructed SCO.
     pub fn build(self) -> Result<CyberObject, Error> {
-        let sco = self.build_no_validate()?;
-        sco.stix_check()?;
-        Ok(sco)
+        let object = self.build_no_validate()?;
+        object.stix_check()?;
+        Ok(object)
+    }
+
+    /// Builds the object and returns its validation outcome, including warnings.
+    pub fn build_outcome(self) -> Outcome<CyberObject> {
+        let object = match self.build_no_validate() {
+            Ok(object) => object,
+            Err(error) => return Outcome::err(error, Vec::new()),
+        };
+        let mut ctx = CheckContext::new();
+        let result = object.check(&mut ctx).map(|()| object);
+        Outcome::from_result(result, ctx.into_warnings())
     }
 
     /// Get the id contributing properties, if they exist, for constructing a UUIDv5
@@ -2296,14 +2153,14 @@ enum IdPropertyValue {
 }
 
 impl Stix for IdPropertyValue {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         match self {
-            IdPropertyValue::String(string) => string.stix_check(),
-            IdPropertyValue::List(list) => list.stix_check(),
+            IdPropertyValue::String(string) => string.check(ctx),
+            IdPropertyValue::List(list) => list.check(ctx),
             IdPropertyValue::Tuple((key, value)) => {
                 let mut errors = Vec::new();
-                add_error(&mut errors, key.stix_check());
-                add_error(&mut errors, value.stix_check());
+                add_error(&mut errors, key.check(ctx));
+                add_error(&mut errors, value.check(ctx));
                 return_multiple_errors(errors)
             }
         }

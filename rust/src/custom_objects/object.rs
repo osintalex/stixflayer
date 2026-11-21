@@ -1,5 +1,6 @@
 //! Contains the implementation logic for unrecognized custom STIX Objects.
 
+use crate::error::CheckContext;
 use crate::{
     base::{
         validate_custom_property_name, validate_custom_property_suffix_value, CommonProperties,
@@ -128,11 +129,12 @@ impl Related for CustomObject {
 crate::impl_custom_properties_holder!(CustomObject);
 
 impl Stix for CustomObject {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
+        ctx.set_object_id(Some(self.get_id().to_string()));
         let mut common_errors = Vec::new();
 
         // Check common properties
-        add_error(&mut common_errors, self.common_properties.stix_check());
+        add_error(&mut common_errors, self.common_properties.check(ctx));
 
         // Early return if the common properties are not formatted correctly.
         // We check the common properties first because this will catch any errors in `extensions` before we try to read them
@@ -174,7 +176,7 @@ impl Stix for CustomObject {
         }
 
         // Validate custom property values generically as JSON STIX values.
-        add_error(&mut errors, self.custom_properties.stix_check());
+        add_error(&mut errors, self.custom_properties.check(ctx));
 
         return_multiple_errors(errors)
     }

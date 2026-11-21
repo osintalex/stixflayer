@@ -1,4 +1,5 @@
 //! Top level STIX object structures and implementation
+use crate::error::CheckContext;
 use crate::{
     base::Stix,
     custom_objects::CustomObject,
@@ -15,14 +16,17 @@ use crate::{
         Infrastructure, IntrusionSet, Location, Malware, MalwareAnalysis, Note, ObservedData,
         Opinion, Report, ThreatActor, Tool, Vulnerability,
     },
-    error::StixError as Error,
+    error::{Outcome, StixError as Error},
     meta_objects::{
         extension_definition::ExtensionDefinition, language_content::LanguageContent,
         marking_definition::MarkingDefinition,
     },
     relationship_objects::{Relationship, RelationshipObject, RelationshipObjectType, Sighting},
     types::{get_object_type, ExtensionType, Identified},
-    validation::validate_value_from_object,
+    validation::{
+        validate_value_from_object, validate_value_from_object_outcome,
+        validate_value_from_object_parts,
+    },
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -192,6 +196,85 @@ impl StixObject {
         Self::from_value(value, allow_custom, true)
     }
 
+    /// Outcome-returning variant of [`Self::from_json`].
+    pub fn from_json_outcome(json_str: &str, allow_custom: bool) -> Outcome<Self> {
+        match serde_json::from_str(json_str) {
+            Ok(value) => Self::from_value_outcome(value, allow_custom, true),
+            Err(e) => Outcome::err(Error::DeserializationError(e.to_string()), Vec::new()),
+        }
+    }
+
+    /// Runs [`Self::from_value`] and returns the structured error plus the
+    /// warnings collected during the same pass.
+    pub fn from_value_parts(
+        value: Value,
+        allow_custom: bool,
+        strict: bool,
+    ) -> (Result<Self, Error>, Vec<crate::error::Entry>) {
+        let type_name = value
+            .get("type")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string();
+        macro_rules! dispatch {
+            ($ty:ty, $variant:path) => {{
+                let (result, warnings) =
+                    validate_value_from_object_parts::<$ty>(value, allow_custom, strict);
+                (result.map($variant), warnings)
+            }};
+        }
+        match get_object_type(&type_name).as_ref() {
+            "sdo" => dispatch!(DomainObject, StixObject::Sdo),
+            "sro" => dispatch!(RelationshipObject, StixObject::Sro),
+            "sco" => dispatch!(CyberObject, StixObject::Sco),
+            "language-content" => dispatch!(LanguageContent, StixObject::LanguageContent),
+            "extension-definition" => {
+                dispatch!(ExtensionDefinition, StixObject::ExtensionDefinition)
+            }
+            "marking-definition" => dispatch!(MarkingDefinition, StixObject::MarkingDefinition),
+            _ => dispatch!(CustomObject, StixObject::Custom),
+        }
+    }
+
+    /// Outcome-returning variant of [`Self::from_value`].
+    pub fn from_value_outcome(value: Value, allow_custom: bool, strict: bool) -> Outcome<Self> {
+        let type_name = value
+            .get("type")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string();
+        match get_object_type(&type_name).as_ref() {
+            "sdo" => {
+                validate_value_from_object_outcome::<DomainObject>(value, allow_custom, strict)
+                    .map(StixObject::Sdo)
+            }
+            "sro" => validate_value_from_object_outcome::<RelationshipObject>(
+                value,
+                allow_custom,
+                strict,
+            )
+            .map(StixObject::Sro),
+            "sco" => validate_value_from_object_outcome::<CyberObject>(value, allow_custom, strict)
+                .map(StixObject::Sco),
+            "language-content" => {
+                validate_value_from_object_outcome::<LanguageContent>(value, allow_custom, strict)
+                    .map(StixObject::LanguageContent)
+            }
+            "extension-definition" => validate_value_from_object_outcome::<ExtensionDefinition>(
+                value,
+                allow_custom,
+                strict,
+            )
+            .map(StixObject::ExtensionDefinition),
+            "marking-definition" => {
+                validate_value_from_object_outcome::<MarkingDefinition>(value, allow_custom, strict)
+                    .map(StixObject::MarkingDefinition)
+            }
+            _ => validate_value_from_object_outcome::<CustomObject>(value, allow_custom, strict)
+                .map(StixObject::Custom),
+        }
+    }
+
     /// Deserialize any STIX Object from an already-parsed JSON value.
     pub fn from_value(value: Value, allow_custom: bool, strict: bool) -> Result<Self, Error> {
         let type_name = value
@@ -273,18 +356,18 @@ impl StixObject {
 }
 
 impl Stix for StixObject {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         match self {
-            StixObject::Sdo(sdo) => sdo.stix_check(),
-            StixObject::Sro(sro) => sro.stix_check(),
-            StixObject::Sco(sco) => sco.stix_check(),
-            StixObject::LanguageContent(language_content) => language_content.stix_check(),
-            // StixObject::ObjectMarking(object_marking) => object_marking.stix_check(),
+            StixObject::Sdo(sdo) => sdo.check(ctx),
+            StixObject::Sro(sro) => sro.check(ctx),
+            StixObject::Sco(sco) => sco.check(ctx),
+            StixObject::LanguageContent(language_content) => language_content.check(ctx),
+            // StixObject::ObjectMarking(object_marking) => object_marking.check(ctx),
             StixObject::ExtensionDefinition(extension_definition) => {
-                extension_definition.stix_check()
+                extension_definition.check(ctx)
             }
-            StixObject::MarkingDefinition(marking_definition) => marking_definition.stix_check(),
-            StixObject::Custom(custom) => custom.stix_check(),
+            StixObject::MarkingDefinition(marking_definition) => marking_definition.check(ctx),
+            StixObject::Custom(custom) => custom.check(ctx),
         }
     }
 }
@@ -350,6 +433,55 @@ pub fn parse_sro(
     let value: Value =
         serde_json::from_str(json_str).map_err(|e| Error::DeserializationError(e.to_string()))?;
     validate_value_from_object::<RelationshipObject>(value, allow_custom, strict)
+}
+
+/// Outcome-returning variant of [`parse_sdo`].
+pub fn parse_sdo_outcome(
+    json_str: &str,
+    strict: bool,
+    version: &str,
+    allow_custom: bool,
+) -> Outcome<DomainObject> {
+    match parse_outcome_value(json_str, version) {
+        Ok(value) => validate_value_from_object_outcome(value, allow_custom, strict),
+        Err(error) => Outcome::err(error, Vec::new()),
+    }
+}
+
+/// Outcome-returning variant of [`parse_sco`].
+pub fn parse_sco_outcome(
+    json_str: &str,
+    strict: bool,
+    version: &str,
+    allow_custom: bool,
+) -> Outcome<CyberObject> {
+    match parse_outcome_value(json_str, version) {
+        Ok(value) => validate_value_from_object_outcome(value, allow_custom, strict),
+        Err(error) => Outcome::err(error, Vec::new()),
+    }
+}
+
+/// Outcome-returning variant of [`parse_sro`].
+pub fn parse_sro_outcome(
+    json_str: &str,
+    strict: bool,
+    version: &str,
+    allow_custom: bool,
+) -> Outcome<RelationshipObject> {
+    match parse_outcome_value(json_str, version) {
+        Ok(value) => validate_value_from_object_outcome(value, allow_custom, strict),
+        Err(error) => Outcome::err(error, Vec::new()),
+    }
+}
+
+fn parse_outcome_value(json_str: &str, version: &str) -> Result<Value, Error> {
+    if version != "2.1" {
+        return Err(Error::ValidationError(format!(
+            "Unsupported STIX version '{}'. Only 2.1 is supported.",
+            version
+        )));
+    }
+    serde_json::from_str(json_str).map_err(|e| Error::DeserializationError(e.to_string()))
 }
 
 /// Trait for parsing a concrete STIX type from a JSON string.

@@ -1,4 +1,5 @@
 use crate::base::Stix;
+use crate::error::CheckContext;
 use crate::error::StixError as Error;
 use serde::{Deserialize, Serialize};
 use serde_this_or_that::as_u64;
@@ -22,8 +23,8 @@ pub struct AutonomousSystem {
     pub rir: Option<String>,
 }
 impl Stix for AutonomousSystem {
-    fn stix_check(&self) -> Result<(), Error> {
-        self.number.stix_check()
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
+        self.number.check(ctx)
     }
 }
 
@@ -37,7 +38,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;

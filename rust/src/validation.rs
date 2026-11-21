@@ -22,7 +22,10 @@ use serde_path_to_error as serde_path;
 
 use crate::{
     base::{validate_custom_property_name, CustomPropertiesHolder, Stix},
-    error::{add_error, classify_serde_error, return_multiple_errors, StixError as Error},
+    error::{
+        add_error, classify_serde_error, return_multiple_errors, CheckContext, Entry, Outcome,
+        StixError as Error,
+    },
     properties::type_properties,
 };
 
@@ -46,15 +49,49 @@ pub fn validate_value<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
     validate_value_from_object(value, allow_custom, strict)
 }
 
+/// Outcome-returning variant of [`validate_value`].
+pub fn validate_value_outcome<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
+    value: Value,
+    allow_custom: bool,
+    strict: bool,
+) -> Outcome<T> {
+    validate_value_from_object_outcome(value, allow_custom, strict)
+}
+
 /// Validates a STIX object from its raw object [`Value`] without re-serializing.
 ///
 /// This is the optimized implementation. The API-compatible [`validate_value`]
 /// wrapper delegates here.
 pub fn validate_value_from_object<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
-    mut value: Value,
+    value: Value,
     allow_custom: bool,
     strict: bool,
 ) -> Result<T, Error> {
+    validate_value_from_object_parts(value, allow_custom, strict).0
+}
+
+/// Outcome-returning variant of [`validate_value_from_object`].
+///
+/// The outcome carries the typed value on success and the collected SHOULD
+/// warnings whether or not validation succeeded.
+pub fn validate_value_from_object_outcome<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
+    value: Value,
+    allow_custom: bool,
+    strict: bool,
+) -> Outcome<T> {
+    let (result, warnings) = validate_value_from_object_parts(value, allow_custom, strict);
+    Outcome::from_result(result, warnings)
+}
+
+/// Shared implementation behind the `Result` and `Outcome` entry points.
+///
+/// Returns the typed value (or structured error) together with the warnings
+/// collected during the same validation pass.
+pub fn validate_value_from_object_parts<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
+    mut value: Value,
+    allow_custom: bool,
+    strict: bool,
+) -> (Result<T, Error>, Vec<Entry>) {
     let type_name = value
         .get("type")
         .and_then(|v| v.as_str())
@@ -135,23 +172,28 @@ pub fn validate_value_from_object<T: DeserializeOwned + Stix + CustomPropertiesH
                         } if p == property
                     )
                 }) {
-                    return Err(return_multiple_errors(errors).unwrap_err());
+                    return (Err(return_multiple_errors(errors).unwrap_err()), Vec::new());
                 }
             }
             errors.push(classified);
-            return Err(return_multiple_errors(errors).unwrap_err());
+            return (Err(return_multiple_errors(errors).unwrap_err()), Vec::new());
         }
     };
 
     // Attach the custom-property bag explicitly, overriding the serde-default None.
     typed.set_custom_properties(custom_properties);
 
+    let mut ctx = CheckContext::new();
     if strict {
-        add_error(&mut errors, typed.stix_check());
+        add_error(&mut errors, typed.check(&mut ctx));
     }
+    let warnings = ctx.into_warnings();
 
-    return_multiple_errors(errors)?;
-    Ok(typed)
+    let result = match return_multiple_errors(errors) {
+        Ok(()) => Ok(typed),
+        Err(error) => Err(error),
+    };
+    (result, warnings)
 }
 
 #[cfg(test)]

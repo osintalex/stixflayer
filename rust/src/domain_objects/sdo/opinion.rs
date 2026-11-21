@@ -4,6 +4,7 @@
 //!
 //! For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_ht1vtzfbtzda>
 
+use crate::error::CheckContext;
 use crate::{
     base::Stix,
     common::validation::validate_vocab_value,
@@ -30,7 +31,7 @@ pub struct Opinion {
 }
 
 impl Stix for Opinion {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         add_error(
@@ -38,10 +39,10 @@ impl Stix for Opinion {
             validate_vocab_value::<OpinionType, _>(self.opinion.as_ref(), "opinion-enum"),
         );
         if let Some(authors) = &self.authors {
-            add_error(&mut errors, authors.stix_check());
+            add_error(&mut errors, authors.check(ctx));
         }
 
-        add_error(&mut errors, self.object_refs.stix_check());
+        add_error(&mut errors, self.object_refs.check(ctx));
         return_multiple_errors(errors)
     }
 }

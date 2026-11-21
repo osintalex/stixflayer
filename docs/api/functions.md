@@ -25,5 +25,5 @@ Returns the stixflayer version.
 import stixflayer
 
 print(stixflayer.version())
-#> 0.1.0
+#> 0.1.1
 ```

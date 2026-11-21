@@ -4,9 +4,10 @@
 //!
 //! For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_5ol9xlbbnrdn>
 
+use crate::error::CheckContext;
 use crate::{
     base::Stix,
-    common::validation::{validate_vocab_list, validate_vocab_value},
+    common::validation::{warn_vocab_list, warn_vocab_value},
     domain_objects::vocab::{AttackMotivation, AttackResourceLevel},
     error::{add_error, return_multiple_errors, StixError as Error},
     types::Timestamp,
@@ -40,45 +41,42 @@ pub struct IntrusionSet {
 }
 
 impl Stix for IntrusionSet {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(primary_motivation) = self.primary_motivation.as_deref() {
-            add_error(
-                &mut errors,
-                validate_vocab_value::<AttackMotivation, _>(
-                    primary_motivation,
-                    "attack-motivation-ov",
-                ),
+            warn_vocab_value::<AttackMotivation, _>(
+                ctx,
+                primary_motivation,
+                "attack-motivation-ov",
+                "primary_motivation",
             );
         }
 
         if let Some(secondary_motivations) = &self.secondary_motivations {
-            add_error(&mut errors, secondary_motivations.stix_check());
-            add_error(
-                &mut errors,
-                validate_vocab_list::<AttackMotivation, _>(
-                    secondary_motivations,
-                    "attack-motivation-ov",
-                ),
+            add_error(&mut errors, secondary_motivations.check(ctx));
+            warn_vocab_list::<AttackMotivation, _>(
+                ctx,
+                secondary_motivations,
+                "attack-motivation-ov",
+                "secondary_motivations",
             );
         }
 
         if let Some(resource_level) = self.resource_level.as_deref() {
-            add_error(
-                &mut errors,
-                validate_vocab_value::<AttackResourceLevel, _>(
-                    resource_level,
-                    "attack-resource-level-ov",
-                ),
+            warn_vocab_value::<AttackResourceLevel, _>(
+                ctx,
+                resource_level,
+                "attack-resource-level-ov",
+                "resource_level",
             );
         }
 
         if let Some(goals) = &self.goals {
-            add_error(&mut errors, goals.stix_check());
+            add_error(&mut errors, goals.check(ctx));
         }
         if let Some(aliases) = &self.aliases {
-            add_error(&mut errors, aliases.stix_check());
+            add_error(&mut errors, aliases.check(ctx));
         }
 
         return_multiple_errors(errors)

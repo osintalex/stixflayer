@@ -4,6 +4,7 @@
 //!
 //! For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_a925mpw39txn>
 
+use crate::error::CheckContext;
 use crate::{base::Stix, error::StixError as Error};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -20,7 +21,7 @@ pub struct CourseOfAction {
 }
 
 impl Stix for CourseOfAction {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         Ok(())
     }
 }
