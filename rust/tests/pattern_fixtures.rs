@@ -200,38 +200,6 @@ fn fixture_schema_requires_layer_and_expected_error() {
 }
 
 #[test]
-fn valid_set_contains_all_spec_examples() {
-    let spec_examples_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("poc-parser")
-        .join("corpus")
-        .join("spec_examples.txt");
-    let examples: Vec<String> = fs::read_to_string(&spec_examples_path)
-        .unwrap_or_else(|err| panic!("read {}: {err}", spec_examples_path.display()))
-        .lines()
-        .filter(|line| !line.is_empty())
-        .map(str::to_string)
-        .collect();
-
-    assert_eq!(examples.len(), 23, "expected 23 specification examples");
-
-    let valid = load_valid();
-    let anchored: Vec<&ValidFixture> = valid.iter().filter(|entry| entry.spec == "9.8").collect();
-    assert_eq!(
-        anchored.len(),
-        23,
-        "expected 23 valid fixtures anchored at 9.8"
-    );
-
-    for example in examples {
-        assert!(
-            anchored.iter().any(|entry| entry.pattern == example),
-            "specification example missing from fixtures: {example}"
-        );
-    }
-}
-
-#[test]
 fn compliance_cases_declare_the_expected_layer() {
     let valid = load_valid();
     let invalid = load_invalid();

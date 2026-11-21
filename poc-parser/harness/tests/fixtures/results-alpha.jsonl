@@ -1,3 +1,0 @@
-{"id":"I01","input":"[file:name = ]","result":"reject","errors":["alpha: expected a value"],"layer":"grammar"}
-{"id":"V24","input":"[file:name='x']","result":"accept","errors":[],"layer":"grammar"}
-{"id":"V43","input":"[file:name = 'x'] REPEATS 0 TIMES","result":"reject","errors":["alpha: expected a positive integer"],"layer":"grammar"}

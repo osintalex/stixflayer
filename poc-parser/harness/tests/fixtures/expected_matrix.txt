@@ -1,7 +1,0 @@
-id    expected  alpha       beta        
-I01   reject    ok          WRONG       
-V24   accept    ok          ok          
-V43   accept    WRONG       ok          
-
-alpha        wrong=1    sem=0    must-pass=1/2
-beta         wrong=1    sem=0    must-pass=2/2
