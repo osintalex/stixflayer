@@ -489,10 +489,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#spec-conformance-strict" class="md-nav__link">
+  <a href="#semantic-checks-strict" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Spec conformance: <code>strict</code>
+        Semantic checks: <code>strict</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#warnings-on-objects-and-exceptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Warnings on objects and exceptions
       </span>
     </span>
   </a>
@@ -892,10 +903,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#spec-conformance-strict" class="md-nav__link">
+  <a href="#semantic-checks-strict" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Spec conformance: <code>strict</code>
+        Semantic checks: <code>strict</code>
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#warnings-on-objects-and-exceptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Warnings on objects and exceptions
       </span>
     </span>
   </a>
@@ -936,10 +958,11 @@
 <h1 id="validation-modes">Validation modes<a class="headerlink" href="#validation-modes" title="Permanent link">&para;</a></h1>
 <p>stixflayer validates by default. Two options control how lenient parsing and
 construction are: <code>allow_custom</code> for custom properties, and <code>strict</code> for
-spec conformance checks.</p>
+semantic checks.</p>
 <h2 id="what-is-always-enforced">What is always enforced<a class="headerlink" href="#what-is-always-enforced" title="Permanent link">&para;</a></h2>
-<p>Required properties are enforced in every mode — an object missing <code>name</code>
-never passes, strict or not.</p>
+<p>Structural checks run in every mode: required properties must be present, JSON
+types must match, unknown properties are rejected unless <code>allow_custom=True</code>,
+and timestamps and identifiers must be well formed.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">stixflayer</span><span class="w"> </span><span class="kn">import</span> <span class="n">AttackPattern</span>
@@ -975,11 +998,12 @@ Pass <code>allow_custom=True</code> to accept them.</p>
 <a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="nb">print</span><span class="p">(</span><span class="n">ap</span><span class="o">.</span><span class="n">x_mitre_detection</span><span class="p">)</span>
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="c1">#&gt; Monitor command history</span>
 </code></pre></div>
-<h2 id="spec-conformance-strict">Spec conformance: <code>strict</code><a class="headerlink" href="#spec-conformance-strict" title="Permanent link">&para;</a></h2>
-<p>With <code>strict=True</code> (the default), values are checked against the STIX
-vocabularies. With <code>strict=False</code>, those conformance checks are skipped —
-useful for processing incomplete or non-conformant data you cannot fix.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">stixflayer</span><span class="w"> </span><span class="kn">import</span> <span class="n">Identity</span><span class="p">,</span> <span class="n">ValidationError</span>
+<h2 id="semantic-checks-strict">Semantic checks: <code>strict</code><a class="headerlink" href="#semantic-checks-strict" title="Permanent link">&para;</a></h2>
+<p>With <code>strict=True</code> (the default), STIX MUST rules produce errors and SHOULD
+recommendations produce warnings. Errors raise; warnings never do.</p>
+<p>With <code>strict=False</code>, semantic checks are skipped entirely, so there are no
+semantic errors and no warnings. Structural checks still apply.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">stixflayer</span><span class="w"> </span><span class="kn">import</span> <span class="n">Identity</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="nb">id</span><span class="o">=</span><span class="s2">"identity--c78b4a5a-3b42-4f2e-9b1a-7f8e9d0c1a2b"</span><span class="p">,</span>
@@ -989,40 +1013,61 @@ useful for processing incomplete or non-conformant data you cannot fix.</p>
 <a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">modified</span><span class="o">=</span><span class="s2">"2023-03-24T15:14:15.637Z"</span><span class="p">,</span>
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">)</span>
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="n">Identity</span><span class="p">(</span><span class="n">identity_class</span><span class="o">=</span><span class="s2">"bogus-class"</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">errors</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">"kind"</span><span class="p">],</span> <span class="n">e</span><span class="o">.</span><span class="n">errors</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">"value"</span><span class="p">])</span>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>    <span class="c1">#&gt; invalid_vocab_value bogus-class</span>
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="n">lenient</span> <span class="o">=</span> <span class="n">Identity</span><span class="p">(</span><span class="n">identity_class</span><span class="o">=</span><span class="s2">"bogus-class"</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="nb">print</span><span class="p">(</span><span class="n">lenient</span><span class="o">.</span><span class="n">identity_class</span><span class="p">)</span>
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="c1">#&gt; bogus-class</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="c1"># `bogus-class` is outside identity-class-ov. That is a SHOULD finding, so</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="c1"># construction succeeds and the finding is available as a warning.</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="n">identity</span> <span class="o">=</span> <span class="n">Identity</span><span class="p">(</span><span class="n">identity_class</span><span class="o">=</span><span class="s2">"bogus-class"</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="nb">print</span><span class="p">(</span><span class="n">identity</span><span class="o">.</span><span class="n">identity_class</span><span class="p">)</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="c1">#&gt; bogus-class</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="nb">print</span><span class="p">([</span><span class="n">entry</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">]</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">identity</span><span class="o">.</span><span class="n">warnings</span><span class="p">])</span>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="c1">#&gt; ['open_vocab_value_not_suggested']</span>
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="c1"># With strict=False the semantic check is skipped, so there are no warnings.</span>
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="n">lenient</span> <span class="o">=</span> <span class="n">Identity</span><span class="p">(</span><span class="n">identity_class</span><span class="o">=</span><span class="s2">"bogus-class"</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="nb">print</span><span class="p">(</span><span class="n">lenient</span><span class="o">.</span><span class="n">warnings</span><span class="p">)</span>
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="c1">#&gt; []</span>
+</code></pre></div>
+<h2 id="warnings-on-objects-and-exceptions">Warnings on objects and exceptions<a class="headerlink" href="#warnings-on-objects-and-exceptions" title="Permanent link">&para;</a></h2>
+<p>Objects returned by constructors and <code>from_json</code> expose <code>.warnings</code>.
+Exceptions expose both <code>.errors</code> and <code>.warnings</code>, because a document can
+violate a MUST rule and a SHOULD recommendation at the same time.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">stixflayer</span><span class="w"> </span><span class="kn">import</span> <span class="n">Identity</span><span class="p">,</span> <span class="n">ValidationError</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">Identity</span><span class="p">(</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>        <span class="n">name</span><span class="o">=</span><span class="s2">"Acme"</span><span class="p">,</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>        <span class="n">identity_class</span><span class="o">=</span><span class="s2">"organization"</span><span class="p">,</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>        <span class="n">extensions</span><span class="o">=</span><span class="p">{</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>            <span class="s2">"extension-definition--550e8400-e29b-41d4-a716-446655440000"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"extension_type"</span><span class="p">:</span> <span class="s2">"not-a-real-type"</span><span class="p">}</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>        <span class="p">},</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    <span class="p">)</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">errors</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">"kind"</span><span class="p">],</span> <span class="n">e</span><span class="o">.</span><span class="n">errors</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">"vocabulary"</span><span class="p">])</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>    <span class="c1">#&gt; invalid_vocab_value extension-type-enum</span>
 </code></pre></div>
 <h2 id="all-errors-at-once">All errors at once<a class="headerlink" href="#all-errors-at-once" title="Permanent link">&para;</a></h2>
 <p>Validation collects every problem it finds — inspect <code>errors</code> as a list
 instead of fixing one error per attempt.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">stixflayer</span><span class="w"> </span><span class="kn">import</span> <span class="n">AttackPattern</span><span class="p">,</span> <span class="n">ValidationError</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">document</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="p">{</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>        <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"attack-pattern"</span><span class="p">,</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>        <span class="s2">"spec_version"</span><span class="p">:</span> <span class="s2">"2.1"</span><span class="p">,</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>        <span class="s2">"id"</span><span class="p">:</span> <span class="s2">"attack-pattern--d3046a90-580c-4004-8208-66915bc29830"</span><span class="p">,</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>        <span class="s2">"created"</span><span class="p">:</span> <span class="s2">"2019-04-24T15:12:36.609Z"</span><span class="p">,</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>        <span class="s2">"modified"</span><span class="p">:</span> <span class="s2">"2023-03-24T15:14:15.637Z"</span><span class="p">,</span>
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>        <span class="s2">"bogus_property"</span><span class="p">:</span> <span class="s2">"x"</span><span class="p">,</span>
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>    <span class="p">}</span>
-<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="p">)</span>
-<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="k">try</span><span class="p">:</span>
-<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>    <span class="n">AttackPattern</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">document</span><span class="p">)</span>
-<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>    <span class="nb">print</span><span class="p">([</span><span class="n">entry</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">]</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">e</span><span class="o">.</span><span class="n">errors</span><span class="p">])</span>
-<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>    <span class="c1">#&gt; ['unknown_property', 'missing_property']</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">stixflayer</span><span class="w"> </span><span class="kn">import</span> <span class="n">AttackPattern</span><span class="p">,</span> <span class="n">ValidationError</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">document</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="p">{</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>        <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"attack-pattern"</span><span class="p">,</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>        <span class="s2">"spec_version"</span><span class="p">:</span> <span class="s2">"2.1"</span><span class="p">,</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>        <span class="s2">"id"</span><span class="p">:</span> <span class="s2">"attack-pattern--d3046a90-580c-4004-8208-66915bc29830"</span><span class="p">,</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>        <span class="s2">"created"</span><span class="p">:</span> <span class="s2">"2019-04-24T15:12:36.609Z"</span><span class="p">,</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>        <span class="s2">"modified"</span><span class="p">:</span> <span class="s2">"2023-03-24T15:14:15.637Z"</span><span class="p">,</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>        <span class="s2">"bogus_property"</span><span class="p">:</span> <span class="s2">"x"</span><span class="p">,</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>    <span class="p">}</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="p">)</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>    <span class="n">AttackPattern</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">document</span><span class="p">)</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>    <span class="nb">print</span><span class="p">([</span><span class="n">entry</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">]</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">e</span><span class="o">.</span><span class="n">errors</span><span class="p">])</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>    <span class="c1">#&gt; ['unknown_property', 'missing_property']</span>
 </code></pre></div>
-<p>See <a href="../errors/">error handling</a> for the full error catalog.</p>
+<p>See <a href="../errors/">error handling</a> for the full errors and warnings catalog.</p>
 
 
 
