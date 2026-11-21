@@ -4,6 +4,12 @@
 // Upstream grammar: STIXPattern.g4 from cti-stix2-json-schemas (237 lines)
 // Upstream SHA-256: bfe2cd1367705630783c55fb1f9969feb94ed43e27acd0c266e6bc0846f761c1
 //
+// Why pest: antlr-rust needs a code generator and a newer MSRV; chumsky leaks
+// trivia into every expected set; a nom rewrite discards the deepest error.
+// pest_derive is a proc macro, so there is no build.rs, generator, JVM, or
+// runtime data file. Its expected-token sets produce the position and
+// expected-construct diagnostics the error-reporting contract requires.
+//
 // The ANTLR grammar's left-recursive rules become ordered list rules folded in
 // Rust. Token rules that ANTLR matches before identifiers keep the same
 // priority here through negative lookahead on the identifier character class.

@@ -2,7 +2,7 @@
     {
         "id": "V54",
         "description": "Simple file hash equality",
-        "pattern": "[file:hashes.'SHA-256' = 'd7a9f2b24e57209a18e7cfb2439c0b6f3c0d9a4b5c8e6f1a2b3c4d5e6f7a8b9']",
+        "pattern": "[file:hashes.'SHA-256' = 'b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9']",
         "spec": "9.6.4"
     },
     {

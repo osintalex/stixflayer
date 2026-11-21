@@ -166,9 +166,12 @@ except Exception as e:
 
 ## Known divergences from the reference validator 🔍
 
-The OASIS STIX 2.1 specification is authoritative. Where the Python reference
-validator (`stix2patterns`) disagrees, stixflayer follows the specification and
-records the difference here.
+The OASIS STIX 2.1 specification is authoritative. The reference Python
+validator, [`cti-stix-validator`](https://github.com/oasis-open/cti-stix-validator)
+(`stix2-validator`), validates patterns with
+[`stix2-patterns`](https://github.com/oasis-open/cti-pattern-validator) (import
+name `stix2patterns`). Where `stix2-patterns` disagrees with the specification,
+stixflayer follows the specification and records the difference here.
 
 - **Zero qualifier values.** The specification requires `REPEATS` to be a
   positive integer and `WITHIN` to be a positive value. The reference validator
@@ -182,6 +185,10 @@ records the difference here.
 - **Negative list indices.** The reference inspector raises an exception on a
   negative index such as `body_multipart[-1]`. The grammar allows
   `IntNegLiteral`, so stixflayer accepts it.
+- **Custom SCO type casing.** The reference validator accepts an object path
+  whose custom SCO type is not lowercase, such as `Not-A-Real-Observable`.
+  stixflayer requires custom SCO type names to be 3-250 characters of lowercase
+  ASCII letters, digits, or hyphens.
 - **Reversed or empty `START`/`STOP` ranges.** The specification defines the
   matched range as `x <= observation < y` but does not prohibit `x >= y`.
   stixflayer accepts reversed and equal ranges; earlier versions and some

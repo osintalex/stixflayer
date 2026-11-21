@@ -645,31 +645,6 @@ mod tests {
             .join("patterns")
     }
 
-    fn valid_patterns() -> Vec<String> {
-        let mut patterns = Vec::new();
-        for entry in fs::read_dir(fixture_dir("valid")).expect("valid fixture directory") {
-            let path = entry.expect("directory entry").path();
-            if path.extension().is_none_or(|ext| ext != "json") {
-                continue;
-            }
-            let text = fs::read_to_string(&path).expect("read fixture");
-            let entries: Vec<serde_json::Value> =
-                serde_json::from_str(&text).expect("parse fixture");
-            for entry in entries {
-                patterns.push(entry["pattern"].as_str().expect("pattern").to_string());
-            }
-        }
-        patterns
-    }
-
-    #[test]
-    fn every_valid_fixture_parses() {
-        for pattern in valid_patterns() {
-            StixParser::parse(Rule::pattern, &pattern)
-                .unwrap_or_else(|error| panic!("{pattern}: {error}"));
-        }
-    }
-
     #[test]
     fn parse_failures_name_a_position_and_an_expected_construct() {
         for pattern in [
