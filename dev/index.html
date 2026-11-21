@@ -971,19 +971,19 @@ industry-standard Python validator — with <em>stricter</em> spec enforcement.<
   reimplemented per language, so the same document can be valid in one and
   rejected in another. stixflayer ships a single Rust core into every
   language, so data validates the same way everywhere.</li>
-<li>⚔️ <strong>Battle-tested, but faster</strong> — built from OASIS's reference
-  implementation, with full parity against the industry-standard validator,
-  at 10–40× the speed.</li>
-<li>🧐 <strong>Stricter where it matters</strong> — rejects empty bundles, invalid
-  vocabulary values, and incorrect SCO UUIDv5 hashes that other validators
-  skip.</li>
+<li>⚔️ <strong>Spec-first, not tool-first</strong> — follows the OASIS STIX 2.1
+  specification, including its MUST/SHOULD distinction. MUST violations fail;
+  SHOULD findings are reported as warnings.</li>
+<li>🧐 <strong>Complete structural validation</strong> — rejects empty bundles, malformed
+  identifiers, closed-enumeration violations, and incorrect SCO UUIDv5
+  hashes, at 10–40× the speed.</li>
 </ul>
 <h2 id="performance">Performance 🚀<a class="headerlink" href="#performance" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>Operation</th>
-<th>stix2-validator</th>
+<th>Baseline</th>
 <th>stixflayer</th>
 <th>speedup</th>
 </tr>
@@ -1022,8 +1022,7 @@ industry-standard Python validator — with <em>stricter</em> spec enforcement.<
 <a href="https://docs.rs/stixflayer">docs.rs/stixflayer</a>.</p>
 <h2 id="credits">Credits 🙏<a class="headerlink" href="#credits" title="Permanent link">&para;</a></h2>
 <p>Built on <a href="https://github.com/oasis-open/cti-rust-stix">OASIS CTI's <code>cti-rust-stix</code></a>,
-the official STIX 2.1 reference implementation in Rust, and benchmarked
-against <a href="https://github.com/oasis-open/cti-stix-validator"><code>cti-stix-validator</code></a>.</p>
+the official STIX 2.1 reference implementation in Rust.</p>
 
   
 
