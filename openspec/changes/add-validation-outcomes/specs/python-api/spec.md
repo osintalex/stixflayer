@@ -2,9 +2,9 @@
 
 ## ADDED Requirements
 
-### Requirement: Validation outcomes are exposed through warnings and check
+### Requirement: Validation outcomes are exposed through warnings
 
-Objects returned by constructors and `from_json` SHALL expose a `.warnings` list. Exceptions SHALL expose both `.errors` and `.warnings`. A non-raising `check()` entry point SHALL return the raw outcome with `valid`, `errors`, and `warnings`.
+Objects returned by constructors and `from_json` SHALL expose a `.warnings` list. Exceptions SHALL expose both `.errors` and `.warnings`. Python validation is exception-based: MUST violations raise, and SHOULD findings are carried on the returned object or on the raised exception.
 
 #### Scenario: Object exposes warnings
 
@@ -15,16 +15,6 @@ Objects returned by constructors and `from_json` SHALL expose a `.warnings` list
 
 - **WHEN** validation raises for a MUST violation and also collected a SHOULD finding
 - **THEN** the exception has `.errors` and `.warnings`
-
-#### Scenario: check returns the raw outcome
-
-- **WHEN** `check()` is called with valid input that has a SHOULD finding
-- **THEN** it returns an outcome whose `valid` is true, `errors` is empty, and `warnings` contains the finding, without raising
-
-#### Scenario: check returns errors without raising
-
-- **WHEN** `check()` is called with input that violates a MUST requirement
-- **THEN** it returns an outcome whose `valid` is false and `errors` is non-empty, without raising
 
 ## MODIFIED Requirements
 
@@ -42,7 +32,7 @@ The package SHALL provide `.pyi` stubs covering its public entry points so that 
 - **WHEN** a function, class, or exception is added to or removed from the compiled extension's public surface
 - **THEN** the corresponding `.pyi` stubs are updated in the same change
 
-#### Scenario: Stubs declare warnings and check
+#### Scenario: Stubs declare warnings
 
 - **WHEN** the shipped stubs are inspected
-- **THEN** object classes declare `warnings`, the exception hierarchy declares `warnings`, and `check` is declared with its outcome return type
+- **THEN** object classes declare `warnings` and the exception hierarchy declares `warnings`

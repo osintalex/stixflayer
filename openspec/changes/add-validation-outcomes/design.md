@@ -19,7 +19,7 @@ See `proposal.md` — Why. Current constraints that shape the approach:
 - Each object semantically validated exactly once per entry-point call.
 - MUST violations fail; SHOULD violations warn and never fail.
 - Remove the non-spec `stix2validator` strictness in the paths this change touches.
-- Keep the Python API idiomatic: objects with `.warnings`, exceptions with `.errors` + `.warnings`, and one non-raising `check()` for the raw outcome.
+- Keep the Python API idiomatic: objects with `.warnings` and exceptions with `.errors` + `.warnings`.
 
 **Non-Goals:**
 
@@ -33,7 +33,7 @@ See `proposal.md` — Why. Current constraints that shape the approach:
 
 ### D1: Outcome-first core, idiomatic bindings
 
-The core computes `Outcome<T>` and bindings project it. Python maps success to the object with `.warnings`, failure to an exception with `.errors` and `.warnings`; `check()` exposes the raw outcome. This is the D8 direction recorded in `openspec/changes/archive/2026-10-11-fix-python-release-gaps/design.md`.
+The core computes `Outcome<T>` and bindings project it. Python maps success to the object with `.warnings` and failure to an exception with `.errors` and `.warnings`. This is the D8 direction recorded in `openspec/changes/archive/2026-10-11-fix-python-release-gaps/design.md`.
 
 ```rust
 pub struct Outcome<T = ()> {
@@ -141,17 +141,17 @@ Error kinds are cleaned up at the same time:
 - Wrapper structs gain a second tuple field: `pub struct Campaign(pub DomainObjectBuilder, pub Vec<Entry>)`. `self.0` stays, so the 120 existing accesses are untouched; `.warnings` is a getter over `self.1`.
 - `stix_to_pyerr(error, warnings)` sets both `.errors` and `.warnings` on the exception.
 - `wrap_stix_object(py, obj, warnings)` carries per-object warnings into bundle children.
-- `stixflayer.check(json_str, strict=True, version="2.1", allow_custom=False) -> Outcome` is a pyclass with `.valid`, `.errors`, `.warnings`, `.value` (wrapped object or `None`), and `.to_json()`. It is non-raising and uses the outcome pipeline once.
+- Python stays exception-based: MUST violations raise, SHOULD findings ride on the returned object or the exception. The Rust `Outcome` remains available to other bindings, which can choose a return-code or exception model.
 - `strict=True`: MUST errors, SHOULD warnings. `strict=False`: no semantic checks, so no errors and no warnings. Structural checks (required presence, unknown properties, serde) still apply.
 
 ### D7: Documentation and cross-language contract
 
 - README: spec-first wording. Do not add the proposed `--strict`/reference-validator sentence. Remove the reference-validator framing from the existing "Known divergences" section and the "Battle-tested… parity against cti-stix-validator" bullet; keep the technical notes as spec-conformance notes without naming the validator.
-- `docs/guides/validation.md`: `strict=True` vs `strict=False`, warnings, and the object/exception/`check()` mapping.
-- `docs/guides/errors.md`: one entry shape, errors + warnings catalog, `.warnings`, `check()`.
-- `.pyi`: `.warnings` on the object bases and exception hierarchy; `Outcome` and `check` declarations.
+- `docs/guides/validation.md`: `strict=True` vs `strict=False`, warnings, and the object/exception mapping.
+- `docs/guides/errors.md`: one entry shape, errors + warnings catalog, and `.warnings`.
+- `.pyi`: `.warnings` on the object bases and exception hierarchy.
 - `testdata/test_matrix.json`: `expected_warnings` on entries and warning fixtures so every binding asserts the same kinds.
-- Tests: Rust per-kind warning tests and message-detail assertions for the fields removed from the wire (`expected`/`got`); Python tests for `.warnings`, exception warnings, `check()`, `strict=False`, bundle attribution, and dedupe; matrix parity.
+- Tests: Rust per-kind warning tests and message-detail assertions for the fields removed from the wire (`expected`/`got`); Python tests for `.warnings`, exception warnings, `strict=False`, bundle attribution, and dedupe; matrix parity.
 - Benchmarks: compare constructor and parse benchmarks before/after. The collapse should improve construction; the context adds a lazily-allocated `Vec` that costs nothing when no warnings fire.
 
 ### D8: Version bump
@@ -179,7 +179,7 @@ Pre-release; no external users. Land in stages, each green on `cargo test`, `pyt
 3. Collapse Python constructors and `from_json` onto the single pipeline; delete the `validate_*_builder` helpers.
 4. Collapse the bundle path and pass per-object warnings through `wrap_stix_object`.
 5. Replace `warn!` sites with `ctx.warn`; apply the reclassification and the non-spec strictness fixes; delete `lang_codes.rs`.
-6. Add `.warnings`, exception `.warnings`, `check()`, stubs, docs, matrix, and tests.
+6. Add `.warnings`, exception `.warnings`, stubs, docs, matrix, and tests.
 7. Bump versions and run the full gate.
 
 Rollback is a plain revert; nothing external depends on the new behavior yet.

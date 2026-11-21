@@ -106,40 +106,6 @@ except ValidationError as e:
     #> invalid_vocab_value extension-type-enum
 ```
 
-## Non-raising checks with `check()`
-
-`check()` validates without raising and returns the raw outcome. Use it when
-you want to branch on findings instead of catching exceptions.
-
-```python
-import json
-
-import stixflayer
-
-outcome = stixflayer.check(
-    json.dumps(
-        {
-            "type": "identity",
-            "spec_version": "2.1",
-            "id": "identity--c78b4a5a-3b42-4f2e-9b1a-7f8e9d0c1a2b",
-            "created": "2019-04-24T15:12:36.609Z",
-            "modified": "2023-03-24T15:14:15.637Z",
-            "name": "Acme",
-            "identity_class": "bogus-class",
-        }
-    )
-)
-print(outcome.valid)
-#> True
-print([entry["kind"] for entry in outcome.warnings])
-#> ['open_vocab_value_not_suggested']
-print(outcome.errors)
-#> []
-```
-
-`check()` returns `valid=False` and a non-empty `errors` list for MUST
-violations instead of raising.
-
 ## All errors at once
 
 Validation collects every problem it finds — inspect `errors` as a list

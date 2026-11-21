@@ -53,29 +53,6 @@ except DeserializationError as e:
     #> Deserialization error: Expected a STIX object (JSON object), got array.
 ```
 
-## Non-raising checks
-
-`check()` returns the raw outcome without raising, so you can inspect both
-lists directly.
-
-```python
-import json
-
-import stixflayer
-
-outcome = stixflayer.check(
-    '{"type": "identity", "id": "identity--c78b4a5a-3b42-4f2e-9b1a-7f8e9d0c1a2b", '
-    '"created": "2019-04-24T15:12:36.609Z", "modified": "2023-03-24T15:14:15.637Z", '
-    '"name": "Acme", "identity_class": "bogus-class", "spec_version": "2.1"}'
-)
-print(outcome.valid, len(outcome.errors), len(outcome.warnings))
-#> True 0 1
-
-data = json.loads(outcome.to_json())
-print(data["valid"], data["errors"], [entry["kind"] for entry in data["warnings"]])
-#> True [] ['open_vocab_value_not_suggested']
-```
-
 ## Error catalog
 
 | Kind | Extra fields | Meaning |

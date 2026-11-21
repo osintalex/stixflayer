@@ -67,35 +67,6 @@ class TestExceptionWarnings:
         assert any(entry["kind"] == "open_vocab_value_not_suggested" for entry in warnings)
 
 
-class TestCheck:
-    def test_check_valid_with_warnings(self):
-        outcome = stixflayer.check(identity_json(identity_class="bogus-class"))
-        assert outcome.valid is True
-        assert outcome.errors == []
-        assert len(outcome.warnings) == 1
-        assert outcome.value is not None
-        assert outcome.value.identity_class == "bogus-class"
-
-    def test_check_invalid_does_not_raise(self):
-        outcome = stixflayer.check(identity_json(name=""))
-        assert outcome.valid is False
-        assert outcome.value is None
-        assert any(entry["kind"] == "missing_property" for entry in outcome.errors)
-
-    def test_check_to_json_shape(self):
-        outcome = stixflayer.check(identity_json(identity_class="bogus-class"))
-        data = json.loads(outcome.to_json())
-        assert data["valid"] is True
-        assert data["errors"] == []
-        assert data["warnings"][0]["kind"] == "open_vocab_value_not_suggested"
-        assert data["value"]["type"] == "identity"
-
-    def test_check_strict_false_skips_semantic_checks(self):
-        outcome = stixflayer.check(identity_json(identity_class="bogus-class"), strict=False)
-        assert outcome.valid is True
-        assert outcome.warnings == []
-
-
 class TestBundleAttribution:
     def test_bundle_and_objects_carry_warnings(self):
         bundle_json = json.dumps(

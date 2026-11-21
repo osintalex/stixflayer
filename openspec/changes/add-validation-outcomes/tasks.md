@@ -43,14 +43,14 @@
 
 - [x] 6.1 Add a second tuple field for warnings to every `#[pyclass]` wrapper and a `.warnings` getter returning a list of dicts; verify `obj.warnings` on each object class and that `strict=False` yields an empty list.
 - [x] 6.2 Pass warnings through `stix_to_pyerr` so exceptions expose both `.errors` and `.warnings`; verify an input that violates a MUST and a SHOULD exposes both lists.
-- [x] 6.3 Add the non-raising `check()` entry point and the Python `Outcome` class (`.valid`, `.errors`, `.warnings`, `.value`, `.to_json()`); verify valid-with-warnings and invalid cases return the right fields without raising.
-- [x] 6.4 Update `src/stixflayer/stixflayer.pyi` and `__init__.pyi` with `.warnings`, `Outcome`, and `check`; verify `uv run pyrefly check` and the stub-sync test.
-- [x] 6.5 Add Python tests for `.warnings`, exception warnings, `check()`, `strict=False`, bundle attribution, and dedupe; verify `uv run pytest --benchmark-disable` passes.
+- [x] 6.3 Keep Python exception-based: do not add a non-raising `check()` entry point. Verify a valid-with-warnings input returns an object carrying `.warnings`, and an invalid input raises with both `.errors` and `.warnings`.
+- [x] 6.4 Update `src/stixflayer/stixflayer.pyi` and `__init__.pyi` with `.warnings`; verify `uv run pyrefly check` and the stub-sync test.
+- [x] 6.5 Add Python tests for `.warnings`, exception warnings, `strict=False`, bundle attribution, and dedupe; verify `uv run pytest --benchmark-disable` passes.
 
 ## 7. Documentation and cross-language contract
 
 - [x] 7.1 Rewrite the README's conformance wording to be spec-first: remove the reference-validator framing from the existing "Known divergences" section and the "Battle-tested… parity against cti-stix-validator" bullet, keep the technical notes as spec-conformance notes, and document the spec rules users may care about (250-character keys, well-formed RFC 5646 language tags including ISO 639-2, unrestricted HTTP header names, SHOULD findings as warnings) without naming the validator; verify the README has no reference-validator mentions, the spec-conformance notes are present, and the README renders correctly.
-- [x] 7.2 Update `docs/guides/validation.md` and `docs/guides/errors.md` with the `strict=True`/`strict=False` model, the shared entry shape, the errors + warnings catalog, `.warnings`, and `check()`; verify `uv run pytest tests/test_docs_examples.py` passes.
+- [x] 7.2 Update `docs/guides/validation.md` and `docs/guides/errors.md` with the `strict=True`/`strict=False` model, the shared entry shape, the errors + warnings catalog, and `.warnings`; verify `uv run pytest tests/test_docs_examples.py` passes.
 - [x] 7.3 Add `expected_warnings` and warning fixtures to `testdata/test_matrix.json`; verify the matrix tests assert the same kinds and no message substrings.
 - [x] 7.4 Add benchmark coverage for the collapsed constructor/parse paths and record the before/after comparison in the change; verify `uv run pytest benchmarks --benchmark-only` runs and no regression exceeds the agreed threshold.
 

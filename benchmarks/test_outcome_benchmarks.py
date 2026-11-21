@@ -1,4 +1,4 @@
-"""Benchmarks for the single-pass constructor, parse, and outcome paths."""
+"""Benchmarks for the single-pass constructor and parse paths."""
 
 from __future__ import annotations
 
@@ -36,27 +36,23 @@ def from_json_path() -> Any:
     return stixflayer.Identity.from_json(IDENTITY_JSON)
 
 
-def check_path() -> Any:
-    return stixflayer.check(IDENTITY_JSON)
-
-
 def bundle_path() -> Any:
     return stixflayer.Bundle.from_json(load_json_text(DATA_DIR / "apt1.json"))
 
 
 @pytest.mark.parametrize(
     "target",
-    [constructor_path, from_json_path, check_path],
-    ids=["constructor", "from_json", "check"],
+    [constructor_path, from_json_path],
+    ids=["constructor", "from_json"],
 )
 def test_single_object_paths(benchmark: Any, target: Any) -> None:
-    """Compare the constructor, parse, and non-raising outcome paths."""
+    """Compare the constructor and parse paths."""
     benchmark.group = "single_object_paths"
     benchmark.extra_info["path"] = target.__name__
     benchmark.pedantic(target, setup=gc_setup, rounds=100, warmup_rounds=10)
 
 
 def test_bundle_parse(benchmark: Any) -> None:
-    """Full bundle parse through the single-pass outcome pipeline."""
+    """Full bundle parse through the single-pass validation pipeline."""
     benchmark.group = "bundle_parse"
     benchmark.pedantic(bundle_path, setup=gc_setup, rounds=20, warmup_rounds=5)
