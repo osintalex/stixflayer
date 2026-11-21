@@ -1,0 +1,14 @@
+[
+    {
+        "id": "V52",
+        "description": "Reversed START/STOP range is accepted",
+        "pattern": "[file:name = 'x'] START t'2025-02-01T00:00:00Z' STOP t'2025-01-01T00:00:00Z'",
+        "spec": "9.5.1"
+    },
+    {
+        "id": "V53",
+        "description": "Equal START/STOP range is accepted",
+        "pattern": "[file:name = 'x'] START t'2025-01-01T00:00:00Z' STOP t'2025-01-01T00:00:00Z'",
+        "spec": "9.5.1"
+    }
+]

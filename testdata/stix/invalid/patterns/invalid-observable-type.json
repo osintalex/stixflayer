@@ -1,13 +1,10 @@
-{
-    "//": "INVALID: pattern references unknown observable type 'not-a-real-observable'",
-    "type": "indicator",
-    "spec_version": "2.1",
-    "id": "indicator--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
-    "created": "2016-04-06T08:17:27.000Z",
-    "modified": "2016-04-06T08:17:27.000Z",
-    "name": "Bad Observable Type",
-    "indicator_types": ["malicious-activity"],
-    "pattern": "[not-a-real-observable:value = 'test']",
-    "pattern_type": "stix",
-    "valid_from": "2016-04-06T08:17:27.000Z"
-}
+[
+    {
+        "id": "I29",
+        "description": "Object path uses an invalid observable type name",
+        "pattern": "[Not-A-Real-Observable:value = 'test']",
+        "spec": "9.7",
+        "layer": "semantic",
+        "expected_error": "not a valid observable type name"
+    }
+]

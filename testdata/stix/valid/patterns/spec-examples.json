@@ -1,0 +1,140 @@
+[
+    {
+        "id": "V01",
+        "description": "File SHA-256 hash equality",
+        "pattern": "[file:hashes.'SHA-256' = 'aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019f']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V02",
+        "description": "Email sender and body-part filename regular expressions",
+        "pattern": "[email-message:from_ref.value MATCHES '.+\\\\@example\\\\.com$' AND email-message:body_multipart[*].body_raw_ref.name MATCHES '^Final Report.+\\\\.exe$']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V03",
+        "description": "File SHA-256 hash and MIME type",
+        "pattern": "[file:hashes.'SHA-256' = 'aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019f' AND file:mime_type = 'application/x-pdf']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V04",
+        "description": "OR group followed by an AND observation",
+        "pattern": "[file:hashes.'SHA-256' = 'bf07a7fbb825fc0aae7bf4a1177b2b31fcf8a3feeaf7092761e18c859ee52a9c' OR file:hashes.MD5 = 'cead3f77f6cda6ec00f57d76c9a6879f'] AND [file:hashes.'SHA-256' = 'aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019f']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V05",
+        "description": "FOLLOWEDBY observations with a WITHIN qualifier",
+        "pattern": "([file:hashes.MD5 = '79054025255fb1a26e4bc422aef54eb4'] FOLLOWEDBY [win-registry-key:key = 'HKEY_LOCAL_MACHINE\\\\foo\\\\bar']) WITHIN 300 SECONDS",
+        "spec": "9.8"
+    },
+    {
+        "id": "V06",
+        "description": "Three AND-chained user-account observations",
+        "pattern": "[user-account:account_type = 'unix' AND user-account:user_id = '1007' AND user-account:account_login = 'Peter'] AND [user-account:account_type = 'unix' AND user-account:user_id = '1008' AND user-account:account_login = 'Paul'] AND [user-account:account_type = 'unix' AND user-account:user_id = '1009' AND user-account:account_login = 'Mary']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V07",
+        "description": "Artifact MIME type and payload regular expression",
+        "pattern": "[artifact:mime_type = 'application/vnd.tcpdump.pcap' AND artifact:payload_bin MATCHES '\\\\xd4\\\\xc3\\\\xb2\\\\xa1\\\\x02\\\\x00\\\\x04\\\\x00']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V08",
+        "description": "File name and parent directory path",
+        "pattern": "[file:name = 'foo.dll' AND file:parent_directory_ref.path = 'C:\\\\Windows\\\\System32']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V09",
+        "description": "File section entropy greater than a float",
+        "pattern": "[file:extensions.'windows-pebinary-ext'.sections[*].entropy > 7.0]",
+        "spec": "9.8"
+    },
+    {
+        "id": "V10",
+        "description": "File MIME type and hexadecimal magic number",
+        "pattern": "[file:mime_type = 'image/bmp' AND file:magic_number_hex = h'ffd8']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V11",
+        "description": "Network traffic destination reference type and value",
+        "pattern": "[network-traffic:dst_ref.type = 'ipv4-addr' AND network-traffic:dst_ref.value = '203.0.113.33/32']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V12",
+        "description": "Network traffic observation with REPEATS and WITHIN",
+        "pattern": "[network-traffic:dst_ref.type = 'domain-name' AND network-traffic:dst_ref.value = 'example.com'] REPEATS 5 TIMES WITHIN 1800 SECONDS",
+        "spec": "9.8"
+    },
+    {
+        "id": "V13",
+        "description": "Domain name and resolved reference value",
+        "pattern": "[domain-name:value = 'www.5z8.info' AND domain-name:resolves_to_refs[*].value = '198.51.100.1/32']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V14",
+        "description": "URL OR comparison",
+        "pattern": "[url:value = 'http://example.com/foo' OR url:value = 'http://example.com/bar']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V15",
+        "description": "X.509 issuer and serial number",
+        "pattern": "[x509-certificate:issuer = 'CN=WEBMAIL' AND x509-certificate:serial_number = '4c:0b:1d:19:74:86:a7:66:b4:1a:bf:40:27:21:76:28']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V16",
+        "description": "Windows registry key OR comparison",
+        "pattern": "[windows-registry-key:key = 'HKEY_CURRENT_USER\\\\Software\\\\CryptoLocker\\\\Files' OR windows-registry-key:key = 'HKEY_CURRENT_USER\\\\Software\\\\Microsoft\\\\CurrentVersion\\\\Run\\\\CryptoLocker_0388']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V17",
+        "description": "Comparison group on the left of an AND",
+        "pattern": "[(file:name = 'pdf.exe' OR file:size = '371712') AND file:created = t'2014-01-13T07:03:17Z']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V18",
+        "description": "Email sender and subject containing a space",
+        "pattern": "[email-message:sender_ref.value = 'jdoe@example.com' AND email-message:subject = 'Conference Info']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V19",
+        "description": "Custom SCO with a nested dictionary property",
+        "pattern": "[x-usb-device:usbdrive.serial_number = '575833314133343231313937']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V20",
+        "description": "Process command-line FOLLOWEDBY with WITHIN",
+        "pattern": "[process:command_line MATCHES '^.+>-add GlobalSign.cer -c -s -r localMachine Root$'] FOLLOWEDBY [process:command_line MATCHES'^.+>-add GlobalSign.cer -c -s -r localMachineTrustedPublisher$'] WITHIN 300 SECONDS",
+        "spec": "9.8"
+    },
+    {
+        "id": "V21",
+        "description": "ISSUBSET comparison",
+        "pattern": "[network-traffic:dst_ref.value ISSUBSET '2001:0db8:dead:beef:0000:0000:0000:0000/64']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V22",
+        "description": "Observation groups combined with OR",
+        "pattern": "([file:name = 'foo.dll'] AND [win-registry-key:key = 'HKEY_LOCAL_MACHINE\\\\foo\\\\bar']) OR [process:name = 'fooproc' OR process:name = 'procfoo']",
+        "spec": "9.8"
+    },
+    {
+        "id": "V23",
+        "description": "File MD5 hash equality",
+        "pattern": "[file:hashes.MD5 = 'cead3f77f6cda6ec00f57d76c9a69faa']",
+        "spec": "9.8"
+    }
+]

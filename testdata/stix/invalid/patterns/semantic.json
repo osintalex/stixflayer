@@ -1,0 +1,34 @@
+[
+    {
+        "id": "V43",
+        "description": "REPEATS 0 is grammar-valid but the specification requires a positive integer",
+        "pattern": "[file:name = 'x'] REPEATS 0 TIMES",
+        "spec": "9.5.1",
+        "layer": "semantic",
+        "expected_error": "positive integer"
+    },
+    {
+        "id": "V44",
+        "description": "WITHIN 0 is grammar-valid but the specification requires a positive value",
+        "pattern": "[file:name = 'x'] WITHIN 0 SECONDS",
+        "spec": "9.5.1",
+        "layer": "semantic",
+        "expected_error": "positive number"
+    },
+    {
+        "id": "V45",
+        "description": "AND joins comparisons on different SCO types",
+        "pattern": "[ipv4-addr:value = '1.1.1.1' AND ipv6-addr:value = '::1']",
+        "spec": "9.6",
+        "layer": "semantic",
+        "expected_error": "different objects"
+    },
+    {
+        "id": "V51",
+        "description": "Duplicate WITHIN qualifier",
+        "pattern": "[file:name = 'x'] WITHIN 600 SECONDS WITHIN 300 SECONDS",
+        "spec": "9.5.1",
+        "layer": "semantic",
+        "expected_error": "more than one Qualifier of the same type"
+    }
+]

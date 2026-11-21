@@ -1,0 +1,113 @@
+// STIX 2.1 patterning grammar, hand-ported from the OASIS STIXPattern.g4.
+//
+// Specification: https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_e8slinrhxcc9
+// Upstream grammar: STIXPattern.g4 from cti-stix2-json-schemas (237 lines)
+// Upstream SHA-256: bfe2cd1367705630783c55fb1f9969feb94ed43e27acd0c266e6bc0846f761c1
+//
+// Why pest: antlr-rust needs a code generator and a newer MSRV; chumsky leaks
+// trivia into every expected set; a nom rewrite discards the deepest error.
+// pest_derive is a proc macro, so there is no build.rs, generator, JVM, or
+// runtime data file. Its expected-token sets produce the position and
+// expected-construct diagnostics the error-reporting contract requires.
+//
+// The ANTLR grammar's left-recursive rules become ordered list rules folded in
+// Rust. Token rules that ANTLR matches before identifiers keep the same
+// priority here through negative lookahead on the identifier character class.
+
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" | "\u{000B}" | "\u{000C}" | "\u{0085}" | "\u{00A0}" | "\u{1680}" | "\u{2000}" | "\u{2001}" | "\u{2002}" | "\u{2003}" | "\u{2004}" | "\u{2005}" | "\u{2006}" | "\u{2007}" | "\u{2008}" | "\u{2009}" | "\u{200A}" | "\u{2028}" | "\u{2029}" | "\u{202F}" | "\u{205F}" | "\u{3000}" }
+COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" | "//" ~ (!"\r" ~ !"\n" ~ ANY)* }
+
+ident_char = _{ ASCII_ALPHANUMERIC | "_" | "-" }
+keyword = @{ ("AND" | "OR" | "NOT" | "FOLLOWEDBY" | "LIKE" | "MATCHES" | "ISSUPERSET" | "ISSUBSET" | "EXISTS" | "LAST" | "IN" | "START" | "STOP" | "SECONDS" | "true" | "false" | "WITHIN" | "REPEATS" | "TIMES") ~ !ident_char }
+ident_no_hyphen = @{ !keyword ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+ident_with_hyphen = @{ !keyword ~ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" | "-")* }
+
+pattern = { SOI ~ observation_expressions ~ EOI }
+
+observation_expressions = { observation_expression_or ~ (kw_followedby ~ observation_expression_or)* }
+observation_expression_or = { observation_expression_and ~ (kw_or ~ observation_expression_and)* }
+observation_expression_and = { observation_expression ~ (kw_and ~ observation_expression)* }
+observation_expression = { (comparison_observation | compound_observation) ~ qualifier* }
+comparison_observation = { l_bracket ~ comparison_expression ~ r_bracket }
+compound_observation = { l_paren ~ observation_expressions ~ r_paren }
+
+comparison_expression = { comparison_expression_and ~ (kw_or ~ comparison_expression_and)* }
+comparison_expression_and = { prop_test ~ (kw_and ~ prop_test)* }
+
+prop_test = { object_path ~ kw_not? ~ (eq_op | neq_op) ~ primitive_literal
+            | object_path ~ kw_not? ~ order_op ~ orderable_literal
+            | object_path ~ kw_not? ~ kw_in ~ set_literal
+            | object_path ~ kw_not? ~ kw_like ~ string_literal
+            | object_path ~ kw_not? ~ kw_matches ~ string_literal
+            | object_path ~ kw_not? ~ kw_issubset ~ string_literal
+            | object_path ~ kw_not? ~ kw_issuperset ~ string_literal
+            | l_paren ~ comparison_expression ~ r_paren
+            | kw_not? ~ kw_exists ~ object_path }
+
+object_path = { object_type ~ colon ~ first_path_component ~ path_component* }
+object_type = { ident_with_hyphen }
+first_path_component = { ident_no_hyphen | string_literal }
+path_component = { dot ~ (ident_no_hyphen | string_literal)
+                 | l_bracket ~ (int_pos | int_neg | asterisk) ~ r_bracket }
+
+set_literal = { l_paren ~ (primitive_literal ~ (comma ~ primitive_literal)*)? ~ r_paren }
+primitive_literal = { orderable_literal | bool_literal }
+orderable_literal = { float_pos | float_neg | int_pos | int_neg | string_literal | binary_literal | hex_literal | timestamp_literal }
+
+qualifier = { start_stop | within | repeats }
+start_stop = { kw_start ~ timestamp_literal ~ kw_stop ~ timestamp_literal }
+within = { kw_within ~ (float_pos | int_pos) ~ kw_seconds }
+repeats = { kw_repeats ~ int_pos ~ kw_times }
+
+string_literal = @{ "'" ~ ("\\'" | "\\\\" | (!"'" ~ !"\\" ~ ANY))* ~ "'" }
+hex_literal = @{ "h'" ~ (ASCII_HEX_DIGIT{2})* ~ "'" }
+base64_char = @{ ASCII_ALPHANUMERIC | "+" | "/" }
+base64_body = @{ base64_char{4} ~ base64_body | base64_char{4} | base64_char{2} ~ "==" | base64_char{3} ~ "=" }
+binary_literal = @{ "b'" ~ base64_body ~ "'" }
+timestamp_literal = @{ "t'" ~ year ~ "-" ~ month ~ "-" ~ day ~ "T" ~ hour ~ ":" ~ minute ~ ":" ~ second ~ ("." ~ ASCII_DIGIT+)? ~ "Z" ~ "'" }
+
+year = @{ ASCII_DIGIT{4} }
+month = @{ ("0" ~ '1'..'9') | ("1" ~ ("0" | "1" | "2")) }
+day = @{ ("0" ~ '1'..'9') | (("1" | "2") ~ ASCII_DIGIT) | ("3" ~ ("0" | "1")) }
+hour = @{ (("0" | "1") ~ ASCII_DIGIT) | ("2" ~ ("0" | "1" | "2" | "3")) }
+minute = @{ ('0'..'5') ~ ASCII_DIGIT }
+second = @{ ('0'..'5') ~ ASCII_DIGIT | "60" }
+
+int_pos = @{ "+"? ~ ("0" | ('1'..'9') ~ ASCII_DIGIT*) }
+int_neg = @{ "-" ~ ("0" | ('1'..'9') ~ ASCII_DIGIT*) }
+float_pos = @{ "+"? ~ ASCII_DIGIT* ~ "." ~ ASCII_DIGIT+ }
+float_neg = @{ "-" ~ ASCII_DIGIT* ~ "." ~ ASCII_DIGIT+ }
+
+bool_literal = @{ kw_true | kw_false }
+
+kw_and = @{ "AND" ~ !ident_char }
+kw_or = @{ "OR" ~ !ident_char }
+kw_not = @{ "NOT" ~ !ident_char }
+kw_followedby = @{ "FOLLOWEDBY" ~ !ident_char }
+kw_like = @{ "LIKE" ~ !ident_char }
+kw_matches = @{ "MATCHES" ~ !ident_char }
+kw_issuperset = @{ "ISSUPERSET" ~ !ident_char }
+kw_issubset = @{ "ISSUBSET" ~ !ident_char }
+kw_exists = @{ "EXISTS" ~ !ident_char }
+kw_last = @{ "LAST" ~ !ident_char }
+kw_in = @{ "IN" ~ !ident_char }
+kw_start = @{ "START" ~ !ident_char }
+kw_stop = @{ "STOP" ~ !ident_char }
+kw_seconds = @{ "SECONDS" ~ !ident_char }
+kw_true = @{ "true" ~ !ident_char }
+kw_false = @{ "false" ~ !ident_char }
+kw_within = @{ "WITHIN" ~ !ident_char }
+kw_repeats = @{ "REPEATS" ~ !ident_char }
+kw_times = @{ "TIMES" ~ !ident_char }
+
+l_bracket = { "[" }
+r_bracket = { "]" }
+l_paren = { "(" }
+r_paren = { ")" }
+colon = { ":" }
+comma = { "," }
+dot = { "." }
+asterisk = { "*" }
+eq_op = { "==" | "=" }
+neq_op = { "!=" | "<>" }
+order_op = { ">=" | "<=" | ">" | "<" }
