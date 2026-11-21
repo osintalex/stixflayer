@@ -2,7 +2,7 @@
 
 use crate::{
     base::{CommonProperties, CommonPropertiesBuilder, Stix},
-    error::{add_error, return_multiple_errors, StixError as Error},
+    error::{add_error, return_multiple_errors, CheckContext, Outcome, StixError as Error},
     relationship_objects::{Related, RelationshipObjectBuilder},
     types::{ExtensionType, ExternalReference, GranularMarking, Identified, Identifier, Timestamp},
     validation::validate_value,
@@ -115,11 +115,12 @@ impl Related for ExtensionDefinition {
 crate::impl_custom_properties_holder!(ExtensionDefinition);
 
 impl Stix for ExtensionDefinition {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
+        ctx.set_object_id(Some(self.get_id().to_string()));
         let mut errors = Vec::new();
 
         // Check common properties
-        add_error(&mut errors, self.common_properties.stix_check());
+        add_error(&mut errors, self.common_properties.check(ctx));
 
         // Check that required common properties fields are present and prohibited common properties fields are absent
 
@@ -467,8 +468,19 @@ impl ExtensionDefinitionBuilder {
     /// This assembles the final `ExtensionDefinition` object from the builder and
     /// then runs `stix_check()` on it.
     pub fn build(self) -> Result<ExtensionDefinition, Error> {
-        let extension_definition = self.build_no_validate()?;
-        extension_definition.stix_check()?;
-        Ok(extension_definition)
+        let object = self.build_no_validate()?;
+        object.stix_check()?;
+        Ok(object)
+    }
+
+    /// Builds the object and returns its validation outcome, including warnings.
+    pub fn build_outcome(self) -> Outcome<ExtensionDefinition> {
+        let object = match self.build_no_validate() {
+            Ok(object) => object,
+            Err(error) => return Outcome::err(error, Vec::new()),
+        };
+        let mut ctx = CheckContext::new();
+        let result = object.check(&mut ctx).map(|()| object);
+        Outcome::from_result(result, ctx.into_warnings())
     }
 }

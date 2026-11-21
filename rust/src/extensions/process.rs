@@ -1,3 +1,4 @@
+use crate::error::CheckContext;
 use crate::{
     base::Stix,
     common::validation::{is_exact_vocab_value, validate_refs_are_type},
@@ -46,7 +47,7 @@ pub struct WindowsProcessExtension {
     pub integrity_level: Option<String>,
 }
 impl Stix for WindowsProcessExtension {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(priority) = &self.priority {
@@ -67,7 +68,7 @@ impl Stix for WindowsProcessExtension {
         }
 
         if let Some(startup_info) = &self.startup_info {
-            add_error(&mut errors, startup_info.stix_check());
+            add_error(&mut errors, startup_info.check(ctx));
         }
 
         return_multiple_errors(errors)
@@ -101,7 +102,7 @@ pub struct WindowsServiceExtension {
     pub service_status: Option<String>,
 }
 impl Stix for WindowsServiceExtension {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(service_dll_refs) = &self.service_dll_refs {

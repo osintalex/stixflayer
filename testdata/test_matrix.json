@@ -10,9 +10,12 @@
     "indicator-pattern-type-enum": {
       "category": "sdo",
       "object_type": "indicator",
-      "rule": "pattern_type MUST come from indicator-pattern-type-ov",
+      "rule": "pattern_type SHOULD come from pattern-type-ov; custom values warn",
       "fixture": "invalid/sdo/indicator-bad-pattern-type.json",
-      "expected_error_substring": "pattern type should come from the STIX pattern type open vocabulary"
+      "expected_behavior": "parses_successfully",
+      "expected_warnings": [
+        "open_vocab_value_not_suggested"
+      ]
     },
     "indicator-spec-version-not-2.1": {
       "category": "sdo",
@@ -32,9 +35,12 @@
     "malware-types-enum": {
       "category": "sdo",
       "object_type": "malware",
-      "rule": "malware_types values MUST come from malware-type-ov",
+      "rule": "malware_types SHOULD come from malware-type-ov; custom values warn",
       "fixture": "invalid/sdo/malware-bad-malware-types.json",
-      "expected_error_substring": "malware_types"
+      "expected_behavior": "parses_successfully",
+      "expected_warnings": [
+        "open_vocab_value_not_suggested"
+      ]
     },
     "ipv4-address-format": {
       "category": "sco",
@@ -63,6 +69,47 @@
       "rule": "Parsing a revoked object MUST NOT alter id/created/modified (parsing is not versioning)",
       "fixture": "valid/sdos/attack-pattern-revoked.json",
       "expected_behavior": "parses_successfully"
+    },
+    "identity-custom-class-warns": {
+      "category": "sdo",
+      "object_type": "identity",
+      "rule": "identity_class SHOULD come from identity-class-ov; custom values warn",
+      "fixture": "valid/sdos/identity-custom-class.json",
+      "expected_behavior": "parses_successfully",
+      "expected_warnings": [
+        "open_vocab_value_not_suggested"
+      ]
+    },
+    "file-md5-warns": {
+      "category": "sco",
+      "object_type": "file",
+      "rule": "SHA-256 SHOULD be used; other algorithms warn",
+      "fixture": "valid/scos/file-md5.json",
+      "expected_behavior": "parses_successfully",
+      "expected_warnings": [
+        "hash_not_sha256"
+      ]
+    },
+    "identity-uppercase-extension-warns": {
+      "category": "sdo",
+      "object_type": "identity",
+      "rule": "extensions keys SHOULD be lowercase and reference extension definitions",
+      "fixture": "valid/sdos/identity-uppercase-extension.json",
+      "expected_behavior": "parses_successfully",
+      "expected_warnings": [
+        "dictionary_key_not_lowercase",
+        "extension_key_not_extension_definition"
+      ]
+    },
+    "network-traffic-missing-ports-warns": {
+      "category": "sco",
+      "object_type": "network-traffic",
+      "rule": "network traffic SHOULD contain src_port and dst_port",
+      "fixture": "valid/scos/network-traffic-missing-ports.json",
+      "expected_behavior": "parses_successfully",
+      "expected_warnings": [
+        "network_traffic_missing_port"
+      ]
     }
   },
   "custom_properties": {

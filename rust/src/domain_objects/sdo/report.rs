@@ -4,9 +4,10 @@
 //!
 //! For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_n8bjzg1ysgdq>
 
+use crate::error::CheckContext;
 use crate::{
     base::Stix,
-    common::validation::validate_vocab_list,
+    common::validation::warn_vocab_list,
     domain_objects::vocab::ReportType,
     error::{add_error, return_multiple_errors, StixError as Error},
     types::{stix_case, Identifier, ScoTypes, SroTypes, StixMetaTypes, Timestamp},
@@ -33,15 +34,12 @@ pub struct Report {
 }
 
 impl Stix for Report {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(report_types) = &self.report_types {
-            add_error(&mut errors, report_types.stix_check());
-            add_error(
-                &mut errors,
-                validate_vocab_list::<ReportType, _>(report_types, "report-type-ov"),
-            );
+            add_error(&mut errors, report_types.check(ctx));
+            warn_vocab_list::<ReportType, _>(ctx, report_types, "report-type-ov", "report_types");
             for report_type in report_types {
                 if !ScoTypes::iter().all(|x| x.as_ref() != stix_case(report_type))
                     || !SroTypes::iter().all(|x| x.as_ref() != stix_case(report_type))
@@ -53,7 +51,7 @@ impl Stix for Report {
                     )));
                 }
             }
-            add_error(&mut errors, self.object_refs.stix_check());
+            add_error(&mut errors, self.object_refs.check(ctx));
         }
         return_multiple_errors(errors)
     }

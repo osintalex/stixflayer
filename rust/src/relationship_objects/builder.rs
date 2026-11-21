@@ -1,6 +1,6 @@
 use crate::{
     base::{CommonPropertiesBuilder, Stix},
-    error::StixError as Error,
+    error::{CheckContext, Outcome, StixError as Error},
     relationship_objects::types::RelationshipType,
     types::{
         DictionaryValue, ExternalReference, GranularMarking, Identifier, StixDictionary, Timestamp,
@@ -343,8 +343,19 @@ impl RelationshipObjectBuilder {
     /// This assembles the final `RelationshipObject` from the builder and then
     /// runs `stix_check()` on it.
     pub fn build(self) -> Result<RelationshipObject, Error> {
-        let sro = self.build_no_validate()?;
-        sro.stix_check()?;
-        Ok(sro)
+        let object = self.build_no_validate()?;
+        object.stix_check()?;
+        Ok(object)
+    }
+
+    /// Builds the object and returns its validation outcome, including warnings.
+    pub fn build_outcome(self) -> Outcome<RelationshipObject> {
+        let object = match self.build_no_validate() {
+            Ok(object) => object,
+            Err(error) => return Outcome::err(error, Vec::new()),
+        };
+        let mut ctx = CheckContext::new();
+        let result = object.check(&mut ctx).map(|()| object);
+        Outcome::from_result(result, ctx.into_warnings())
     }
 }

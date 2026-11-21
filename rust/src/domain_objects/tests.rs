@@ -447,20 +447,27 @@ mod nesting_tests {
     /// render the `STIX validation error:` prefix exactly once.
     #[test]
     fn nested_vocab_failure_keeps_single_prefix() {
+        // `extension_type` is a closed enum, so a bad value is a MUST error
+        // raised from the nested common-properties check.
         let json = serde_json::json!({
-            "type": "threat-actor",
-            "id": "threat-actor--12345678-1234-5678-1234-567812345678",
+            "type": "identity",
+            "id": "identity--12345678-1234-5678-1234-567812345678",
             "spec_version": "2.1",
             "created": "2016-05-12T08:17:27Z",
             "modified": "2016-05-12T08:17:27Z",
             "name": "Bogus Actor",
-            "sophistication": "definitely-not-a-level",
+            "identity_class": "organization",
+            "extensions": {
+                "extension-definition--12345678-1234-5678-1234-567812345678": {
+                    "extension_type": "definitely-not-a-type"
+                }
+            }
         });
         let error =
             crate::validation::validate_value::<DomainObject>(json, false, true).unwrap_err();
         let message = error.to_string();
         assert!(
-            message.contains("sophistication") || message.contains("threat-actor"),
+            message.contains("extension-type-enum") || message.contains("definitely-not-a-type"),
             "message: {message}"
         );
         assert_eq!(

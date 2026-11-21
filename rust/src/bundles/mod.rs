@@ -8,12 +8,12 @@ pub mod validation;
 pub use deserialize::deserialize_bundle_objects;
 
 use crate::{
-    base::Stix,
-    error::StixError as Error,
+    error::{add_error, return_multiple_errors, Entry, Outcome, StixError as Error},
     object::StixObject,
     types::{Identified, Identifier},
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 /// A Bundle is a collection of arbitrary STIX Objects grouped together in a single container.
 ///
@@ -60,13 +60,60 @@ impl Bundle {
         Ok(())
     }
 
-    /// Deserialize a bundle from a JSON String and validate the contents of the bundle
+    /// Deserialize a bundle from a JSON String and validate the contents of the bundle.
+    ///
+    /// Each object is validated exactly once through the outcome pipeline; the
+    /// bundle then runs only its own invariants (type, id, non-empty, duplicate
+    /// ids, and enforce-refs).
     pub fn from_json(json: &str) -> Result<Self, Error> {
-        let bundle: Self =
-            serde_json::from_str(json).map_err(|e| Error::DeserializationError(e.to_string()))?;
-        bundle.stix_check()?;
+        Self::from_json_parts(json).0
+    }
 
-        Ok(bundle)
+    /// Deserialize a bundle and return the warnings collected from every object.
+    pub fn from_json_outcome(json: &str) -> Outcome<Self> {
+        let (result, warnings) = Self::from_json_parts(json);
+        Outcome::from_result(result, warnings)
+    }
+
+    /// Shared implementation for [`Self::from_json`] and
+    /// [`Self::from_json_outcome`].
+    pub fn from_json_parts(json: &str) -> (Result<Self, Error>, Vec<Entry>) {
+        #[derive(Deserialize)]
+        struct RawBundle {
+            #[serde(rename = "type")]
+            object_type: String,
+            id: Identifier,
+            objects: Vec<Value>,
+        }
+
+        let raw: RawBundle = match serde_json::from_str(json) {
+            Ok(raw) => raw,
+            Err(e) => return (Err(Error::DeserializationError(e.to_string())), Vec::new()),
+        };
+
+        let mut objects = Vec::with_capacity(raw.objects.len());
+        let mut errors = Vec::new();
+        let mut warnings = Vec::new();
+        for value in raw.objects {
+            let (result, mut object_warnings) = StixObject::from_value_parts(value, true, true);
+            warnings.append(&mut object_warnings);
+            match result {
+                Ok(object) => objects.push(object),
+                Err(error) => errors.push(error),
+            }
+        }
+
+        let bundle = Self {
+            object_type: raw.object_type,
+            id: raw.id,
+            objects,
+        };
+
+        if errors.is_empty() {
+            add_error(&mut errors, bundle.check_invariants());
+        }
+
+        (return_multiple_errors(errors).map(|()| bundle), warnings)
     }
 
     /// Return a list of all objects in the bundle

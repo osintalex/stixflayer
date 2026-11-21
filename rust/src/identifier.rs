@@ -1,4 +1,5 @@
 //! STIX 2.1 compliant identifiers.
+use crate::error::CheckContext;
 use crate::{common::string::stix_case, error::StixError as Error, taxonomy::is_sco_type_name};
 use serde::Serialize;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
@@ -134,7 +135,7 @@ impl FromStr for Identifier {
 }
 
 impl crate::base::Stix for Identifier {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         check_object_type(self.get_type())?;
 
         // Check UUID version.

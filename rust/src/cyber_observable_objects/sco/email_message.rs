@@ -1,5 +1,5 @@
 use crate::base::Stix;
-use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::error::{add_error, return_multiple_errors, CheckContext, StixError as Error};
 use crate::types::{Identifier, StixDictionary, Timestamp};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -54,11 +54,11 @@ pub struct EmailMessage {
     pub raw_email_ref: Option<Identifier>,
 }
 impl Stix for EmailMessage {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(from_ref) = &self.from_ref {
-            from_ref.stix_check()?;
+            from_ref.check(ctx)?;
             let ref_type = from_ref.get_type();
             if ref_type != "email-addr" {
                 errors.push(Error::ValidationError(format!(
@@ -68,7 +68,7 @@ impl Stix for EmailMessage {
             }
         }
         if let Some(sender_ref) = &self.sender_ref {
-            sender_ref.stix_check()?;
+            sender_ref.check(ctx)?;
             let ref_type = sender_ref.get_type();
             if ref_type != "email-addr" {
                 errors.push(Error::ValidationError(format!(
@@ -78,7 +78,7 @@ impl Stix for EmailMessage {
             }
         }
         if let Some(to_refs) = &self.to_refs {
-            to_refs.stix_check()?;
+            to_refs.check(ctx)?;
             if !to_refs.iter().any(|x| x.get_type() == "email-addr") {
                 errors.push(Error::ValidationError(
                     "Referenced addresses in to_refs must be 'email-addr'.".to_string(),
@@ -87,7 +87,7 @@ impl Stix for EmailMessage {
         }
 
         if let Some(cc_refs) = &self.cc_refs {
-            cc_refs.stix_check()?;
+            cc_refs.check(ctx)?;
             if !cc_refs.iter().any(|x| x.get_type() == "email-addr") {
                 errors.push(Error::ValidationError(
                     "Referenced addressses in cc_refs must be 'email-addr'.".to_string(),
@@ -96,7 +96,7 @@ impl Stix for EmailMessage {
         }
 
         if let Some(bcc_refs) = &self.bcc_refs {
-            bcc_refs.stix_check()?;
+            bcc_refs.check(ctx)?;
             if !bcc_refs.iter().any(|x| x.get_type() == "email-addr") {
                 errors.push(Error::ValidationError(
                     "Referenced addressses in cc_refs must be 'email-addr'.".to_string(),
@@ -104,10 +104,10 @@ impl Stix for EmailMessage {
             }
         }
         if let Some(recieved_lines) = &self.recieved_lines {
-            add_error(&mut errors, recieved_lines.stix_check());
+            add_error(&mut errors, recieved_lines.check(ctx));
         }
         if let Some(additional_header_fields) = &self.additional_header_fields {
-            add_error(&mut errors, additional_header_fields.stix_check());
+            add_error(&mut errors, additional_header_fields.check(ctx));
         }
 
         if self.body.is_some() && self.is_multipart {
@@ -118,7 +118,7 @@ impl Stix for EmailMessage {
 
         if let Some(ref body_multipart) = self.body_multipart {
             if !self.is_multipart {
-                body_multipart.stix_check()?; // Assuming stix_check() is a method on the type of body_multipart
+                body_multipart.check(ctx)?; // Assuming stix_check() is a method on the type of body_multipart
                 errors.push(Error::ValidationError(
                     "The property body_multipart MUST NOT be used if is_multipart is false"
                         .to_string(),
@@ -127,7 +127,7 @@ impl Stix for EmailMessage {
         }
 
         if let Some(raw_email_ref) = &self.raw_email_ref {
-            raw_email_ref.stix_check()?;
+            raw_email_ref.check(ctx)?;
             let ref_type = raw_email_ref.get_type();
             if ref_type != "artifact" {
                 errors.push(Error::ValidationError(
@@ -162,14 +162,14 @@ pub struct EmailMimeCompomentType {
 }
 
 impl Stix for EmailMimeCompomentType {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         if self.body.is_none() == self.body_raw_ref.is_none() {
             return Err(Error::ValidationError(
                 "An email MIME component type must include either a body or a body_raw_ref"
                     .to_string(),
             ));
         } else if let Some(body_raw_ref) = &self.body_raw_ref {
-            body_raw_ref.stix_check()?;
+            body_raw_ref.check(ctx)?;
             if body_raw_ref.get_type() != "artifact" && body_raw_ref.get_type() != "file" {
                 return Err(Error::ValidationError(format!("An email MIME component type's `body_raw_ref` must refer to either an artifact or a file. This refers to an object of type {}", body_raw_ref.get_type())));
             }
@@ -189,7 +189,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;

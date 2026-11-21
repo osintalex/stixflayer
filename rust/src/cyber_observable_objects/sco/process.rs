@@ -1,6 +1,6 @@
 use crate::base::Stix;
 use crate::common::validation::validate_refs_are_type;
-use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::error::{add_error, return_multiple_errors, CheckContext, StixError as Error};
 use crate::types::{Identifier, StixDictionary, Timestamp};
 use serde::{Deserialize, Serialize};
 use serde_this_or_that::as_opt_i64;
@@ -44,7 +44,7 @@ pub struct Process {
     pub child_refs: Option<Vec<Identifier>>,
 }
 impl Stix for Process {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(child_refs) = &self.child_refs {
@@ -54,7 +54,7 @@ impl Stix for Process {
             );
         }
         if let Some(creator_user_ref) = &self.creator_user_ref {
-            creator_user_ref.stix_check()?;
+            creator_user_ref.check(ctx)?;
             if creator_user_ref.get_type() != "user-account" {
                 errors.push(Error::ValidationError(
                     "creator_user_ref must be of type 'user-account'.".to_string(),
@@ -62,7 +62,7 @@ impl Stix for Process {
             }
         }
         if let Some(image_ref) = &self.image_ref {
-            image_ref.stix_check()?;
+            image_ref.check(ctx)?;
             if image_ref.get_type() != "file" {
                 errors.push(Error::ValidationError(
                     "image_ref must be of type 'file'.".to_string(),
@@ -70,7 +70,7 @@ impl Stix for Process {
             }
         }
         if let Some(opened_connection_refs) = &self.opened_connection_refs {
-            opened_connection_refs.stix_check()?;
+            opened_connection_refs.check(ctx)?;
             add_error(
                 &mut errors,
                 validate_refs_are_type(
@@ -81,7 +81,7 @@ impl Stix for Process {
             );
         }
         if let Some(parent_ref) = &self.parent_ref {
-            parent_ref.stix_check()?;
+            parent_ref.check(ctx)?;
             if parent_ref.get_type() != "process" {
                 errors.push(Error::ValidationError(
                     "parent_ref must be of type 'process'.".to_string(),
@@ -89,14 +89,14 @@ impl Stix for Process {
             }
         }
         if let Some(pid) = &self.pid {
-            add_error(&mut errors, pid.stix_check());
+            add_error(&mut errors, pid.check(ctx));
         }
         if let Some(child_refs) = &self.child_refs {
-            add_error(&mut errors, child_refs.stix_check());
+            add_error(&mut errors, child_refs.check(ctx));
         }
 
         if let Some(environment_variables) = &self.environment_variables {
-            add_error(&mut errors, environment_variables.stix_check());
+            add_error(&mut errors, environment_variables.check(ctx));
         }
 
         return_multiple_errors(errors)
@@ -113,7 +113,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;

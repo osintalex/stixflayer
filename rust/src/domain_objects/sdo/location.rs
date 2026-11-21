@@ -4,11 +4,12 @@
 //!
 //! For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_th8nitr8jb4k>
 
+use crate::error::CheckContext;
 use crate::{
     base::Stix,
-    common::validation::validate_vocab_value,
+    common::validation::warn_vocab_value,
     domain_objects::vocab::Region,
-    error::{add_error, return_multiple_errors, StixError as Error},
+    error::{return_multiple_errors, StixError as Error},
 };
 use ordered_float::OrderedFloat as ordered_float;
 use serde::{Deserialize, Serialize};
@@ -44,7 +45,7 @@ pub struct Location {
 }
 
 impl Stix for Location {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         let min_lat = ordered_float(-90.0_f64);
@@ -84,10 +85,7 @@ impl Stix for Location {
             }
         }
         if let Some(region_str) = &self.region {
-            add_error(
-                &mut errors,
-                validate_vocab_value::<Region, _>(region_str, "region-ov"),
-            );
+            warn_vocab_value::<Region, _>(ctx, region_str, "region-ov", "region");
         }
         if let Some(country) = &self.country {
             if rust_iso3166::from_alpha2(country).is_none() {

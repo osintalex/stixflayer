@@ -1,8 +1,7 @@
 //! STIX 2.1 compliant hash lists.
 use crate::common::validation::is_vocab_value;
-use crate::error::StixError as Error;
+use crate::error::{CheckContext, Entry, StixError as Error};
 use identyhash::identify_hash;
-use log::warn;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::OnceLock};
@@ -80,15 +79,11 @@ fn check_hash_key(key: &str) -> bool {
             .chars()
             .all(|c| c.is_ascii() && (c.is_alphanumeric() || c == '-' || c == '_')));
 
-    if key != "SHA-256" {
-        warn!("STIX 2.1 recommends that the SHA-256 hash should be used whenever possible");
-    }
-
     valid
 }
 
 impl crate::base::Stix for Hashes {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         for (key, value) in self.iter() {
             let origin_hash_str = value.as_str();
             let hash_type_identity = identify_hash(origin_hash_str).to_lowercase();
@@ -101,9 +96,9 @@ impl crate::base::Stix for Hashes {
                 )));
             }
 
-            if key.len() > 30 {
+            if key.len() > 250 {
                 return Err(Error::ValidationError(format!(
-                    "Hash type '{}' is longer than 30 characters.",
+                    "Hash type '{}' is longer than 250 characters.",
                     key,
                 )));
             }
@@ -111,10 +106,23 @@ impl crate::base::Stix for Hashes {
             if !origin_hash_type.starts_with("x_")
                 && !is_vocab_value::<LegalHashTypes, _>(&origin_hash_type)
             {
-                return Err(Error::ValidationError(format!(
-                    "The hash type '{}' is not from the hash-algorithm-ov open vocabulary and does not start with 'x_'.",
-                    key,
-                )));
+                return Err(Error::InvalidVocabValue {
+                    value: key.clone(),
+                    vocabulary: "hash-algorithm-ov".to_string(),
+                });
+            }
+
+            // STIX 2.1 recommends SHA-256; compare the normalised algorithm so
+            // that any casing of `sha-256` is accepted.
+            if origin_hash_type != *LegalHashTypes::SHA256.as_ref() {
+                ctx.warn(
+                    Entry::new(
+                        "hash_not_sha256",
+                        "STIX 2.1 recommends that the SHA-256 hash should be used whenever possible.",
+                    )
+                    .property("hashes")
+                    .value(key.clone()),
+                );
             }
             // sha-256 and sha3-256 have same format and identyhash crate treats them the same
             if (origin_hash_type == *LegalHashTypes::SHA256.as_ref()

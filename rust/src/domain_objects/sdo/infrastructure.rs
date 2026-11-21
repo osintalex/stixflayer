@@ -4,9 +4,10 @@
 //!
 //! For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_jo3k1o6lr9>
 
+use crate::error::CheckContext;
 use crate::{
     base::{check_timestamp_ordering, Stix},
-    common::validation::validate_vocab_list,
+    common::validation::warn_vocab_list,
     domain_objects::vocab::InfrastructureType,
     error::{add_error, return_multiple_errors, StixError as Error},
     types::{KillChainPhase, Timestamp},
@@ -36,11 +37,11 @@ pub struct Infrastructure {
 }
 
 impl Stix for Infrastructure {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(kill_chain_phases) = &self.kill_chain_phases {
-            add_error(&mut errors, kill_chain_phases.stix_check());
+            add_error(&mut errors, kill_chain_phases.check(ctx));
         }
         if let (Some(start), Some(stop)) = (&self.first_seen, &self.last_seen) {
             add_error(
@@ -49,14 +50,16 @@ impl Stix for Infrastructure {
             );
         }
         if let Some(its) = &self.infrastructure_types {
-            add_error(&mut errors, its.stix_check());
-            add_error(
-                &mut errors,
-                validate_vocab_list::<InfrastructureType, _>(its, "infrastructure-type-ov"),
+            add_error(&mut errors, its.check(ctx));
+            warn_vocab_list::<InfrastructureType, _>(
+                ctx,
+                its,
+                "infrastructure-type-ov",
+                "infrastructure_types",
             );
         }
         if let Some(aliases) = &self.aliases {
-            add_error(&mut errors, aliases.stix_check());
+            add_error(&mut errors, aliases.check(ctx));
         }
 
         return_multiple_errors(errors)

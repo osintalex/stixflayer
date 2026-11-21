@@ -1,4 +1,5 @@
 //! Granular markings for STIX objects.
+use crate::error::CheckContext;
 use crate::{error::StixError as Error, identifier::Identifier};
 use language_tags::LanguageTag;
 use serde::{Deserialize, Serialize};
@@ -22,7 +23,7 @@ pub struct GranularMarking {
 }
 
 impl crate::base::Stix for GranularMarking {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         if self.marking_ref.is_some() && self.lang.is_some() {
             return Err(Error::ValidationError("marking_ref and lang".to_string()));
         }

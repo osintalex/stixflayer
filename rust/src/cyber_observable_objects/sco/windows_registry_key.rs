@@ -1,7 +1,7 @@
 use crate::base::Stix;
 use crate::common::validation::is_exact_vocab_value;
 use crate::cyber_observable_objects::vocab::WindowsRegistryDataTypeEnum;
-use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::error::{add_error, return_multiple_errors, CheckContext, StixError as Error};
 use crate::types::{Identifier, Timestamp};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -40,11 +40,11 @@ pub struct WindowsRegistryKey {
     pub number_of_subkeys: Option<i64>,
 }
 impl Stix for WindowsRegistryKey {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(creator_user_ref) = &self.creator_user_ref {
-            creator_user_ref.stix_check()?;
+            creator_user_ref.check(ctx)?;
             if creator_user_ref.get_type() != "user-account" {
                 errors.push(Error::ValidationError(
                     "creator_user_ref must be of type 'user-account'.".to_string(),
@@ -59,10 +59,10 @@ impl Stix for WindowsRegistryKey {
             }
         }
         if let Some(number_of_subkeys) = &self.number_of_subkeys {
-            number_of_subkeys.stix_check()?;
+            number_of_subkeys.check(ctx)?;
         }
         if let Some(values) = &self.values {
-            add_error(&mut errors, values.stix_check());
+            add_error(&mut errors, values.check(ctx));
         }
 
         return_multiple_errors(errors)
@@ -86,7 +86,7 @@ pub struct WindowsRegistryKeyType {
     pub data_type: Option<String>,
 }
 impl Stix for WindowsRegistryKeyType {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         if let Some(data_type) = &self.data_type {
             if !is_exact_vocab_value::<WindowsRegistryDataTypeEnum, _>(data_type) {
                 return Err(Error::ValidationError(
@@ -109,7 +109,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;

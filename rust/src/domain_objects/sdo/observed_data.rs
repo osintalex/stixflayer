@@ -4,12 +4,13 @@
 //!
 //! For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_p49j1fwoxldc>
 
+use crate::error::CheckContext;
+use crate::error::Entry;
 use crate::{
     base::Stix,
     error::{add_error, return_multiple_errors, StixError as Error},
     types::{Identifier, ScoTypes, SdoTypes, SroTypes, StixMetaTypes, Timestamp},
 };
-use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_this_or_that::as_u64;
 use serde_with::skip_serializing_none;
@@ -32,10 +33,10 @@ pub struct ObservedData {
 }
 
 impl Stix for ObservedData {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
-        add_error(&mut errors, self.number_observed.stix_check());
+        add_error(&mut errors, self.number_observed.check(ctx));
         if self.last_observed < self.first_observed {
             errors.push(Error::ValidationError(format!(
                 "The last_observed timestamp {} cannot be earlier than the first_observed timestamp {}.",
@@ -54,7 +55,7 @@ impl Stix for ObservedData {
         let mut has_sco = false;
         let mut has_custom = false;
         for object_ref in self.object_refs.iter() {
-            add_error(&mut errors, self.object_refs.stix_check());
+            add_error(&mut errors, self.object_refs.check(ctx));
             if SdoTypes::iter().any(|s| s.as_ref() == object_ref.get_type())
                 || StixMetaTypes::iter().any(|s| s.as_ref() == object_ref.get_type())
             {
@@ -65,9 +66,16 @@ impl Stix for ObservedData {
             } else if ScoTypes::iter().any(|s| s.as_ref() == object_ref.get_type()) {
                 has_sco = true;
             } else if !SroTypes::iter().any(|s| s.as_ref() == object_ref.get_type()) {
-                warn!(
-                    "The `object_refs` list must contain only SCO and SRO types. Confirm that {} is one of those types.",
-                    object_ref.get_type()
+                ctx.warn(
+                    Entry::new(
+                        "observed_data_unrecognized_ref",
+                        format!(
+                            "The `object_refs` list must contain only SCO and SRO types. Confirm that {} is one of those types.",
+                            object_ref.get_type()
+                        ),
+                    )
+                    .property("object_refs")
+                    .value(object_ref.get_type().to_string()),
                 );
                 has_custom = true;
             }
@@ -75,8 +83,12 @@ impl Stix for ObservedData {
 
         if !has_sco {
             if has_custom {
-                warn!(
-                    "The `object_refs` list must contain at least one SCO type. Confirm that at least one of the included custom types is an SCO."
+                ctx.warn(
+                    Entry::new(
+                        "observed_data_no_recognized_sco",
+                        "The `object_refs` list must contain at least one SCO type. Confirm that at least one of the included custom types is an SCO.",
+                    )
+                    .property("object_refs"),
                 );
             } else {
                 errors.push(Error::ValidationError(

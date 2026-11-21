@@ -27,8 +27,8 @@ except Exception as e:
     entry = e.errors[0]
     print(entry["kind"])
     #> invalid_pattern
-    print(entry["got"])
-    #> 1:20: expected a value (number, string, timestamp, boolean, binary, or hex), found ]
+    print("expected a value" in entry["message"])
+    #> True
 ```
 
 ## Semantic errors raise too

@@ -2,7 +2,7 @@
 use crate::{
     common::{time::check_timestamp_ordering, validation::validate_vocab_value},
     custom_property::{validate_custom_property_name, validate_custom_property_suffix_value},
-    error::{add_error, return_multiple_errors, StixError as Error},
+    error::{add_error, return_multiple_errors, CheckContext, Entry, Outcome, StixError as Error},
     extensions::{
         check_extension, FileExtensions, NetworkTrafficExtensions, ProcessExtensions,
         UserAccountExtensions,
@@ -13,7 +13,6 @@ use crate::{
     },
 };
 use language_tags::LanguageTag;
-use log::warn;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::skip_serializing_none;
@@ -24,8 +23,25 @@ use strum::IntoEnumIterator;
 
 /// A trait for all STIX 2.1 compliant objects and properties.
 pub trait Stix {
-    /// Method that ensures that all fields in the object or property conform to the STIX 2.1 standard.
-    fn stix_check(&self) -> Result<(), Error>;
+    /// Ensures that all fields in the object or property conform to STIX 2.1.
+    ///
+    /// MUST violations are returned as errors; SHOULD findings are recorded in
+    /// `ctx` so bindings can surface them without failing validation.
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error>;
+
+    /// Compatibility wrapper that runs [`Stix::check`] and discards warnings.
+    fn stix_check(&self) -> Result<(), Error> {
+        self.check(&mut CheckContext::discard())
+    }
+
+    /// Runs [`Stix::check`] and returns the collected warnings alongside the
+    /// pass/fail result.
+    fn outcome(&self) -> Outcome<()> {
+        let mut ctx = CheckContext::new();
+        let result = self.check(&mut ctx);
+        let warnings = ctx.into_warnings();
+        Outcome::from_result(result, warnings)
+    }
 }
 
 /// Properties that are common across multiple STIX Objects.
@@ -114,7 +130,7 @@ pub struct CommonProperties {
 }
 
 impl Stix for CommonProperties {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(spec_version) = &self.spec_version {
@@ -126,7 +142,7 @@ impl Stix for CommonProperties {
             }
         }
         if let Some(creator) = &self.created_by_ref {
-            add_error(&mut errors, creator.stix_check());
+            add_error(&mut errors, creator.check(ctx));
             if creator.get_type() != "identity" {
                 errors.push(Error::ValidationError(format!("Object {} has a 'created by' reference to an object of type '{}'. Only an Identity SDO can be the creator of another STIX object.",
                     self.id,
@@ -155,37 +171,52 @@ impl Stix for CommonProperties {
             }
         }
         if let Some(external_references) = &self.external_references {
-            add_error(&mut errors, external_references.stix_check());
+            add_error(&mut errors, external_references.check(ctx));
         }
         if let Some(language) = &self.lang {
-            match LanguageTag::parse(language) {
-                Ok(tag) => if let Err(e) = LanguageTag::validate(&tag) {
-                    errors.push(Error::ValidationError(format!("Object {}'s `language` is {}. A `language` must conform to RFC5646. Details: {}",
-                    self.id,
-                    language,
-                    e
+            // Well-formedness only: the RFC 5646 grammar accepts ISO 639-2
+            // three-letter codes such as `eng`. Registry membership is a SHOULD,
+            // and the registry data bundled with the parser is incomplete.
+            if let Err(e) = LanguageTag::parse(language) {
+                errors.push(Error::ValidationError(format!(
+                    "Object {}'s `language` is {}. A `language` must be a well-formed RFC5646 tag. Details: {}",
+                    self.id, language, e
                 )));
-                }
-                Err(e) => errors.push(Error::ValidationError(format!("Object {}'s `language` is {}. A `language` must conform to RFC5646. Details: {}",
-                    self.id,
-                    language,
-                    e
-                ))),
             }
         }
         if let Some(granular_markings) = &self.granular_markings {
-            add_error(&mut errors, granular_markings.stix_check());
+            add_error(&mut errors, granular_markings.check(ctx));
         }
         if let Some(extensions) = &self.extensions {
-            add_error(&mut errors, extensions.stix_check());
+            add_error(&mut errors, extensions.check(ctx));
             for (key, value) in extensions.iter() {
                 // Check constraints for general extensions, idetified by using a STIX identifer as the extension key
+                if key.chars().any(|c| c.is_uppercase()) {
+                    ctx.warn(
+                        Entry::new(
+                            "dictionary_key_not_lowercase",
+                            format!(
+                                "STIX 2.1 recommends that dictionary keys be lowercase. Object {} has the extensions key {}.",
+                                self.id, key
+                            ),
+                        )
+                        .property("extensions")
+                        .value(key.clone()),
+                    );
+                }
                 if let Ok(id) = Identifier::from_str(key) {
                     if id.get_type() != "extension-definition" {
-                        warn!("If `extensions` keys are STIX Object id's, they should be the id of an Extension Definition SMO. Object {} has an extension id key {}.",
-                            self.id,
-                            key
-                        )
+                        ctx.warn(
+                            Entry::new(
+                                "extension_key_not_extension_definition",
+                                format!(
+                                    "If `extensions` keys are STIX object ids, they should be the id of an Extension Definition SMO. Object {} has an extension id key {}.",
+                                    self.id, key
+                                ),
+                            )
+                            .property("extensions")
+                            .value(key.clone()),
+                        );
                     }
 
                     if !value.keys().any(|k| k == "extension_type") {
@@ -224,7 +255,7 @@ impl Stix for CommonProperties {
                             if key.starts_with("extension-definition--") {
                                 // Custom extension - allow
                             } else if FileExtensions::iter().any(|x| x.as_ref() == stix_case(key)) {
-                                add_error(&mut errors, check_extension(key, value));
+                                add_error(&mut errors, check_extension(key, value, ctx));
                             } else {
                                 errors.push(Error::WrongExtension)
                             }
@@ -235,7 +266,7 @@ impl Stix for CommonProperties {
                             } else if NetworkTrafficExtensions::iter()
                                 .any(|x| x.as_ref() == stix_case(key))
                             {
-                                add_error(&mut errors, check_extension(key, value));
+                                add_error(&mut errors, check_extension(key, value, ctx));
                             } else {
                                 errors.push(Error::WrongExtension)
                             }
@@ -246,7 +277,7 @@ impl Stix for CommonProperties {
                             } else if ProcessExtensions::iter()
                                 .any(|x| x.as_ref() == stix_case(key))
                             {
-                                add_error(&mut errors, check_extension(key, value));
+                                add_error(&mut errors, check_extension(key, value, ctx));
                             } else {
                                 errors.push(Error::WrongExtension)
                             }
@@ -257,7 +288,7 @@ impl Stix for CommonProperties {
                             } else if UserAccountExtensions::iter()
                                 .any(|x| x.as_ref() == stix_case(key))
                             {
-                                add_error(&mut errors, check_extension(key, value));
+                                add_error(&mut errors, check_extension(key, value, ctx));
                             } else {
                                 errors.push(Error::WrongExtension)
                             }
@@ -265,15 +296,22 @@ impl Stix for CommonProperties {
                         // For other object types, allow any extension key (warn if not extension-definition)
                         _ => {
                             if !key.starts_with("extension-definition--") {
-                                warn!("`extensions` keys should be the id of an Extension Definition SMO, unless you are using a predefined object extension. Confirm that object {}'s extension key {} is a predefined object extension.",
-                            self.id,
-                            key
-                        )
+                                ctx.warn(
+                                    Entry::new(
+                                        "extension_key_not_extension_definition",
+                                        format!(
+                                            "`extensions` keys should be the id of an Extension Definition SMO unless a predefined object extension is used. Confirm that object {}'s extension key {} is a predefined object extension.",
+                                            self.id, key
+                                        ),
+                                    )
+                                    .property("extensions")
+                                    .value(key.clone()),
+                                );
                             }
                         }
                     }
 
-                    add_error(&mut errors, value.stix_check());
+                    add_error(&mut errors, value.check(ctx));
                 }
             }
         }
@@ -290,7 +328,7 @@ impl Stix for CommonProperties {
                     &mut errors,
                     validate_custom_property_suffix_value(key, value),
                 );
-                add_error(&mut errors, value.stix_check());
+                add_error(&mut errors, value.check(ctx));
             }
         }
 

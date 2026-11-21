@@ -7,6 +7,7 @@
 //!
 //! For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_axjijf603msy>
 
+use crate::error::CheckContext;
 use crate::{
     base::Stix,
     error::{add_error, return_multiple_errors, StixError as Error},
@@ -31,14 +32,14 @@ pub struct AttackPattern {
 }
 
 impl Stix for AttackPattern {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(kill_chain_phases) = &self.kill_chain_phases {
-            add_error(&mut errors, kill_chain_phases.stix_check());
+            add_error(&mut errors, kill_chain_phases.check(ctx));
         }
         if let Some(aliases) = &self.aliases {
-            add_error(&mut errors, aliases.stix_check());
+            add_error(&mut errors, aliases.check(ctx));
         }
 
         return_multiple_errors(errors)

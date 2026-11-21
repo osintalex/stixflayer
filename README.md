@@ -11,8 +11,8 @@ Rust-native STIX 2.1 engine. One spec-compliant core, consumed by many.
 stixflayer uses a single Rust core for validation and serialization, so you
 get native Rust throughput from every language binding.
 
-| Operation | [`stix2-validator`](https://github.com/oasis-open/cti-stix-validator) | `stixflayer` | speedup |
-|-----------|-------------------------------|--------------|---------|
+| Operation | Baseline Python validator | `stixflayer` | speedup |
+|-----------|---------------------------|--------------|---------|
 | Parse + validate `apt1` bundle | ~47 ms | ~1.6 ms | ~**30×** 🏎️💨 |
 | Parse + validate `poisonivy` bundle | ~99 ms | ~2.3 ms | ~**40×** 🏎️💨 |
 
@@ -28,8 +28,6 @@ the harness, fixtures, and how to reproduce the numbers.
 
 Stixflayer is deeply indebted to [OASIS CTI's `cti-rust-stix`](https://github.com/oasis-open/cti-rust-stix), the official STIX 2.1 reference implementation in Rust. This project's object model, validation behavior, and pattern grammar all build on that foundation — it is the starting point from which the stixflayer engine grew, and we are grateful for the rigor and generosity of that work.
 
-We also benchmark against, and owe a debt of comparison to, [`cti-stix-validator`](https://github.com/oasis-open/cti-stix-validator), the industry-standard Python validator.
-
 ## Why another STIX library? 🤔
 
 - **One engine, no validation gaps** 🌍: Most STIX libraries are reimplemented
@@ -37,14 +35,12 @@ We also benchmark against, and owe a debt of comparison to, [`cti-stix-validator
   can be valid in one language and rejected in another. stixflayer solves this
   by shipping a single Rust core into every supported language: data validates
   the same way everywhere.
-- **Battle-tested, but faster** ⚔️: Built from the official OASIS reference
-  implementation, with full parity (and then some) against the industry-standard
-  [`cti-stix-validator`](https://github.com/oasis-open/cti-stix-validator). Same
-  trusted spec compliance, rewritten in Rust for speed, correctness, and
-  interoperability.
-- **Stricter where it matters** 🧐: Actively improves on `stix2validator` by
-  enforcing rules it skips — rejecting empty bundles, invalid vocabulary
-  values, and incorrect SCO UUIDv5 hashes.
+- **Spec-first, not tool-first** ⚔️: Behavior follows the OASIS STIX 2.1
+  specification, including its MUST/SHOULD distinction. MUST violations fail;
+  SHOULD findings are reported as warnings without rejecting the document.
+- **Complete structural validation** 🧐: Rejects empty bundles, malformed
+  identifiers, incorrect SCO UUIDv5 hashes, and closed-enumeration violations,
+  and validates every object exactly once.
 
 ## Languages 🔌
 
@@ -164,35 +160,38 @@ except Exception as e:
     """
 ```
 
-## Known divergences from the reference validator 🔍
+## Spec conformance notes 🔍
 
-The OASIS STIX 2.1 specification is authoritative. The reference Python
-validator, [`cti-stix-validator`](https://github.com/oasis-open/cti-stix-validator)
-(`stix2-validator`), validates patterns with
-[`stix2-patterns`](https://github.com/oasis-open/cti-pattern-validator) (import
-name `stix2patterns`). Where `stix2-patterns` disagrees with the specification,
-stixflayer follows the specification and records the difference here.
+The OASIS STIX 2.1 specification is authoritative. These notes record the
+places where behavior is easy to get wrong and where stixflayer follows the
+specification deliberately.
 
+- **SHOULD findings are warnings.** Open-vocabulary values outside the
+  suggested terms, non-SHA-256 hashes, uppercase `extensions` keys, custom
+  relationship types, and similar recommendations do not reject a document.
+  They are returned in `.warnings`, and exceptions carry both `.errors` and
+  `.warnings`.
+- **Dictionary keys allow up to 250 characters.** STIX 2.1 caps dictionary and
+  hash keys at 250 ASCII characters; shorter keys are not rejected.
+- **Language tags are well-formed RFC 5646 values.** Both the common `lang`
+  property and `Software.languages` accept well-formed tags, including ISO
+  639-2 three-letter codes such as `eng`. Registry membership is a SHOULD.
+- **HTTP header names are unrestricted.** The `request_header` dictionary
+  accepts any valid header field name; headers keep their case.
 - **Zero qualifier values.** The specification requires `REPEATS` to be a
-  positive integer and `WITHIN` to be a positive value. The reference validator
-  accepts `REPEATS 0` and `WITHIN 0`; stixflayer rejects both.
-- **Hash value inspection.** The reference validator's inspector rejects a hash
-  property whose value does not match the declared algorithm. Pattern validation
-  here follows the grammar and does not inspect hash formats.
-- **Leading block comments.** The reference validator's bracket pre-scan rejects
-  a pattern that starts with a block comment, even though the grammar skips
-  comments. stixflayer accepts it.
-- **Negative list indices.** The reference inspector raises an exception on a
-  negative index such as `body_multipart[-1]`. The grammar allows
-  `IntNegLiteral`, so stixflayer accepts it.
-- **Custom SCO type casing.** The reference validator accepts an object path
-  whose custom SCO type is not lowercase, such as `Not-A-Real-Observable`.
-  stixflayer requires custom SCO type names to be 3-250 characters of lowercase
-  ASCII letters, digits, or hyphens.
+  positive integer and `WITHIN` to be a positive value. stixflayer rejects
+  `REPEATS 0` and `WITHIN 0`.
+- **Hash value inspection in patterns.** Pattern validation follows the
+  grammar and does not inspect hash formats.
+- **Leading block comments.** A pattern may start with a block comment because
+  the grammar skips comments.
+- **Negative list indices.** The grammar allows `IntNegLiteral`, so an index
+  such as `body_multipart[-1]` is accepted.
+- **Custom SCO type casing.** Custom SCO type names must be 3-250 characters
+  of lowercase ASCII letters, digits, or hyphens.
 - **Reversed or empty `START`/`STOP` ranges.** The specification defines the
   matched range as `x <= observation < y` but does not prohibit `x >= y`.
-  stixflayer accepts reversed and equal ranges; earlier versions and some
-  reference tooling rejected them.
+  Reversed and equal ranges are accepted.
 
 ## Structure 🏰
 
@@ -200,7 +199,7 @@ stixflayer follows the specification and records the difference here.
 rust/         Core engine (Rust crate + pyo3 bindings + derive macros)
 src/          Python package (stixflayer)
 tests/        Python test suite
-benchmarks/   Speed benchmarks vs stix2-validator (see BENCHMARKING.md)
+benchmarks/   Speed benchmarks (see BENCHMARKING.md)
 testdata/     STIX fixtures used by tests and benchmarks
 ```
 

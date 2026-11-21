@@ -1,6 +1,8 @@
 //! Data structures and functions for implementing STIX Relationship Objects (SROs).
 #![allow(dead_code)]
 
+use crate::error::CheckContext;
+
 /// Builder for constructing STIX Relationship Objects (SROs).
 pub mod builder;
 /// The generic Relationship SRO, a typed connection between two STIX Objects.
@@ -96,21 +98,22 @@ impl Identified for RelationshipObject {
 }
 
 impl Stix for RelationshipObject {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
+        ctx.set_object_id(Some(self.get_id().to_string()));
         let mut errors = Vec::new();
 
         // Check that we have the correct common properties for an SRO
         add_error(&mut errors, check_sro_properties(&self.common_properties));
 
         // Check common properties
-        add_error(&mut errors, self.common_properties.stix_check());
+        add_error(&mut errors, self.common_properties.check(ctx));
 
         // Check specific properties for the type of SRO
         match &self.object_type {
             RelationshipObjectType::Relationship(relationship) => add_error(
                 &mut errors,
                 relationship
-                    .stix_check()
+                    .check(ctx)
                     .map_err(|e| Error::InvalidNestedObject {
                         context: format!(
                             "Relationship Object {} is not a valid generic relationship",
@@ -121,15 +124,13 @@ impl Stix for RelationshipObject {
             ),
             RelationshipObjectType::Sighting(sighting) => add_error(
                 &mut errors,
-                sighting
-                    .stix_check()
-                    .map_err(|e| Error::InvalidNestedObject {
-                        context: format!(
-                            "Relationship Object {} is not a valid sighting",
-                            self.get_id()
-                        ),
-                        source: Box::new(e),
-                    }),
+                sighting.check(ctx).map_err(|e| Error::InvalidNestedObject {
+                    context: format!(
+                        "Relationship Object {} is not a valid sighting",
+                        self.get_id()
+                    ),
+                    source: Box::new(e),
+                }),
             ),
         }
 

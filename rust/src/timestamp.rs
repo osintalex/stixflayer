@@ -1,4 +1,5 @@
 //! A STIX 2.1 compliant timestamp type.
+use crate::error::CheckContext;
 use crate::error::StixError as Error;
 use jiff::Timestamp as JiffTimestamp;
 use regex::Regex;
@@ -94,7 +95,7 @@ impl<'de> Deserialize<'de> for Timestamp {
 }
 
 impl crate::base::Stix for Timestamp {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         // If a Timestamp has already been parsed from a string, then we have already checked that is a valid STIX Timestamp
         Ok(())
     }

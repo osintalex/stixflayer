@@ -2,12 +2,13 @@
 
 stixflayer validates by default. Two options control how lenient parsing and
 construction are: `allow_custom` for custom properties, and `strict` for
-spec conformance checks.
+semantic checks.
 
 ## What is always enforced
 
-Required properties are enforced in every mode — an object missing `name`
-never passes, strict or not.
+Structural checks run in every mode: required properties must be present, JSON
+types must match, unknown properties are rejected unless `allow_custom=True`,
+and timestamps and identifiers must be well formed.
 
 ```python
 import json
@@ -50,14 +51,16 @@ print(ap.x_mitre_detection)
 #> Monitor command history
 ```
 
-## Spec conformance: `strict`
+## Semantic checks: `strict`
 
-With `strict=True` (the default), values are checked against the STIX
-vocabularies. With `strict=False`, those conformance checks are skipped —
-useful for processing incomplete or non-conformant data you cannot fix.
+With `strict=True` (the default), STIX MUST rules produce errors and SHOULD
+recommendations produce warnings. Errors raise; warnings never do.
+
+With `strict=False`, semantic checks are skipped entirely, so there are no
+semantic errors and no warnings. Structural checks still apply.
 
 ```python
-from stixflayer import Identity, ValidationError
+from stixflayer import Identity
 
 kwargs = dict(
     id="identity--c78b4a5a-3b42-4f2e-9b1a-7f8e9d0c1a2b",
@@ -67,15 +70,40 @@ kwargs = dict(
     modified="2023-03-24T15:14:15.637Z",
 )
 
-try:
-    Identity(identity_class="bogus-class", **kwargs)
-except ValidationError as e:
-    print(e.errors[0]["kind"], e.errors[0]["value"])
-    #> invalid_vocab_value bogus-class
-
-lenient = Identity(identity_class="bogus-class", strict=False, **kwargs)
-print(lenient.identity_class)
+# `bogus-class` is outside identity-class-ov. That is a SHOULD finding, so
+# construction succeeds and the finding is available as a warning.
+identity = Identity(identity_class="bogus-class", **kwargs)
+print(identity.identity_class)
 #> bogus-class
+print([entry["kind"] for entry in identity.warnings])
+#> ['open_vocab_value_not_suggested']
+
+# With strict=False the semantic check is skipped, so there are no warnings.
+lenient = Identity(identity_class="bogus-class", strict=False, **kwargs)
+print(lenient.warnings)
+#> []
+```
+
+## Warnings on objects and exceptions
+
+Objects returned by constructors and `from_json` expose `.warnings`.
+Exceptions expose both `.errors` and `.warnings`, because a document can
+violate a MUST rule and a SHOULD recommendation at the same time.
+
+```python
+from stixflayer import Identity, ValidationError
+
+try:
+    Identity(
+        name="Acme",
+        identity_class="organization",
+        extensions={
+            "extension-definition--550e8400-e29b-41d4-a716-446655440000": {"extension_type": "not-a-real-type"}
+        },
+    )
+except ValidationError as e:
+    print(e.errors[0]["kind"], e.errors[0]["vocabulary"])
+    #> invalid_vocab_value extension-type-enum
 ```
 
 ## All errors at once
@@ -105,4 +133,4 @@ except ValidationError as e:
     #> ['unknown_property', 'missing_property']
 ```
 
-See [error handling](errors.md) for the full error catalog.
+See [error handling](errors.md) for the full errors and warnings catalog.

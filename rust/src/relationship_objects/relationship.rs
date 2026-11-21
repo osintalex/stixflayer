@@ -1,10 +1,11 @@
+use crate::error::CheckContext;
+use crate::error::Entry;
 use crate::{
     base::{check_timestamp_ordering, Stix},
     error::StixError as Error,
     relationship_objects::types::RelationshipType,
     types::{Identifier, ScoTypes, SdoTypes, Timestamp},
 };
-use log::warn;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -40,7 +41,7 @@ pub struct Relationship {
     pub stop_time: Option<Timestamp>,
 }
 impl Stix for Relationship {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let is_invalid_ref = |t: &str| -> bool {
             !SdoTypes::iter().any(|x| x.as_ref() == t) && !ScoTypes::iter().any(|x| x.as_ref() == t)
         };
@@ -61,16 +62,24 @@ impl Stix for Relationship {
                     custom_type
                 )));
             }
-            warn!("A relationship type should come from the STIX relationship types vocabulary. Relationship type {} is not in the vocabulary.",
-                custom_type
+            ctx.warn(
+                Entry::new(
+                    "relationship_type_not_suggested",
+                    format!(
+                        "A relationship type should come from the STIX relationship types vocabulary. Relationship type {} is not in the vocabulary.",
+                        custom_type
+                    ),
+                )
+                .property("relationship_type")
+                .value(custom_type.clone()),
             );
         } else {
             self.relationship_type
                 .validate(&self.source_ref, &self.target_ref)?;
         }
 
-        self.source_ref.stix_check()?;
-        self.target_ref.stix_check()?;
+        self.source_ref.check(ctx)?;
+        self.target_ref.check(ctx)?;
 
         if let (Some(start), Some(stop)) = (&self.start_time, &self.stop_time) {
             check_timestamp_ordering(start, stop, "start_time", "stop_time", "Relationship")?;

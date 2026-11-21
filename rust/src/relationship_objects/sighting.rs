@@ -1,3 +1,4 @@
+use crate::error::CheckContext;
 use crate::{
     base::{check_timestamp_ordering, Stix},
     common::validation::validate_refs_are_type,
@@ -45,9 +46,9 @@ pub struct Sighting {
 }
 
 impl Stix for Sighting {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         if let Some(count) = &self.count {
-            count.stix_check()?;
+            count.check(ctx)?;
         }
         if let (Some(start), Some(stop)) = (&self.first_seen, &self.last_seen) {
             check_timestamp_ordering(start, stop, "first_seen", "last_seen", "Sighting")?;
@@ -78,7 +79,7 @@ impl Stix for Sighting {
             )));
         }
 
-        self.sighting_of_ref.stix_check()?;
+        self.sighting_of_ref.check(ctx)?;
 
         if let Some(observed_data_refs) = &self.observed_data_refs {
             validate_refs_are_type(observed_data_refs, &["observed-data"], "observed_data_refs")?;

@@ -50,23 +50,56 @@ struct Rule {
     expected_behavior: Option<String>,
     #[serde(default)]
     expected_error_substring: Option<String>,
+    #[serde(default)]
+    expected_warnings: Vec<String>,
 }
 
-fn parse(category: &str, object_type: &str, json: &str, allow_custom: bool) -> Result<(), String> {
+fn parse(
+    category: &str,
+    object_type: &str,
+    json: &str,
+    allow_custom: bool,
+) -> Result<Vec<String>, String> {
+    fn kinds<T>(
+        result: Result<T, stixflayer::StixError>,
+        warnings: Vec<stixflayer::error::Entry>,
+    ) -> Result<Vec<String>, String> {
+        result
+            .map(|_| warnings.into_iter().map(|entry| entry.kind).collect())
+            .map_err(|e| e.to_string())
+    }
     match category {
-        "sdo" => DomainObject::from_json(json, allow_custom).map(|_| ()),
-        "sco" => CyberObject::from_json(json, allow_custom).map(|_| ()),
-        "sro" => RelationshipObject::from_json(json, allow_custom).map(|_| ()),
+        "sdo" => {
+            let value: Value = serde_json::from_str(json).map_err(|e| e.to_string())?;
+            let (result, warnings) = stixflayer::validation::validate_value_from_object_parts::<
+                DomainObject,
+            >(value, allow_custom, true);
+            kinds(result, warnings)
+        }
+        "sco" => {
+            let value: Value = serde_json::from_str(json).map_err(|e| e.to_string())?;
+            let (result, warnings) = stixflayer::validation::validate_value_from_object_parts::<
+                CyberObject,
+            >(value, allow_custom, true);
+            kinds(result, warnings)
+        }
+        "sro" => {
+            let value: Value = serde_json::from_str(json).map_err(|e| e.to_string())?;
+            let (result, warnings) = stixflayer::validation::validate_value_from_object_parts::<
+                RelationshipObject,
+            >(value, allow_custom, true);
+            kinds(result, warnings)
+        }
         "meta" => {
             if object_type == "bundle" {
-                Bundle::from_json(json).map(|_| ())
+                let (result, warnings) = Bundle::from_json_parts(json);
+                kinds(result, warnings)
             } else {
                 panic!("unsupported meta object_type: {}", object_type);
             }
         }
         other => panic!("unsupported category: {}", other),
     }
-    .map_err(|e| e.to_string())
 }
 
 fn run_matrix_section(section: &str) {
@@ -90,12 +123,20 @@ fn run_matrix_section(section: &str) {
             .unwrap_or("validation_error");
 
         match expected_behavior {
-            "parses_successfully" => assert!(
-                result.is_ok(),
-                "rule '{}' expected success but got error: {:?}",
-                key,
-                result.err()
-            ),
+            "parses_successfully" => {
+                let warnings = result.unwrap_or_else(|error| {
+                    panic!("rule '{}' expected success but got error: {error}", key)
+                });
+                for expected in &rule.expected_warnings {
+                    assert!(
+                        warnings.contains(expected),
+                        "rule '{}' expected warning kind '{}', got {:?}",
+                        key,
+                        expected,
+                        warnings
+                    );
+                }
+            }
             _ => {
                 let err = result.expect_err(&format!("rule '{}' expected an error", key));
                 if let Some(sub) = rule.expected_error_substring {

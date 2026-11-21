@@ -4,9 +4,10 @@
 //!
 //! For more information, see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_k017w16zutw>
 
+use crate::error::CheckContext;
 use crate::{
     base::{check_timestamp_ordering, Stix},
-    common::validation::{validate_vocab_list, validate_vocab_value},
+    common::validation::{warn_vocab_list, warn_vocab_value},
     domain_objects::vocab::{
         AttackMotivation, AttackResourceLevel, ThreatActorRole, ThreatActorSophistication,
         ThreatActorType,
@@ -51,18 +52,20 @@ pub struct ThreatActor {
 }
 
 impl Stix for ThreatActor {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(actor_types) = &self.threat_actor_types {
-            add_error(&mut errors, actor_types.stix_check());
-            add_error(
-                &mut errors,
-                validate_vocab_list::<ThreatActorType, _>(actor_types, "threat-actor-type-ov"),
+            add_error(&mut errors, actor_types.check(ctx));
+            warn_vocab_list::<ThreatActorType, _>(
+                ctx,
+                actor_types,
+                "threat-actor-type-ov",
+                "threat_actor_types",
             );
         }
         if let Some(aliases) = &self.aliases {
-            add_error(&mut errors, aliases.stix_check());
+            add_error(&mut errors, aliases.check(ctx));
         }
         if let (Some(start), Some(stop)) = (&self.first_seen, &self.last_seen) {
             add_error(
@@ -71,63 +74,55 @@ impl Stix for ThreatActor {
             );
         }
         if let Some(roles) = &self.roles {
-            add_error(&mut errors, roles.stix_check());
-            add_error(
-                &mut errors,
-                validate_vocab_list::<ThreatActorRole, _>(roles, "threat-actor-role-ov"),
-            );
+            add_error(&mut errors, roles.check(ctx));
+            warn_vocab_list::<ThreatActorRole, _>(ctx, roles, "threat-actor-role-ov", "roles");
         }
         if let Some(goals) = &self.goals {
-            add_error(&mut errors, goals.stix_check());
+            add_error(&mut errors, goals.check(ctx));
         }
 
         if let Some(resource_level) = self.resource_level.as_deref() {
-            add_error(
-                &mut errors,
-                validate_vocab_value::<AttackResourceLevel, _>(
-                    resource_level,
-                    "attack-resource-level-ov",
-                ),
+            warn_vocab_value::<AttackResourceLevel, _>(
+                ctx,
+                resource_level,
+                "attack-resource-level-ov",
+                "resource_level",
             );
         }
 
         if let Some(sophistication) = self.sophistication.as_deref() {
-            add_error(
-                &mut errors,
-                validate_vocab_value::<ThreatActorSophistication, _>(
-                    sophistication,
-                    "threat-actor-sophistication-ov",
-                ),
+            warn_vocab_value::<ThreatActorSophistication, _>(
+                ctx,
+                sophistication,
+                "threat-actor-sophistication-ov",
+                "sophistication",
             );
         }
         if let Some(primary_motivation) = self.primary_motivation.as_deref() {
-            add_error(
-                &mut errors,
-                validate_vocab_value::<AttackMotivation, _>(
-                    primary_motivation,
-                    "attack-motivation-ov",
-                ),
+            warn_vocab_value::<AttackMotivation, _>(
+                ctx,
+                primary_motivation,
+                "attack-motivation-ov",
+                "primary_motivation",
             );
         }
 
         if let Some(secondary_motivations) = &self.secondary_motivations {
-            add_error(&mut errors, secondary_motivations.stix_check());
-            add_error(
-                &mut errors,
-                validate_vocab_list::<AttackMotivation, _>(
-                    secondary_motivations,
-                    "attack-motivation-ov",
-                ),
+            add_error(&mut errors, secondary_motivations.check(ctx));
+            warn_vocab_list::<AttackMotivation, _>(
+                ctx,
+                secondary_motivations,
+                "attack-motivation-ov",
+                "secondary_motivations",
             );
         }
         if let Some(personal_motivations) = &self.personal_motivations {
-            add_error(&mut errors, personal_motivations.stix_check());
-            add_error(
-                &mut errors,
-                validate_vocab_list::<AttackMotivation, _>(
-                    personal_motivations,
-                    "attack-motivation-ov",
-                ),
+            add_error(&mut errors, personal_motivations.check(ctx));
+            warn_vocab_list::<AttackMotivation, _>(
+                ctx,
+                personal_motivations,
+                "attack-motivation-ov",
+                "personal_motivations",
             );
         }
 

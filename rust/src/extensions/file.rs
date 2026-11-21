@@ -1,3 +1,4 @@
+use crate::error::CheckContext;
 use crate::{
     base::Stix,
     common::validation::{is_valid_hex, validate_refs_are_type},
@@ -29,7 +30,7 @@ pub enum FileExtensions {
 }
 
 impl Stix for FileExtensions {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         Ok(())
     }
 }
@@ -51,7 +52,7 @@ pub struct ArchiveExtension {
 }
 
 impl Stix for ArchiveExtension {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         validate_refs_are_type(&self.contains_refs, &["file"], "contains_refs")
     }
 }
@@ -74,7 +75,7 @@ pub struct NtfsExtension {
 }
 
 impl Stix for NtfsExtension {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
         if self.sid.is_none() && self.alternate_data_streams.is_none() {
             errors.push(Error::ValidationError(
@@ -82,7 +83,7 @@ impl Stix for NtfsExtension {
             ));
         }
         if let Some(alternate_data_streams) = &self.alternate_data_streams {
-            add_error(&mut errors, alternate_data_streams.stix_check());
+            add_error(&mut errors, alternate_data_streams.check(ctx));
         }
         return_multiple_errors(errors)
     }
@@ -106,12 +107,12 @@ pub struct AlternateDataStreamType {
 }
 
 impl Stix for AlternateDataStreamType {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         if let Some(hashes) = &self.hashes {
-            hashes.stix_check()?;
+            hashes.check(ctx)?;
         }
         if let Some(size) = &self.size {
-            size.stix_check()
+            size.check(ctx)
         } else {
             Ok(())
         }
@@ -142,7 +143,7 @@ pub struct PdfExtension {
 }
 
 impl Stix for PdfExtension {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if self.version.is_none()
@@ -156,7 +157,7 @@ impl Stix for PdfExtension {
             ));
         }
         if let Some(document_info_dict) = &self.document_info_dict {
-            add_error(&mut errors, document_info_dict.stix_check());
+            add_error(&mut errors, document_info_dict.check(ctx));
             const VALID_DID_KEYS: &[&str] = &[
                 "Title",
                 "Author",
@@ -208,7 +209,7 @@ pub struct RasterExtension {
 }
 
 impl Stix for RasterExtension {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if self.image_height.is_none()
@@ -221,16 +222,16 @@ impl Stix for RasterExtension {
             ));
         }
         if let Some(image_height) = &self.image_height {
-            add_error(&mut errors, image_height.stix_check());
+            add_error(&mut errors, image_height.check(ctx));
         }
         if let Some(image_width) = &self.image_width {
-            add_error(&mut errors, image_width.stix_check());
+            add_error(&mut errors, image_width.check(ctx));
         }
         if let Some(bits_per_pixel) = &self.bits_per_pixel {
-            add_error(&mut errors, bits_per_pixel.stix_check());
+            add_error(&mut errors, bits_per_pixel.check(ctx));
         }
         if let Some(exif_tags) = &self.exif_tags {
-            add_error(&mut errors, exif_tags.stix_check());
+            add_error(&mut errors, exif_tags.check(ctx));
         }
 
         return_multiple_errors(errors)
@@ -246,7 +247,7 @@ pub enum ExifTag {
     Integer(i64),
 }
 impl Stix for ExifTag {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         Ok(())
     }
 }
@@ -294,9 +295,9 @@ pub struct WindowsPebinaryExtension {
 }
 
 impl Stix for WindowsPebinaryExtension {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         if let Some(file_header_hashes) = &self.file_header_hashes {
-            file_header_hashes.stix_check()?;
+            file_header_hashes.check(ctx)?;
         }
         let mut errors = Vec::new();
         if let Some(characteristics_hex) = &self.characteristics_hex {
@@ -314,10 +315,10 @@ impl Stix for WindowsPebinaryExtension {
             }
         }
         if let Some(number_of_sections) = &self.number_of_sections {
-            add_error(&mut errors, number_of_sections.stix_check());
+            add_error(&mut errors, number_of_sections.check(ctx));
         }
         if let Some(number_of_symbols) = &self.number_of_symbols {
-            add_error(&mut errors, number_of_symbols.stix_check());
+            add_error(&mut errors, number_of_symbols.check(ctx));
         }
         if let Some(pointer_to_symbol_table_hex) = &self.pointer_to_symbol_table_hex {
             if !is_valid_hex(pointer_to_symbol_table_hex) {
@@ -327,13 +328,13 @@ impl Stix for WindowsPebinaryExtension {
             }
         }
         if let Some(size_of_optional_header) = &self.size_of_optional_header {
-            add_error(&mut errors, size_of_optional_header.stix_check());
+            add_error(&mut errors, size_of_optional_header.check(ctx));
         }
         if let Some(optional_header) = &self.optional_header {
-            add_error(&mut errors, optional_header.stix_check());
+            add_error(&mut errors, optional_header.check(ctx));
         }
         if let Some(sections) = &self.sections {
-            add_error(&mut errors, sections.stix_check());
+            add_error(&mut errors, sections.check(ctx));
         }
 
         if self.imphash.is_none()
@@ -470,38 +471,38 @@ pub struct WindowsPEOptionalHeaderType {
 }
 
 impl Stix for WindowsPEOptionalHeaderType {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         if let Some(hashes) = &self.hashes {
-            hashes.stix_check()?;
+            hashes.check(ctx)?;
         }
         let mut errors = Vec::new();
 
         if let Some(size_of_code) = &self.size_of_code {
-            add_error(&mut errors, size_of_code.stix_check());
+            add_error(&mut errors, size_of_code.check(ctx));
         }
         if let Some(size_of_initialized_data) = &self.size_of_initialized_data {
-            add_error(&mut errors, size_of_initialized_data.stix_check());
+            add_error(&mut errors, size_of_initialized_data.check(ctx));
         }
         if let Some(size_of_uninitialized_data) = &self.size_of_uninitialized_data {
-            add_error(&mut errors, size_of_uninitialized_data.stix_check());
+            add_error(&mut errors, size_of_uninitialized_data.check(ctx));
         }
         if let Some(size_of_image) = &self.size_of_image {
-            add_error(&mut errors, size_of_image.stix_check());
+            add_error(&mut errors, size_of_image.check(ctx));
         }
         if let Some(size_of_headers) = &self.size_of_headers {
-            add_error(&mut errors, size_of_headers.stix_check());
+            add_error(&mut errors, size_of_headers.check(ctx));
         }
         if let Some(size_of_stack_reserve) = &self.size_of_stack_reserve {
-            add_error(&mut errors, size_of_stack_reserve.stix_check());
+            add_error(&mut errors, size_of_stack_reserve.check(ctx));
         }
         if let Some(size_of_stack_commit) = &self.size_of_stack_commit {
-            add_error(&mut errors, size_of_stack_commit.stix_check());
+            add_error(&mut errors, size_of_stack_commit.check(ctx));
         }
         if let Some(size_of_heap_reserve) = &self.size_of_heap_reserve {
-            add_error(&mut errors, size_of_heap_reserve.stix_check());
+            add_error(&mut errors, size_of_heap_reserve.check(ctx));
         }
         if let Some(size_of_heap_commit) = &self.size_of_heap_commit {
-            add_error(&mut errors, size_of_heap_commit.stix_check());
+            add_error(&mut errors, size_of_heap_commit.check(ctx));
         }
 
         if let Some(magic_hex) = &self.magic_hex {
@@ -512,46 +513,46 @@ impl Stix for WindowsPEOptionalHeaderType {
             }
         }
         if let Some(major_linker_version) = &self.major_linker_version {
-            add_error(&mut errors, major_linker_version.stix_check());
+            add_error(&mut errors, major_linker_version.check(ctx));
         }
         if let Some(minor_linker_version) = &self.minor_linker_version {
-            add_error(&mut errors, minor_linker_version.stix_check());
+            add_error(&mut errors, minor_linker_version.check(ctx));
         }
         if let Some(address_of_entry_point) = &self.address_of_entry_point {
-            add_error(&mut errors, address_of_entry_point.stix_check());
+            add_error(&mut errors, address_of_entry_point.check(ctx));
         }
         if let Some(base_of_code) = &self.base_of_code {
-            add_error(&mut errors, base_of_code.stix_check());
+            add_error(&mut errors, base_of_code.check(ctx));
         }
         if let Some(base_of_data) = &self.base_of_data {
-            add_error(&mut errors, base_of_data.stix_check());
+            add_error(&mut errors, base_of_data.check(ctx));
         }
         if let Some(image_base) = &self.image_base {
-            add_error(&mut errors, image_base.stix_check());
+            add_error(&mut errors, image_base.check(ctx));
         }
         if let Some(section_alignment) = &self.section_alignment {
-            add_error(&mut errors, section_alignment.stix_check());
+            add_error(&mut errors, section_alignment.check(ctx));
         }
         if let Some(file_alignment) = &self.file_alignment {
-            add_error(&mut errors, file_alignment.stix_check());
+            add_error(&mut errors, file_alignment.check(ctx));
         }
         if let Some(major_os_version) = &self.major_os_version {
-            add_error(&mut errors, major_os_version.stix_check());
+            add_error(&mut errors, major_os_version.check(ctx));
         }
         if let Some(minor_os_version) = &self.minor_os_version {
-            add_error(&mut errors, minor_os_version.stix_check());
+            add_error(&mut errors, minor_os_version.check(ctx));
         }
         if let Some(major_image_version) = &self.major_image_version {
-            add_error(&mut errors, major_image_version.stix_check());
+            add_error(&mut errors, major_image_version.check(ctx));
         }
         if let Some(minor_image_version) = &self.minor_image_version {
-            add_error(&mut errors, minor_image_version.stix_check());
+            add_error(&mut errors, minor_image_version.check(ctx));
         }
         if let Some(major_subsystem_version) = &self.major_subsystem_version {
-            add_error(&mut errors, major_subsystem_version.stix_check());
+            add_error(&mut errors, major_subsystem_version.check(ctx));
         }
         if let Some(minor_subsystem_version) = &self.minor_subsystem_version {
-            add_error(&mut errors, minor_subsystem_version.stix_check());
+            add_error(&mut errors, minor_subsystem_version.check(ctx));
         }
         if let Some(win32_version_value_hex) = &self.win32_version_value_hex {
             if !is_valid_hex(win32_version_value_hex) {
@@ -589,7 +590,7 @@ impl Stix for WindowsPEOptionalHeaderType {
             }
         }
         if let Some(number_of_rva_and_sizes) = &self.number_of_rva_and_sizes {
-            add_error(&mut errors, number_of_rva_and_sizes.stix_check());
+            add_error(&mut errors, number_of_rva_and_sizes.check(ctx));
         }
         if self.magic_hex.is_none()
             && self.major_linker_version.is_none()
@@ -652,14 +653,14 @@ pub struct WindowsPESectionType {
 }
 
 impl Stix for WindowsPESectionType {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(size) = &self.size {
-            add_error(&mut errors, size.stix_check());
+            add_error(&mut errors, size.check(ctx));
         }
         if let Some(hashes) = &self.hashes {
-            add_error(&mut errors, hashes.stix_check());
+            add_error(&mut errors, hashes.check(ctx));
         }
 
         return_multiple_errors(errors)

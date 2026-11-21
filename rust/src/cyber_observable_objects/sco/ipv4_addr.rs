@@ -1,6 +1,6 @@
 use crate::base::Stix;
 use crate::common::validation::validate_refs_are_type;
-use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::error::{add_error, return_multiple_errors, CheckContext, StixError as Error};
 use crate::types::Identifier;
 use iptools;
 use serde::{Deserialize, Serialize};
@@ -24,7 +24,7 @@ pub struct Ipv4Addr {
 }
 
 impl Stix for Ipv4Addr {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         // Check if the IPv4 address is in the correct format, with or without a CIDR
@@ -46,7 +46,7 @@ impl Stix for Ipv4Addr {
 
         // Validate resolves_to_refs if present
         if let Some(resolves_to_refs) = &self.resolves_to_refs {
-            resolves_to_refs.stix_check()?;
+            resolves_to_refs.check(ctx)?;
             add_error(
                 &mut errors,
                 validate_refs_are_type(resolves_to_refs, &["mac-addr"], "resolves_to_refs"),
@@ -55,7 +55,7 @@ impl Stix for Ipv4Addr {
 
         // Validate belongs_to_refs if present
         if let Some(belongs_to_refs) = &self.belongs_to_refs {
-            belongs_to_refs.stix_check()?;
+            belongs_to_refs.check(ctx)?;
             add_error(
                 &mut errors,
                 validate_refs_are_type(belongs_to_refs, &["autonomous-system"], "belongs_to_refs"),
@@ -76,7 +76,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;
@@ -223,7 +222,6 @@ mod tests {
                 .build();
             if ipv4.is_ok() {
                 all_invalid = false;
-                warn!("Ipv4Address '{}' should be invalid but passed", ip);
             }
         }
         assert!(all_invalid, "Not all ipvv4 addresses were invalid");

@@ -1,6 +1,6 @@
 use crate::base::Stix;
-use crate::cyber_observable_objects::lang_codes::{is_iso639_2_code, is_valid_language_code};
-use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::error::{add_error, return_multiple_errors, CheckContext, StixError as Error};
+use language_tags::LanguageTag;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use stixflayer_derive::StixProperties;
@@ -28,7 +28,7 @@ pub struct Software {
 }
 
 impl Stix for Software {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(cpe) = &self.cpe {
@@ -42,17 +42,12 @@ impl Stix for Software {
         }
 
         if let Some(languages) = &self.languages {
-            add_error(&mut errors, languages.stix_check());
+            add_error(&mut errors, languages.check(ctx));
             for language in languages {
-                if !is_valid_language_code(language) {
+                if let Err(e) = LanguageTag::parse(language) {
                     errors.push(Error::ValidationError(format!(
-                        "Object {:?}'s `language` is '{}'. A `language` must conform to RFC5646.",
-                        self, language,
-                    )));
-                } else if is_iso639_2_code(language) {
-                    errors.push(Error::ValidationError(format!(
-                        "Object {:?}'s `language` is '{}'. ISO 639-2 three-letter codes are not valid in STIX 2.1 strict mode; use the RFC 5646 equivalent instead.",
-                        self, language,
+                        "Object {:?}'s `language` is '{}'. A `language` must be a well-formed RFC5646 tag. Details: {}",
+                        self, language, e,
                     )));
                 }
             }
@@ -72,7 +67,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;

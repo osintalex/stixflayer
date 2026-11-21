@@ -1,7 +1,7 @@
 //! Shared, stateless validation helpers used across STIX objects and extensions.
 
 use crate::{
-    error::StixError as Error,
+    error::{CheckContext, Entry, StixError as Error},
     types::{stix_case, Identifier},
 };
 use regex::Regex;
@@ -114,6 +114,71 @@ where
         validate_vocab_value::<V, _>(value, enum_display_name)?;
     }
     Ok(())
+}
+
+/// Returns true when `value` is formatted the way open-vocabulary terms SHOULD
+/// be: all lowercase, with hyphens as word separators (no spaces or underscores,
+/// no empty hyphen-delimited segments).
+pub fn is_lowercase_hyphenated(value: &str) -> bool {
+    !value.is_empty()
+        && !value.contains(' ')
+        && !value.contains('_')
+        && !value.starts_with('-')
+        && !value.ends_with('-')
+        && !value.contains("--")
+        && value
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+}
+
+/// Records a SHOULD-level warning when an open-vocabulary value is not one of
+/// the suggested terms, and a formatting warning when it is not lowercase and
+/// hyphenated. Never fails validation.
+pub fn warn_vocab_value<V, S>(ctx: &mut CheckContext, value: S, vocabulary: &str, property: &str)
+where
+    V: IntoEnumIterator + AsRef<str> + 'static,
+    S: AsRef<str>,
+{
+    let raw = value.as_ref();
+    let normalized = stix_case(raw);
+    if !is_vocab_value::<V, _>(normalized.as_str()) {
+        ctx.warn(
+            Entry::new(
+                "open_vocab_value_not_suggested",
+                format!(
+                    "'{}' is not a suggested {} value. Open-vocabulary values MAY be any string.",
+                    raw, vocabulary
+                ),
+            )
+            .property(property)
+            .value(normalized.clone())
+            .vocabulary(vocabulary),
+        );
+    }
+    if !is_lowercase_hyphenated(raw) {
+        ctx.warn(
+            Entry::new(
+                "value_not_lowercase_hyphenated",
+                format!(
+                    "Open vocabulary value '{}' should be all lowercase and use hyphens instead of spaces or underscores as word separators.",
+                    raw
+                ),
+            )
+            .property(property)
+            .value(raw.to_string()),
+        );
+    }
+}
+
+/// Records [`warn_vocab_value`] warnings for every value in `values`.
+pub fn warn_vocab_list<V, S>(ctx: &mut CheckContext, values: &[S], vocabulary: &str, property: &str)
+where
+    V: IntoEnumIterator + AsRef<str> + 'static,
+    S: AsRef<str>,
+{
+    for value in values {
+        warn_vocab_value::<V, _>(ctx, value, vocabulary, property);
+    }
 }
 
 /// Validates that every identifier in `refs` is one of the expected STIX object

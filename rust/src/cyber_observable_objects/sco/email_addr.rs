@@ -1,5 +1,5 @@
 use crate::base::Stix;
-use crate::error::{return_multiple_errors, StixError as Error};
+use crate::error::{return_multiple_errors, CheckContext, StixError as Error};
 use crate::types::Identifier;
 use email_address::{EmailAddress as validate_email, Options};
 use serde::{Deserialize, Serialize};
@@ -22,7 +22,7 @@ pub struct EmailAddress {
     pub belongs_to_ref: Option<Identifier>,
 }
 impl Stix for EmailAddress {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         // Check if the Email address is in the correct format
@@ -46,7 +46,7 @@ impl Stix for EmailAddress {
             }
         }
         if let Some(belongs_to_ref) = &self.belongs_to_ref {
-            belongs_to_ref.stix_check()?;
+            belongs_to_ref.check(ctx)?;
             let belongs_to_ref_type = belongs_to_ref.get_type();
             if belongs_to_ref_type != "user-account" {
                 errors.push(Error::ValidationError(format!(
@@ -70,7 +70,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;
@@ -180,7 +179,6 @@ mod tests {
                 .build();
             if email_address.is_ok() {
                 all_invalid = false;
-                warn!("Email Address '{}' should be invalid but passed", address);
             }
         }
         assert!(all_invalid, "Not all email addresses were invalid");
@@ -204,7 +202,6 @@ mod tests {
                 .build();
             if email_address.is_err() {
                 all_valid = false;
-                warn!("Email Address '{}' should be valid but failed", address);
             }
         }
         assert!(all_valid, "All email addresses were valid");

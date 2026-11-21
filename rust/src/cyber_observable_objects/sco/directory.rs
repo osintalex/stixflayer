@@ -1,6 +1,6 @@
 use crate::base::Stix;
 use crate::common::validation::{is_valid_charset_name, validate_refs_are_type};
-use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::error::{add_error, return_multiple_errors, CheckContext, StixError as Error};
 use crate::types::{Identifier, Timestamp};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -28,7 +28,7 @@ pub struct Directory {
     pub contains_refs: Option<Vec<Identifier>>,
 }
 impl Stix for Directory {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(path_enc) = &self.path_enc {
@@ -41,7 +41,7 @@ impl Stix for Directory {
         }
 
         if let Some(cr) = &self.contains_refs {
-            cr.stix_check()?;
+            cr.check(ctx)?;
             add_error(
                 &mut errors,
                 validate_refs_are_type(cr, &["file", "directory"], "contains_refs"),
@@ -62,7 +62,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;

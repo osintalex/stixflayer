@@ -4,9 +4,10 @@
 //!
 //! For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_muftrcpnf89v>
 
+use crate::error::CheckContext;
 use crate::{
     base::{check_timestamp_ordering, Stix},
-    common::validation::{is_vocab_value, validate_vocab_list},
+    common::validation::{warn_vocab_list, warn_vocab_value},
     domain_objects::vocab::{IndicatorPatternType, IndicatorType},
     error::{add_error, return_multiple_errors, StixError as Error},
     pattern::validate_pattern,
@@ -41,11 +42,11 @@ pub struct Indicator {
 }
 
 impl Stix for Indicator {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(kill_chain_phases) = &self.kill_chain_phases {
-            add_error(&mut errors, kill_chain_phases.stix_check());
+            add_error(&mut errors, kill_chain_phases.check(ctx));
         }
 
         // name is required for Indicator
@@ -58,17 +59,21 @@ impl Stix for Indicator {
         // If the pattern is a STIX Pattern, validate it using the Rust implemtation of STIX Patterning
         if stix_case(&self.pattern_type) == "stix" {
             add_error(&mut errors, validate_pattern(&self.pattern));
-        } else if !is_vocab_value::<IndicatorPatternType, _>(&self.pattern_type) {
-            errors.push(Error::ValidationError(format!(
-                "pattern type should come from the STIX pattern type open vocabulary; '{}' is not valid",
-                self.pattern_type
-            )));
+        } else {
+            warn_vocab_value::<IndicatorPatternType, _>(
+                ctx,
+                &self.pattern_type,
+                "pattern-type-ov",
+                "pattern_type",
+            );
         }
         if let Some(indicator_types) = &self.indicator_types {
-            add_error(&mut errors, indicator_types.stix_check());
-            add_error(
-                &mut errors,
-                validate_vocab_list::<IndicatorType, _>(indicator_types, "indicator-type-ov"),
+            add_error(&mut errors, indicator_types.check(ctx));
+            warn_vocab_list::<IndicatorType, _>(
+                ctx,
+                indicator_types,
+                "indicator-type-ov",
+                "indicator_types",
             );
         }
 

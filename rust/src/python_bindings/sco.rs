@@ -4,15 +4,16 @@
 // Remove this allow when pyo3 is upgraded past 0.22.
 #![allow(clippy::useless_conversion)]
 use crate::cyber_observable_objects::sco::CyberObjectBuilder;
-use crate::python_bindings::builder::build_sco_envelope;
+use crate::error::Entry;
+use crate::python_bindings::builder::{build_sco_envelope, parse_sco_builder};
 use crate::python_bindings::convert::{custom_properties_dict, dynamic_getattr};
-use crate::python_bindings::error::{stix_to_pyerr, StixError};
+use crate::python_bindings::error::{entries_to_py, stix_to_pyerr, StixError};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
 /// Python binding for the IPv4Address cyber-observable.
 #[pyclass]
-pub struct IPv4Address(pub CyberObjectBuilder);
+pub struct IPv4Address(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl IPv4Address {
@@ -23,8 +24,8 @@ impl IPv4Address {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("ipv4-addr", kwargs, strict, allow_custom)?;
-        Ok(IPv4Address(builder))
+        let (builder, warnings) = build_sco_envelope("ipv4-addr", kwargs, strict, allow_custom)?;
+        Ok(IPv4Address(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -44,15 +45,18 @@ impl IPv4Address {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(IPv4Address(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(IPv4Address(builder, warnings))
     }
 
     #[getter]
     fn r#type(&self) -> String {
         "ipv4-addr".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -80,7 +84,7 @@ impl IPv4Address {
 
 /// Python binding for the IPv6Address cyber-observable.
 #[pyclass]
-pub struct IPv6Address(pub CyberObjectBuilder);
+pub struct IPv6Address(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl IPv6Address {
@@ -91,8 +95,8 @@ impl IPv6Address {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("ipv6-addr", kwargs, strict, allow_custom)?;
-        Ok(IPv6Address(builder))
+        let (builder, warnings) = build_sco_envelope("ipv6-addr", kwargs, strict, allow_custom)?;
+        Ok(IPv6Address(builder, warnings))
     }
 
     #[staticmethod]
@@ -103,10 +107,8 @@ impl IPv6Address {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(IPv6Address(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(IPv6Address(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -121,6 +123,11 @@ impl IPv6Address {
     #[getter]
     fn r#type(&self) -> String {
         "ipv6-addr".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -148,7 +155,7 @@ impl IPv6Address {
 
 /// Python binding for the DomainName cyber-observable.
 #[pyclass]
-pub struct DomainName(pub CyberObjectBuilder);
+pub struct DomainName(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl DomainName {
@@ -159,8 +166,8 @@ impl DomainName {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("domain-name", kwargs, strict, allow_custom)?;
-        Ok(DomainName(builder))
+        let (builder, warnings) = build_sco_envelope("domain-name", kwargs, strict, allow_custom)?;
+        Ok(DomainName(builder, warnings))
     }
 
     #[staticmethod]
@@ -171,10 +178,8 @@ impl DomainName {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(DomainName(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(DomainName(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -189,6 +194,11 @@ impl DomainName {
     #[getter]
     fn r#type(&self) -> String {
         "domain-name".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -216,7 +226,7 @@ impl DomainName {
 
 /// Python binding for the URL cyber-observable.
 #[pyclass]
-pub struct URL(pub CyberObjectBuilder);
+pub struct URL(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl URL {
@@ -227,8 +237,8 @@ impl URL {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("url", kwargs, strict, allow_custom)?;
-        Ok(URL(builder))
+        let (builder, warnings) = build_sco_envelope("url", kwargs, strict, allow_custom)?;
+        Ok(URL(builder, warnings))
     }
 
     #[staticmethod]
@@ -239,10 +249,8 @@ impl URL {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(URL(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(URL(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -257,6 +265,11 @@ impl URL {
     #[getter]
     fn r#type(&self) -> String {
         "url".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -283,7 +296,7 @@ impl URL {
 
 /// Python binding for the EmailAddress cyber-observable.
 #[pyclass]
-pub struct EmailAddress(pub CyberObjectBuilder);
+pub struct EmailAddress(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl EmailAddress {
@@ -294,8 +307,8 @@ impl EmailAddress {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("email-addr", kwargs, strict, allow_custom)?;
-        Ok(EmailAddress(builder))
+        let (builder, warnings) = build_sco_envelope("email-addr", kwargs, strict, allow_custom)?;
+        Ok(EmailAddress(builder, warnings))
     }
 
     #[staticmethod]
@@ -306,10 +319,8 @@ impl EmailAddress {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(EmailAddress(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(EmailAddress(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -324,6 +335,11 @@ impl EmailAddress {
     #[getter]
     fn r#type(&self) -> String {
         "email-addr".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -351,7 +367,7 @@ impl EmailAddress {
 
 /// Python binding for the EmailMessage cyber-observable.
 #[pyclass]
-pub struct EmailMessage(pub CyberObjectBuilder);
+pub struct EmailMessage(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl EmailMessage {
@@ -362,8 +378,9 @@ impl EmailMessage {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("email-message", kwargs, strict, allow_custom)?;
-        Ok(EmailMessage(builder))
+        let (builder, warnings) =
+            build_sco_envelope("email-message", kwargs, strict, allow_custom)?;
+        Ok(EmailMessage(builder, warnings))
     }
 
     #[staticmethod]
@@ -374,10 +391,8 @@ impl EmailMessage {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(EmailMessage(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(EmailMessage(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -392,6 +407,11 @@ impl EmailMessage {
     #[getter]
     fn r#type(&self) -> String {
         "email-message".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -426,7 +446,7 @@ impl EmailMessage {
 
 /// Python binding for the MacAddr cyber-observable.
 #[pyclass]
-pub struct MacAddr(pub CyberObjectBuilder);
+pub struct MacAddr(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl MacAddr {
@@ -437,8 +457,8 @@ impl MacAddr {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("mac-addr", kwargs, strict, allow_custom)?;
-        Ok(MacAddr(builder))
+        let (builder, warnings) = build_sco_envelope("mac-addr", kwargs, strict, allow_custom)?;
+        Ok(MacAddr(builder, warnings))
     }
 
     #[staticmethod]
@@ -449,10 +469,8 @@ impl MacAddr {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(MacAddr(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(MacAddr(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -467,6 +485,11 @@ impl MacAddr {
     #[getter]
     fn r#type(&self) -> String {
         "mac-addr".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -494,7 +517,7 @@ impl MacAddr {
 
 /// Python binding for the AutonomousSystem cyber-observable.
 #[pyclass]
-pub struct AutonomousSystem(pub CyberObjectBuilder);
+pub struct AutonomousSystem(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl AutonomousSystem {
@@ -505,8 +528,9 @@ impl AutonomousSystem {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("autonomous-system", kwargs, strict, allow_custom)?;
-        Ok(AutonomousSystem(builder))
+        let (builder, warnings) =
+            build_sco_envelope("autonomous-system", kwargs, strict, allow_custom)?;
+        Ok(AutonomousSystem(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -526,15 +550,18 @@ impl AutonomousSystem {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(AutonomousSystem(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(AutonomousSystem(builder, warnings))
     }
 
     #[getter]
     fn r#type(&self) -> String {
         "autonomous-system".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -562,7 +589,7 @@ impl AutonomousSystem {
 
 /// Python binding for the File cyber-observable.
 #[pyclass]
-pub struct File(pub CyberObjectBuilder);
+pub struct File(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl File {
@@ -573,8 +600,8 @@ impl File {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("file", kwargs, strict, allow_custom)?;
-        Ok(File(builder))
+        let (builder, warnings) = build_sco_envelope("file", kwargs, strict, allow_custom)?;
+        Ok(File(builder, warnings))
     }
 
     #[staticmethod]
@@ -585,10 +612,8 @@ impl File {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(File(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(File(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -603,6 +628,11 @@ impl File {
     #[getter]
     fn r#type(&self) -> String {
         "file".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -629,7 +659,7 @@ impl File {
 
 /// Python binding for the Software cyber-observable.
 #[pyclass]
-pub struct Software(pub CyberObjectBuilder);
+pub struct Software(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Software {
@@ -640,8 +670,8 @@ impl Software {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("software", kwargs, strict, allow_custom)?;
-        Ok(Software(builder))
+        let (builder, warnings) = build_sco_envelope("software", kwargs, strict, allow_custom)?;
+        Ok(Software(builder, warnings))
     }
 
     #[staticmethod]
@@ -652,10 +682,8 @@ impl Software {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(Software(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Software(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -670,6 +698,11 @@ impl Software {
     #[getter]
     fn r#type(&self) -> String {
         "software".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -697,7 +730,7 @@ impl Software {
 
 /// Python binding for the Directory cyber-observable.
 #[pyclass]
-pub struct Directory(pub CyberObjectBuilder);
+pub struct Directory(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Directory {
@@ -708,8 +741,8 @@ impl Directory {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("directory", kwargs, strict, allow_custom)?;
-        Ok(Directory(builder))
+        let (builder, warnings) = build_sco_envelope("directory", kwargs, strict, allow_custom)?;
+        Ok(Directory(builder, warnings))
     }
 
     #[staticmethod]
@@ -720,10 +753,8 @@ impl Directory {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(Directory(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Directory(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -738,6 +769,11 @@ impl Directory {
     #[getter]
     fn r#type(&self) -> String {
         "directory".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -765,7 +801,7 @@ impl Directory {
 
 /// Python binding for the Mutex cyber-observable.
 #[pyclass]
-pub struct Mutex(pub CyberObjectBuilder);
+pub struct Mutex(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Mutex {
@@ -776,8 +812,8 @@ impl Mutex {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("mutex", kwargs, strict, allow_custom)?;
-        Ok(Mutex(builder))
+        let (builder, warnings) = build_sco_envelope("mutex", kwargs, strict, allow_custom)?;
+        Ok(Mutex(builder, warnings))
     }
 
     #[staticmethod]
@@ -788,10 +824,8 @@ impl Mutex {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(Mutex(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Mutex(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -806,6 +840,11 @@ impl Mutex {
     #[getter]
     fn r#type(&self) -> String {
         "mutex".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -833,7 +872,7 @@ impl Mutex {
 
 /// Python binding for the Process cyber-observable.
 #[pyclass]
-pub struct Process(pub CyberObjectBuilder);
+pub struct Process(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Process {
@@ -844,8 +883,8 @@ impl Process {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("process", kwargs, strict, allow_custom)?;
-        Ok(Process(builder))
+        let (builder, warnings) = build_sco_envelope("process", kwargs, strict, allow_custom)?;
+        Ok(Process(builder, warnings))
     }
 
     #[staticmethod]
@@ -856,10 +895,8 @@ impl Process {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(Process(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Process(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -876,6 +913,11 @@ impl Process {
         "process".to_string()
     }
 
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
+    }
+
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         if name == "custom_properties" {
@@ -889,7 +931,7 @@ impl Process {
 
 /// Python binding for the NetworkTraffic cyber-observable.
 #[pyclass]
-pub struct NetworkTraffic(pub CyberObjectBuilder);
+pub struct NetworkTraffic(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl NetworkTraffic {
@@ -900,8 +942,9 @@ impl NetworkTraffic {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("network-traffic", kwargs, strict, allow_custom)?;
-        Ok(NetworkTraffic(builder))
+        let (builder, warnings) =
+            build_sco_envelope("network-traffic", kwargs, strict, allow_custom)?;
+        Ok(NetworkTraffic(builder, warnings))
     }
 
     #[staticmethod]
@@ -912,10 +955,8 @@ impl NetworkTraffic {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(NetworkTraffic(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(NetworkTraffic(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -932,6 +973,11 @@ impl NetworkTraffic {
         "network-traffic".to_string()
     }
 
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
+    }
+
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         if name == "custom_properties" {
@@ -945,7 +991,7 @@ impl NetworkTraffic {
 
 /// Python binding for the UserAccount cyber-observable.
 #[pyclass]
-pub struct UserAccount(pub CyberObjectBuilder);
+pub struct UserAccount(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl UserAccount {
@@ -956,8 +1002,8 @@ impl UserAccount {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("user-account", kwargs, strict, allow_custom)?;
-        Ok(UserAccount(builder))
+        let (builder, warnings) = build_sco_envelope("user-account", kwargs, strict, allow_custom)?;
+        Ok(UserAccount(builder, warnings))
     }
 
     #[staticmethod]
@@ -968,10 +1014,8 @@ impl UserAccount {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(UserAccount(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(UserAccount(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -986,6 +1030,11 @@ impl UserAccount {
     #[getter]
     fn r#type(&self) -> String {
         "user-account".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -1013,7 +1062,7 @@ impl UserAccount {
 
 /// Python binding for the WindowsRegistryKey cyber-observable.
 #[pyclass]
-pub struct WindowsRegistryKey(pub CyberObjectBuilder);
+pub struct WindowsRegistryKey(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl WindowsRegistryKey {
@@ -1024,8 +1073,9 @@ impl WindowsRegistryKey {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("windows-registry-key", kwargs, strict, allow_custom)?;
-        Ok(WindowsRegistryKey(builder))
+        let (builder, warnings) =
+            build_sco_envelope("windows-registry-key", kwargs, strict, allow_custom)?;
+        Ok(WindowsRegistryKey(builder, warnings))
     }
 
     #[staticmethod]
@@ -1036,10 +1086,8 @@ impl WindowsRegistryKey {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(WindowsRegistryKey(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(WindowsRegistryKey(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -1054,6 +1102,11 @@ impl WindowsRegistryKey {
     #[getter]
     fn r#type(&self) -> String {
         "windows-registry-key".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -1081,7 +1134,7 @@ impl WindowsRegistryKey {
 
 /// Python binding for the X509Certificate cyber-observable.
 #[pyclass]
-pub struct X509Certificate(pub CyberObjectBuilder);
+pub struct X509Certificate(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl X509Certificate {
@@ -1092,8 +1145,9 @@ impl X509Certificate {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("x509-certificate", kwargs, strict, allow_custom)?;
-        Ok(X509Certificate(builder))
+        let (builder, warnings) =
+            build_sco_envelope("x509-certificate", kwargs, strict, allow_custom)?;
+        Ok(X509Certificate(builder, warnings))
     }
 
     #[staticmethod]
@@ -1104,10 +1158,8 @@ impl X509Certificate {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(X509Certificate(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(X509Certificate(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -1122,6 +1174,11 @@ impl X509Certificate {
     #[getter]
     fn r#type(&self) -> String {
         "x509-certificate".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {
@@ -1149,7 +1206,7 @@ impl X509Certificate {
 
 /// Python binding for the Artifact cyber-observable.
 #[pyclass]
-pub struct Artifact(pub CyberObjectBuilder);
+pub struct Artifact(pub CyberObjectBuilder, pub Vec<Entry>);
 
 #[pymethods]
 impl Artifact {
@@ -1160,8 +1217,8 @@ impl Artifact {
         allow_custom: bool,
         kwargs: Option<Bound<'_, PyDict>>,
     ) -> Result<Self, PyErr> {
-        let builder = build_sco_envelope("artifact", kwargs, strict, allow_custom)?;
-        Ok(Artifact(builder))
+        let (builder, warnings) = build_sco_envelope("artifact", kwargs, strict, allow_custom)?;
+        Ok(Artifact(builder, warnings))
     }
 
     #[staticmethod]
@@ -1172,10 +1229,8 @@ impl Artifact {
         version: &str,
         allow_custom: bool,
     ) -> Result<Self, PyErr> {
-        let sco = crate::object::parse_sco(&json_str, strict, version, allow_custom)
-            .map_err(stix_to_pyerr)?;
-        let builder = CyberObjectBuilder::from_parsed(&sco).map_err(stix_to_pyerr)?;
-        Ok(Artifact(builder))
+        let (builder, warnings) = parse_sco_builder(&json_str, strict, version, allow_custom)?;
+        Ok(Artifact(builder, warnings))
     }
 
     fn to_json(&self) -> Result<String, PyErr> {
@@ -1190,6 +1245,11 @@ impl Artifact {
     #[getter]
     fn r#type(&self) -> String {
         "artifact".to_string()
+    }
+
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
     }
 
     fn __getattr__(&self, py: Python<'_>, name: &str) -> PyResult<Py<PyAny>> {

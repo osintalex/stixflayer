@@ -1,5 +1,5 @@
 use crate::base::Stix;
-use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::error::{add_error, return_multiple_errors, CheckContext, StixError as Error};
 use crate::types::{Hashes, Timestamp};
 use serde::{Deserialize, Serialize};
 use serde_this_or_that::as_opt_i64;
@@ -45,11 +45,11 @@ pub struct X509Certificate {
     pub x509_v3_extensions: Option<X509V3Extensions>,
 }
 impl Stix for X509Certificate {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(hashes) = &self.hashes {
-            add_error(&mut errors, hashes.stix_check());
+            add_error(&mut errors, hashes.check(ctx));
         }
 
         // Validate subject_public_key_exponent
@@ -63,10 +63,10 @@ impl Stix for X509Certificate {
 
         // Validate x509_v3_extensions if present
         if let Some(extensions) = &self.x509_v3_extensions {
-            add_error(&mut errors, extensions.stix_check());
+            add_error(&mut errors, extensions.check(ctx));
         }
         if let Some(subject_public_key_exponent) = &self.subject_public_key_exponent {
-            add_error(&mut errors, subject_public_key_exponent.stix_check());
+            add_error(&mut errors, subject_public_key_exponent.check(ctx));
         }
         return_multiple_errors(errors)
     }
@@ -116,7 +116,7 @@ pub struct X509V3Extensions {
 }
 
 impl Stix for X509V3Extensions {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
         // Ensure at least one property is present
         if self.basic_constraints.is_none()
             && self.name_constraints.is_none()
@@ -155,7 +155,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;

@@ -3,13 +3,12 @@
 use crate::{
     base::{CommonPropertiesBuilder, Stix},
     domain_objects::vocab::OpinionType,
-    error::StixError as Error,
+    error::{CheckContext, Outcome, StixError as Error},
     types::{
         stix_case, DictionaryValue, ExternalReference, GranularMarking, Identifier, KillChainPhase,
         StixDictionary, Timestamp,
     },
 };
-use jiff::Timestamp as JiffTimestamp;
 use ordered_float::OrderedFloat as ordered_float;
 use std::str::FromStr;
 
@@ -1472,204 +1471,6 @@ impl DomainObjectBuilder {
     /// `stix_check()`. It is intended for callers that have already validated
     /// the object and only need its typed representation (e.g. serialization).
     pub fn build_no_validate(self) -> Result<DomainObject, Error> {
-        match self.object_type {
-            DomainObjectType::AttackPattern(ref attack_pattern) => {
-                if attack_pattern.name.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "name".to_string(),
-                    });
-                }
-            }
-            DomainObjectType::Campaign(ref campaign) => {
-                if campaign.name.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "name".to_string(),
-                    });
-                }
-            }
-            DomainObjectType::CourseOfAction(ref course_of_action) => {
-                if course_of_action.name.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "name".to_string(),
-                    });
-                }
-            }
-            DomainObjectType::Grouping(ref grouping) => {
-                if grouping.object_refs.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "object_refs".to_string(),
-                    });
-                }
-            }
-            DomainObjectType::Identity(ref identity) => {
-                if identity.name.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "name".to_string(),
-                    });
-                }
-            }
-            DomainObjectType::Incident(ref incident) => {
-                if incident.name.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "name".to_string(),
-                    });
-                }
-            }
-            DomainObjectType::Indicator(ref indicator) => {
-                if indicator.pattern.is_empty()
-                    || indicator.pattern_type.is_empty()
-                    || indicator.valid_from.0 == JiffTimestamp::UNIX_EPOCH
-                {
-                    return Err(Error::ValidationErrors(vec![
-                        Error::MissingBuilderProperty {
-                            object_type: self.object_type.to_string(),
-                            property: "pattern".to_string(),
-                        },
-                        Error::MissingBuilderProperty {
-                            object_type: self.object_type.to_string(),
-                            property: "pattern_type".to_string(),
-                        },
-                        Error::MissingBuilderProperty {
-                            object_type: self.object_type.to_string(),
-                            property: "valid_from".to_string(),
-                        },
-                    ]));
-                }
-            }
-            DomainObjectType::Infrastructure(ref infrastructure) => {
-                if infrastructure.name.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "name".to_string(),
-                    });
-                }
-            }
-            DomainObjectType::IntrusionSet(ref intrusion_set) => {
-                if intrusion_set.name.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "name".to_string(),
-                    });
-                }
-            }
-            DomainObjectType::Location(ref location) => {
-                let _ = location.stix_check();
-            }
-            DomainObjectType::Malware(ref malware) => {
-                if malware.name.is_none() || malware.name.as_ref().unwrap().is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "name".to_string(),
-                    });
-                }
-                let _ = malware.stix_check();
-            }
-            DomainObjectType::MalwareAnalysis(ref malware_analysis) => {
-                if malware_analysis.product.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "product".to_string(),
-                    });
-                }
-                if malware_analysis.result.is_none() && malware_analysis.analysis_sco_refs.is_none()
-                {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "result or analysis_sco_refs".to_string(),
-                    });
-                }
-            }
-            DomainObjectType::Note(ref note) => {
-                if note.content.is_empty() || note.object_refs.is_empty() {
-                    return Err(Error::ValidationErrors(vec![
-                        Error::MissingBuilderProperty {
-                            object_type: self.object_type.to_string(),
-                            property: "content".to_string(),
-                        },
-                        Error::MissingBuilderProperty {
-                            object_type: self.object_type.to_string(),
-                            property: "object_refs".to_string(),
-                        },
-                    ]));
-                }
-            }
-            DomainObjectType::ObservedData(ref observed_data) => {
-                if observed_data.first_observed.0 == JiffTimestamp::UNIX_EPOCH
-                    || observed_data.last_observed.0 == JiffTimestamp::UNIX_EPOCH
-                    || observed_data.number_observed == 0
-                    || observed_data.object_refs.is_empty()
-                {
-                    return Err(Error::ValidationErrors(vec![
-                        Error::MissingBuilderProperty {
-                            object_type: self.object_type.to_string(),
-                            property: "first_observed".to_string(),
-                        },
-                        Error::MissingBuilderProperty {
-                            object_type: self.object_type.to_string(),
-                            property: "last_observed".to_string(),
-                        },
-                        Error::MissingBuilderProperty {
-                            object_type: self.object_type.to_string(),
-                            property: "number_observed".to_string(),
-                        },
-                        Error::MissingBuilderProperty {
-                            object_type: self.object_type.to_string(),
-                            property: "object_refs".to_string(),
-                        },
-                    ]));
-                }
-            }
-            DomainObjectType::Opinion(ref opinion) => {
-                if opinion.object_refs.is_empty() || opinion.opinion.as_ref().is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "object_refs or opinion".to_string(),
-                    });
-                }
-            }
-            DomainObjectType::Report(ref report) => {
-                if report.name.is_empty()
-                    || report.object_refs.is_empty()
-                    || report.published.0 == JiffTimestamp::UNIX_EPOCH
-                {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "name, published, or object_refs".to_string(),
-                    });
-                }
-            }
-            DomainObjectType::ThreatActor(ref threat_actor) => {
-                if threat_actor.name.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "name".to_string(),
-                    });
-                }
-            }
-            DomainObjectType::Tool(ref tool) => {
-                if tool.name.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "name".to_string(),
-                    });
-                }
-            }
-            DomainObjectType::Vulnerability(ref vulnerability) => {
-                if vulnerability.name.is_empty() {
-                    return Err(Error::MissingBuilderProperty {
-                        object_type: self.object_type.to_string(),
-                        property: "name".to_string(),
-                    });
-                }
-            }
-        }
-
         let common_properties = self.common_properties.build();
 
         let sdo = DomainObject {
@@ -1686,8 +1487,19 @@ impl DomainObjectBuilder {
     /// [`Self::build_no_validate`] and then runs `stix_check()` on the newly
     /// constructed SDO.
     pub fn build(self) -> Result<DomainObject, Error> {
-        let sdo = self.build_no_validate()?;
-        sdo.stix_check()?;
-        Ok(sdo)
+        let object = self.build_no_validate()?;
+        object.stix_check()?;
+        Ok(object)
+    }
+
+    /// Builds the object and returns its validation outcome, including warnings.
+    pub fn build_outcome(self) -> Outcome<DomainObject> {
+        let object = match self.build_no_validate() {
+            Ok(object) => object,
+            Err(error) => return Outcome::err(error, Vec::new()),
+        };
+        let mut ctx = CheckContext::new();
+        let result = object.check(&mut ctx).map(|()| object);
+        Outcome::from_result(result, ctx.into_warnings())
     }
 }

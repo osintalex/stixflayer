@@ -1,7 +1,7 @@
 use crate::base::Stix;
 use crate::common::validation::is_valid_mime_type;
 use crate::cyber_observable_objects::vocab::EncryptionAlgorithm;
-use crate::error::{add_error, return_multiple_errors, StixError as Error};
+use crate::error::{add_error, return_multiple_errors, CheckContext, StixError as Error};
 use crate::types::Hashes;
 use base64::{engine::general_purpose, Engine};
 use serde::{Deserialize, Serialize};
@@ -35,11 +35,11 @@ pub struct Artifact {
     pub decryption_key: Option<String>,
 }
 impl Stix for Artifact {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         let mut errors = Vec::new();
 
         if let Some(hashes) = &self.hashes {
-            add_error(&mut errors, hashes.stix_check());
+            add_error(&mut errors, hashes.check(ctx));
         }
         if let Some(mime_type) = &self.mime_type {
             if !is_valid_mime_type(mime_type) {
@@ -95,7 +95,6 @@ mod tests {
         UnixAccountExtension, UserAccountExtensions, WindowsProcessExtension,
     };
     use crate::types::{DictionaryValue, Hashes, Identifier, StixDictionary, Timestamp};
-    use log::warn;
     use serde_json::Value;
     use std::{collections::HashMap, str::FromStr};
     use test_log::test;
@@ -135,10 +134,6 @@ mod tests {
                 .build();
             if artifact.is_err() {
                 all_valid = false;
-                eprintln!(
-                    "Artifiact hashes '{}' should be valid but failed as invalid {}",
-                    hash, hash_type
-                );
             }
         }
 
@@ -179,10 +174,6 @@ mod tests {
                 .build();
             if artifact.is_ok() {
                 all_invalid = false;
-                eprintln!(
-                    "Artifiact hashes '{}' should be invalid but passed as valid {}",
-                    hash, hash_type
-                );
             }
         }
 

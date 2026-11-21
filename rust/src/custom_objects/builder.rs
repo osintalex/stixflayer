@@ -3,10 +3,9 @@
 use crate::{
     base::{CommonPropertiesBuilder, Stix},
     custom_objects::object::CustomObject,
-    error::{add_error, return_multiple_errors, StixError as Error},
+    error::{CheckContext, Outcome, StixError as Error},
     types::{
-        stix_case, DictionaryValue, ExtensionType, ExternalReference, Identifier, StixDictionary,
-        Timestamp,
+        DictionaryValue, ExtensionType, ExternalReference, Identifier, StixDictionary, Timestamp,
     },
 };
 use serde_json::Value;
@@ -301,73 +300,18 @@ impl CustomObjectBuilder {
     /// This assembles the final `CustomObject` and runs validation on it.
     pub fn build(self) -> Result<CustomObject, Error> {
         let object = self.build_no_validate()?;
-        let mut errors = Vec::new();
-
-        // Check required and prohibited fields for the object type
-        let object_type = object.get_object_type()?;
-
-        if object_type == ExtensionType::NewSco {
-            if object.common_properties.created_by_ref.is_some() {
-                errors.push(Error::IllegalBuilderProperty {
-                    object: "Custom objects".to_string(),
-                    object_type: "SCO".to_string(),
-                    field: "created_by_ref".to_string(),
-                });
-            }
-
-            if object.common_properties.revoked.is_some() {
-                errors.push(Error::IllegalBuilderProperty {
-                    object: "Custom objects".to_string(),
-                    object_type: "SCO".to_string(),
-                    field: "revoked".to_string(),
-                });
-            }
-
-            if object.common_properties.labels.is_some() {
-                errors.push(Error::IllegalBuilderProperty {
-                    object: "Custom objects".to_string(),
-                    object_type: "SCO".to_string(),
-                    field: "labels".to_string(),
-                });
-            }
-
-            if object.common_properties.confidence.is_some() {
-                errors.push(Error::IllegalBuilderProperty {
-                    object: "Custom objects".to_string(),
-                    object_type: "SCO".to_string(),
-                    field: "confidence".to_string(),
-                });
-            }
-
-            if object.common_properties.lang.is_some() {
-                errors.push(Error::IllegalBuilderProperty {
-                    object: "Custom objects".to_string(),
-                    object_type: "SCO".to_string(),
-                    field: "lang".to_string(),
-                });
-            }
-
-            if object.common_properties.external_references.is_some() {
-                errors.push(Error::IllegalBuilderProperty {
-                    object: "Custom objects".to_string(),
-                    object_type: "SCO".to_string(),
-                    field: "external_references".to_string(),
-                });
-            }
-        }
-
-        if object_type != ExtensionType::NewSco && object.common_properties.defanged.is_some() {
-            errors.push(Error::IllegalBuilderProperty {
-                object: "Custom objects".to_string(),
-                object_type: stix_case(object_type.as_ref()),
-                field: "defanged".to_string(),
-            });
-        }
-
-        add_error(&mut errors, object.stix_check());
-
-        return_multiple_errors(errors)?;
-
+        object.stix_check()?;
         Ok(object)
+    }
+
+    /// Builds the object and returns its validation outcome, including warnings.
+    pub fn build_outcome(self) -> Outcome<CustomObject> {
+        let object = match self.build_no_validate() {
+            Ok(object) => object,
+            Err(error) => return Outcome::err(error, Vec::new()),
+        };
+        let mut ctx = CheckContext::new();
+        let result = object.check(&mut ctx).map(|()| object);
+        Outcome::from_result(result, ctx.into_warnings())
     }
 }

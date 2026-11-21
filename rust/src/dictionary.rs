@@ -1,11 +1,11 @@
 //! STIX 2.1 dictionaries and primitive dictionary values.
+use crate::error::CheckContext;
 use crate::{
     base::Stix,
     common::string::stix_case,
     error::{add_error, return_multiple_errors, StixError as Error},
     taxonomy::ExtensionType,
 };
-use log::warn;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt, str::FromStr};
@@ -70,7 +70,7 @@ impl<T: Stix> Default for StixDictionary<T> {
 }
 
 impl<T: Stix> Stix for StixDictionary<T> {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         // Empty dictionaries are prohibited in STIX
         if self.0.is_empty() {
             return Err(Error::EmptyList);
@@ -81,36 +81,29 @@ impl<T: Stix> Stix for StixDictionary<T> {
             if !check_dictionary_key(key) {
                 errors.push(Error::ValidationError(format!("Key {} is not a valid key under STIX policies. Keys may only contain letters, numbers, '-, or '_'.", key)))
             }
-            add_error(&mut errors, val.stix_check());
+            add_error(&mut errors, val.check(ctx));
         }
 
         return_multiple_errors(errors)
     }
 }
 
-// Checks that the provided dictionary key is STIX 2.1 compliant and provides warnings if it compliant but against recommendations
+// Checks that the provided dictionary key is STIX 2.1 compliant.
+//
+// Lowercase is a recommendation, not a MUST. The warning is emitted by the
+// property-level `check` pass (for example for `extensions` keys) so that
+// case-preserved dictionaries are not flagged.
 fn check_dictionary_key(key: &str) -> bool {
-    let valid = key.len() <= 250
+    key.len() <= 250
         && (key
             .chars()
-            .all(|c| c.is_ascii() && (c.is_alphanumeric() || c == '-' || c == '_')));
-
-    if key.chars().any(|c| c.is_uppercase()) {
-        warn!(
-            "STIX 2.1 recommends that dictionary keys should be lowercase. Key value is {}.",
-            key
-        );
-    }
-
-    valid
+            .all(|c| c.is_ascii() && (c.is_alphanumeric() || c == '-' || c == '_')))
 }
 
-/// Strict dictionary key validation for observable contexts.
+/// Dictionary key validation for observable extension contexts.
 ///
-/// This is stricter than the base STIX spec (which allows uppercase and keys up to 250 chars)
-/// and aligns with stix2validator strict mode for observable dictionary keys.
-///
-/// Returns `Err` if the key contains uppercase characters or exceeds 30 characters.
+/// Returns `Err` if the key contains uppercase characters or exceeds 250
+/// characters.
 pub fn check_observable_dictionary_key(key: &str) -> Result<(), Error> {
     if key.chars().any(|c| c.is_uppercase()) {
         return Err(Error::ValidationError(format!(
@@ -118,9 +111,9 @@ pub fn check_observable_dictionary_key(key: &str) -> Result<(), Error> {
             key
         )));
     }
-    if key.len() > 30 {
+    if key.len() > 250 {
         return Err(Error::ValidationError(format!(
-            "Observable dictionary key '{}' exceeds the maximum length of 30 characters.",
+            "Observable dictionary key '{}' exceeds the maximum length of 250 characters.",
             key
         )));
     }
@@ -192,15 +185,15 @@ impl fmt::Display for DictionaryValue {
 }
 
 impl Stix for DictionaryValue {
-    fn stix_check(&self) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         match self {
-            DictionaryValue::String(string) => string.stix_check(),
-            DictionaryValue::Bool(bool) => bool.stix_check(),
-            DictionaryValue::Int(int) => int.stix_check(),
+            DictionaryValue::String(string) => string.check(ctx),
+            DictionaryValue::Bool(bool) => bool.check(ctx),
+            DictionaryValue::Int(int) => int.check(ctx),
             DictionaryValue::SInt(_signed) => Ok(()),
-            DictionaryValue::Float(float) => float.stix_check(),
-            DictionaryValue::List(list) => list.stix_check(),
-            DictionaryValue::Dict(dict) => dict.stix_check(),
+            DictionaryValue::Float(float) => float.check(ctx),
+            DictionaryValue::List(list) => list.check(ctx),
+            DictionaryValue::Dict(dict) => dict.check(ctx),
         }
     }
 }
@@ -212,5 +205,36 @@ pub fn get_extension_type(extension: &StixDictionary<DictionaryValue>) -> Option
             ExtensionType::from_str(&stix_case(extension_type)).ok()
         }
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dictionary_keys_allow_up_to_250_characters() {
+        let mut dictionary = StixDictionary::<DictionaryValue>::new();
+        let key31 = "a".repeat(31);
+        assert!(dictionary
+            .insert(&key31, DictionaryValue::String("value".to_string()))
+            .is_ok());
+
+        let mut dictionary = StixDictionary::<DictionaryValue>::new();
+        let key251 = "a".repeat(251);
+        assert!(dictionary
+            .insert(&key251, DictionaryValue::String("value".to_string()))
+            .is_err());
+    }
+
+    #[test]
+    fn dictionary_check_does_not_warn_for_uppercase_keys() {
+        // Case-preserved dictionaries (EXIF, IPFIX, HTTP headers, ...) must not
+        // be flagged; the property-level pass decides when lowercase applies.
+        let mut dictionary = StixDictionary::<DictionaryValue>::new();
+        dictionary
+            .insert("XResolution", DictionaryValue::String("72".to_string()))
+            .unwrap();
+        assert!(dictionary.outcome().warnings.is_empty());
     }
 }
