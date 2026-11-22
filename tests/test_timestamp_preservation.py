@@ -14,7 +14,12 @@ import pytest
 import stixflayer
 from tests.utils import DATA_DIR, class_for_type, parse_timestamp, to_parsed_json
 
-SDO_FIXTURES = sorted((DATA_DIR / "valid" / "sdos").glob("*.json"))
+SDO_FIXTURES = sorted(
+    path
+    for path in (DATA_DIR / "valid" / "sdos").glob("*.json")
+    # Bundles are containers, not SDOs; their versioning is covered elsewhere.
+    if json.loads(path.read_text())["type"] != "bundle"
+)
 
 
 @pytest.mark.parametrize("fixture_path", SDO_FIXTURES, ids=lambda p: p.stem)

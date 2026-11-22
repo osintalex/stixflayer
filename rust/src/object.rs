@@ -942,6 +942,10 @@ mod tests {
         );
         let json = object.to_string();
         let err = parse_sdo(&json, true, "2.1", false).unwrap_err();
+        let err = match err {
+            Error::Located { error, .. } => *error,
+            other => other,
+        };
         assert!(
             matches!(err, Error::UnknownProperties { .. }),
             "expected UnknownProperties, got {err:?}"

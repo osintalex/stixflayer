@@ -1,11 +1,31 @@
 {
   "validation_rules": {
-    "indicator-name-required": {
+    "indicator-no-name-valid": {
       "category": "sdo",
       "object_type": "indicator",
-      "rule": "name property MUST be present and non-empty",
-      "fixture": "invalid/sdo/indicator-no-name.json",
-      "expected_error_substring": "missing required property 'name'"
+      "rule": "name is optional for Indicator; the Amnesty IOC shape omits it",
+      "fixture": "valid/sdo/indicator-no-name.json",
+      "expected_behavior": "parses_successfully"
+    },
+    "amnesty-indicator-bundle-valid": {
+      "category": "meta",
+      "object_type": "bundle",
+      "rule": "Indicators that omit name (the Amnesty IOC feed shape) validate with no missing_property errors",
+      "fixture": "valid/sdos/amnesty-indicators.json",
+      "expected_behavior": "parses_successfully"
+    },
+    "indicator-only-valid-from-missing": {
+      "category": "sdo",
+      "object_type": "indicator",
+      "rule": "Only required properties that are absent are reported",
+      "fixture": "invalid/sdo/indicator-no-valid-from.json",
+      "expected_error_substring": "missing required property 'valid_from'",
+      "expected_errors": [
+        {
+          "kind": "missing_property",
+          "property": "valid_from"
+        }
+      ]
     },
     "indicator-pattern-type-enum": {
       "category": "sdo",
@@ -24,13 +44,19 @@
       "fixture": "invalid/sdo/indicator-spec-version-2.0.json",
       "expected_error_substring": "must be 2.1"
     },
-    "indicator-no-name-non-strict": {
+    "malware-instance-no-name-valid": {
       "category": "sdo",
-      "object_type": "indicator",
-      "rule": "Non-strict parsing accepts invalid objects",
-      "fixture": "invalid/sdo/indicator-no-name.json",
-      "strict": false,
+      "object_type": "malware",
+      "rule": "name is optional for a malware instance (is_family false)",
+      "fixture": "valid/sdos/malware-instance-no-name.json",
       "expected_behavior": "parses_successfully"
+    },
+    "malware-family-no-name-invalid": {
+      "category": "sdo",
+      "object_type": "malware",
+      "rule": "name MUST be present for a malware family (is_family true)",
+      "fixture": "invalid/sdo/malware-family-no-name.json",
+      "expected_error_substring": "missing required property 'name'"
     },
     "malware-types-enum": {
       "category": "sdo",
@@ -48,6 +74,29 @@
       "rule": "value MUST be a valid IPv4 address or CIDR block",
       "fixture": "invalid/sco/ipv4-bad-format.json",
       "expected_error_substring": "IPv4 address must be a valid dotted-decimal format"
+    },
+    "relationship-uuidv5-warns": {
+      "category": "sro",
+      "object_type": "relationship",
+      "rule": "SRO identifiers SHOULD use UUIDv4; UUIDv5 is accepted with a warning",
+      "fixture": "valid/sros/relationship-uuidv5.json",
+      "expected_behavior": "parses_successfully",
+      "expected_warnings": [
+        "identifier_uuid_not_v4"
+      ]
+    },
+    "relationship-uuidv1-invalid": {
+      "category": "sro",
+      "object_type": "relationship",
+      "rule": "SRO identifiers do not support UUID versions other than v4/v5",
+      "fixture": "invalid/sro/relationship-uuidv1.json",
+      "expected_behavior": "stix_error",
+      "expected_error_substring": "STIX does not support UUID versions other than UUIDv4 and UUIDv5",
+      "expected_errors": [
+        {
+          "kind": "invalid_uuid"
+        }
+      ]
     },
     "bundle-not-empty": {
       "category": "meta",

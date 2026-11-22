@@ -53,7 +53,7 @@ print(ta.name)
 from stixflayer import Relationship
 
 rel = Relationship(
-    id="relationship--0b1c2d3e-4f5a-6b7c-8d9e-0f1a2b3c4d5e",
+    id="relationship--0b1c2d3e-4f5a-4b7c-8d9e-0f1a2b3c4d5e",
     spec_version="2.1",
     created="2019-04-24T15:12:36.609Z",
     modified="2023-03-24T15:14:15.637Z",

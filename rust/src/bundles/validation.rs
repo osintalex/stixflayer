@@ -49,10 +49,13 @@ impl Bundle {
                 let both_versioned =
                     prev_modified.is_some() && modified.is_some() && prev_modified != &modified;
                 if !both_versioned {
-                    errors.push(Error::ValidationError(format!(
-                        "Bundle contains duplicate object id: {}",
-                        id
-                    )));
+                    errors.push(Error::Located {
+                        object_id: id.clone(),
+                        error: Box::new(Error::ValidationError(format!(
+                            "Bundle contains duplicate object id: {}",
+                            id
+                        ))),
+                    });
                 }
             } else {
                 seen_ids.insert(id, modified);
@@ -69,17 +72,24 @@ impl Bundle {
         for object in self.objects.iter() {
             if let StixObject::Sro(sro) = object {
                 if let RelationshipObjectType::Relationship(ref rel) = sro.object_type {
+                    let relationship_id = sro.get_id().to_string();
                     if !bundle_ids.contains(&rel.source_ref.to_string()) {
-                        errors.push(Error::ValidationError(format!(
-                            "Relationship object {} makes reference to {} which is not found in current bundle.",
-                            sro.get_id(), rel.source_ref
-                        )));
+                        errors.push(Error::Located {
+                            object_id: relationship_id.clone(),
+                            error: Box::new(Error::ValidationError(format!(
+                                "Relationship object {} makes reference to {} which is not found in current bundle.",
+                                relationship_id, rel.source_ref
+                            ))),
+                        });
                     }
                     if !bundle_ids.contains(&rel.target_ref.to_string()) {
-                        errors.push(Error::ValidationError(format!(
-                            "Relationship object {} makes reference to {} which is not found in current bundle.",
-                            sro.get_id(), rel.target_ref
-                        )));
+                        errors.push(Error::Located {
+                            object_id: relationship_id.clone(),
+                            error: Box::new(Error::ValidationError(format!(
+                                "Relationship object {} makes reference to {} which is not found in current bundle.",
+                                relationship_id, rel.target_ref
+                            ))),
+                        });
                     }
                 }
             }

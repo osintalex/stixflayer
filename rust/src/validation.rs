@@ -83,6 +83,20 @@ pub fn validate_value_from_object_outcome<T: DeserializeOwned + Stix + CustomPro
     Outcome::from_result(result, warnings)
 }
 
+/// Wraps an object-scoped error with the object's identifier.
+///
+/// Errors already attributed by an inner layer are returned unchanged so the
+/// identifier is stamped once.
+fn attach_object_id(object_id: Option<&str>, error: Error) -> Error {
+    match object_id {
+        Some(id) if !matches!(&error, Error::Located { .. }) => Error::Located {
+            object_id: id.to_string(),
+            error: Box::new(error),
+        },
+        _ => error,
+    }
+}
+
 /// Shared implementation behind the `Result` and `Outcome` entry points.
 ///
 /// Returns the typed value (or structured error) together with the warnings
@@ -92,6 +106,9 @@ pub fn validate_value_from_object_parts<T: DeserializeOwned + Stix + CustomPrope
     allow_custom: bool,
     strict: bool,
 ) -> (Result<T, Error>, Vec<Entry>) {
+    // Read the id before `value` is moved so object-scoped findings can be
+    // attributed to the object they concern.
+    let object_id = value.get("id").and_then(Value::as_str).map(str::to_owned);
     let type_name = value
         .get("type")
         .and_then(|v| v.as_str())
@@ -172,11 +189,23 @@ pub fn validate_value_from_object_parts<T: DeserializeOwned + Stix + CustomPrope
                         } if p == property
                     )
                 }) {
-                    return (Err(return_multiple_errors(errors).unwrap_err()), Vec::new());
+                    return (
+                        Err(attach_object_id(
+                            object_id.as_deref(),
+                            return_multiple_errors(errors).unwrap_err(),
+                        )),
+                        Vec::new(),
+                    );
                 }
             }
             errors.push(classified);
-            return (Err(return_multiple_errors(errors).unwrap_err()), Vec::new());
+            return (
+                Err(attach_object_id(
+                    object_id.as_deref(),
+                    return_multiple_errors(errors).unwrap_err(),
+                )),
+                Vec::new(),
+            );
         }
     };
 
@@ -191,7 +220,7 @@ pub fn validate_value_from_object_parts<T: DeserializeOwned + Stix + CustomPrope
 
     let result = match return_multiple_errors(errors) {
         Ok(()) => Ok(typed),
-        Err(error) => Err(error),
+        Err(error) => Err(attach_object_id(object_id.as_deref(), error)),
     };
     (result, warnings)
 }
@@ -201,6 +230,14 @@ mod tests {
     use super::*;
     use crate::domain_objects::sdo::DomainObject;
     use std::collections::BTreeMap;
+
+    /// Strips the object-attribution wrapper so tests can inspect the variant.
+    fn inner(error: Error) -> Error {
+        match error {
+            Error::Located { error, .. } => *error,
+            other => other,
+        }
+    }
 
     #[test]
     fn valid_sdo_deserializes() {
@@ -226,7 +263,7 @@ mod tests {
             "name": "Spear Phishing",
             "junk": "value"
         });
-        let err = validate_value::<DomainObject>(value, false, true).unwrap_err();
+        let err = inner(validate_value::<DomainObject>(value, false, true).unwrap_err());
         assert!(
             matches!(err, Error::UnknownProperties { .. }),
             "expected UnknownProperties, got {err:?}"
@@ -260,7 +297,7 @@ mod tests {
             "name": "Spear Phishing",
             "junk": "value"
         });
-        let err = validate_value::<DomainObject>(value, false, true).unwrap_err();
+        let err = inner(validate_value::<DomainObject>(value, false, true).unwrap_err());
         match err {
             Error::ValidationErrors(errors) => {
                 assert!(
@@ -290,9 +327,13 @@ mod tests {
             "spec_version": "2.1"
         });
         let err = validate_value::<DomainObject>(value, false, true).unwrap_err();
-        assert!(
-            matches!(err, Error::MissingProperty { ref property, .. } if property == "name"),
-            "expected MissingProperty name, got {err:?}"
+        let entries = err.errors();
+        assert_eq!(entries.len(), 1, "entries: {entries:?}");
+        assert_eq!(entries[0].kind, "missing_property");
+        assert_eq!(entries[0].property.as_deref(), Some("name"));
+        assert_eq!(
+            entries[0].object_id.as_deref(),
+            Some("attack-pattern--12345678-1234-5678-1234-567812345678")
         );
     }
 
@@ -309,7 +350,7 @@ mod tests {
             "spec_version": 2.1,
             "name": "Spear Phishing"
         });
-        let err = validate_value::<DomainObject>(value, false, true).unwrap_err();
+        let err = inner(validate_value::<DomainObject>(value, false, true).unwrap_err());
         assert!(
             matches!(err, Error::DeserializationError(_)),
             "expected DeserializationError, got {err:?}"
@@ -330,7 +371,7 @@ mod tests {
         // Non-strict still fails because the required `name` field cannot be deserialized.
         assert!(validate_value::<DomainObject>(value.clone(), true, false).is_err());
         // When allow_custom is true the unknown field is ignored; but `name` is still required.
-        let err = validate_value::<DomainObject>(value, true, false).unwrap_err();
+        let err = inner(validate_value::<DomainObject>(value, true, false).unwrap_err());
         assert!(
             !matches!(err, Error::UnknownProperties { .. }),
             "unknown property should not be reported in non-strict mode: {err:?}"
@@ -373,7 +414,7 @@ mod tests {
             "name": "Spear Phishing",
             "x_vendor_severity": 5
         });
-        let err = validate_value::<DomainObject>(value, false, true).unwrap_err();
+        let err = inner(validate_value::<DomainObject>(value, false, true).unwrap_err());
         assert!(
             matches!(err, Error::UnknownProperties { .. }),
             "got {err:?}"
@@ -417,7 +458,7 @@ mod tests {
                 "name": "Spear Phishing",
                 key: "value"
             });
-            let err = validate_value::<DomainObject>(value, true, true).unwrap_err();
+            let err = inner(validate_value::<DomainObject>(value, true, true).unwrap_err());
             assert!(
                 matches!(err, Error::ValidationError(_) | Error::ValidationErrors(_)),
                 "{key}: expected ValidationError, got {err:?}"

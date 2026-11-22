@@ -52,53 +52,73 @@ struct Rule {
     expected_error_substring: Option<String>,
     #[serde(default)]
     expected_warnings: Vec<String>,
+    #[serde(default)]
+    expected_errors: Vec<ExpectedError>,
 }
 
-fn parse(
-    category: &str,
-    object_type: &str,
-    json: &str,
-    allow_custom: bool,
-) -> Result<Vec<String>, String> {
-    fn kinds<T>(
-        result: Result<T, stixflayer::StixError>,
-        warnings: Vec<stixflayer::error::Entry>,
-    ) -> Result<Vec<String>, String> {
-        result
-            .map(|_| warnings.into_iter().map(|entry| entry.kind).collect())
-            .map_err(|e| e.to_string())
+#[derive(Debug, Deserialize)]
+struct ExpectedError {
+    kind: String,
+    #[serde(default)]
+    property: Option<String>,
+}
+
+struct Parsed {
+    warnings: Vec<String>,
+    error_message: Option<String>,
+    errors: Vec<stixflayer::error::Entry>,
+}
+
+fn parsed<T>(
+    result: Result<T, stixflayer::StixError>,
+    warnings: Vec<stixflayer::error::Entry>,
+) -> Parsed {
+    let warnings = warnings.into_iter().map(|entry| entry.kind).collect();
+    match result {
+        Ok(_) => Parsed {
+            warnings,
+            error_message: None,
+            errors: Vec::new(),
+        },
+        Err(error) => Parsed {
+            warnings,
+            error_message: Some(error.to_string()),
+            errors: error.errors(),
+        },
     }
+}
+
+fn parse(category: &str, object_type: &str, json: &str, allow_custom: bool) -> Parsed {
+    if category == "meta" {
+        assert_eq!(
+            object_type, "bundle",
+            "unsupported meta object_type: {object_type}"
+        );
+        let (result, warnings) = Bundle::from_json_parts(json);
+        return parsed(result, warnings);
+    }
+
+    let value: Value = serde_json::from_str(json).expect("fixture is valid JSON");
     match category {
         "sdo" => {
-            let value: Value = serde_json::from_str(json).map_err(|e| e.to_string())?;
             let (result, warnings) = stixflayer::validation::validate_value_from_object_parts::<
                 DomainObject,
             >(value, allow_custom, true);
-            kinds(result, warnings)
+            parsed(result, warnings)
         }
         "sco" => {
-            let value: Value = serde_json::from_str(json).map_err(|e| e.to_string())?;
             let (result, warnings) = stixflayer::validation::validate_value_from_object_parts::<
                 CyberObject,
             >(value, allow_custom, true);
-            kinds(result, warnings)
+            parsed(result, warnings)
         }
         "sro" => {
-            let value: Value = serde_json::from_str(json).map_err(|e| e.to_string())?;
             let (result, warnings) = stixflayer::validation::validate_value_from_object_parts::<
                 RelationshipObject,
             >(value, allow_custom, true);
-            kinds(result, warnings)
+            parsed(result, warnings)
         }
-        "meta" => {
-            if object_type == "bundle" {
-                let (result, warnings) = Bundle::from_json_parts(json);
-                kinds(result, warnings)
-            } else {
-                panic!("unsupported meta object_type: {}", object_type);
-            }
-        }
-        other => panic!("unsupported category: {}", other),
+        other => panic!("unsupported category: {other}"),
     }
 }
 
@@ -116,7 +136,7 @@ fn run_matrix_section(section: &str) {
 
         let allow_custom = rule.allow_custom.unwrap_or(false);
         let json = load_fixture(&rule.fixture);
-        let result = parse(&rule.category, &rule.object_type, &json, allow_custom);
+        let parsed = parse(&rule.category, &rule.object_type, &json, allow_custom);
         let expected_behavior = rule
             .expected_behavior
             .as_deref()
@@ -124,21 +144,26 @@ fn run_matrix_section(section: &str) {
 
         match expected_behavior {
             "parses_successfully" => {
-                let warnings = result.unwrap_or_else(|error| {
-                    panic!("rule '{}' expected success but got error: {error}", key)
-                });
+                assert!(
+                    parsed.error_message.is_none(),
+                    "rule '{}' expected success but got error: {}",
+                    key,
+                    parsed.error_message.unwrap_or_default()
+                );
                 for expected in &rule.expected_warnings {
                     assert!(
-                        warnings.contains(expected),
+                        parsed.warnings.contains(expected),
                         "rule '{}' expected warning kind '{}', got {:?}",
                         key,
                         expected,
-                        warnings
+                        parsed.warnings
                     );
                 }
             }
             _ => {
-                let err = result.expect_err(&format!("rule '{}' expected an error", key));
+                let err = parsed
+                    .error_message
+                    .unwrap_or_else(|| panic!("rule '{key}' expected an error"));
                 if let Some(sub) = rule.expected_error_substring {
                     assert!(
                         err.contains(&sub),
@@ -147,6 +172,33 @@ fn run_matrix_section(section: &str) {
                         sub,
                         err
                     );
+                }
+                if !rule.expected_errors.is_empty() {
+                    assert_eq!(
+                        parsed.errors.len(),
+                        rule.expected_errors.len(),
+                        "rule '{}' expected errors {:?}, got {:?}",
+                        key,
+                        rule.expected_errors,
+                        parsed.errors
+                    );
+                    for (expected, actual) in rule.expected_errors.iter().zip(&parsed.errors) {
+                        assert_eq!(
+                            actual.kind, expected.kind,
+                            "rule '{}' expected error kind {:?}, got {:?}",
+                            key, expected.kind, actual.kind
+                        );
+                        if let Some(property) = &expected.property {
+                            assert_eq!(
+                                actual.property.as_deref(),
+                                Some(property.as_str()),
+                                "rule '{}' expected error property {:?}, got {:?}",
+                                key,
+                                property,
+                                actual.property
+                            );
+                        }
+                    }
                 }
             }
         }

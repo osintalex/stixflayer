@@ -108,6 +108,9 @@ impl Stix for RelationshipObject {
         // Check common properties
         add_error(&mut errors, self.common_properties.check(ctx));
 
+        // Check the identifier (UUIDv5 is a SHOULD finding for non-SCOs).
+        add_error(&mut errors, self.common_properties.id.check(ctx));
+
         // Check specific properties for the type of SRO
         match &self.object_type {
             RelationshipObjectType::Relationship(relationship) => add_error(

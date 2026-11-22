@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -23,6 +23,7 @@ MATRIX_PATH = Path(__file__).parent.parent / "testdata" / "test_matrix.json"
 ERROR_CLASSES = {
     "deserialization_error": sf.DeserializationError,
     "validation_error": sf.ValidationError,
+    "stix_error": sf.StixError,
 }
 
 
@@ -64,8 +65,23 @@ def test_validation_rule(key: str, entry: dict[str, Any]) -> None:
         with pytest.raises(
             exc_class,
             match=re.escape(substring) if substring else None,
-        ):
+        ) as exc_info:
             parse_fixture(cls, json_str, entry)
+        assert_expected_errors(key, entry, exc_info.value)
+
+
+def assert_expected_errors(key: str, entry: dict[str, Any], error: Exception) -> None:
+    """Assert the exact error entries recorded in ``expected_errors``."""
+    expected_errors = entry.get("expected_errors")
+    if expected_errors is None:
+        return
+
+    actual_errors = cast(Any, error).errors
+    assert len(actual_errors) == len(expected_errors), (key, expected_errors, actual_errors)
+    for expected, actual in zip(expected_errors, actual_errors, strict=True):
+        assert actual["kind"] == expected["kind"], (key, expected, actual)
+        if "property" in expected:
+            assert actual.get("property") == expected["property"], (key, expected, actual)
 
 
 @pytest.mark.parametrize(("key", "entry"), matrix_section("custom_properties"))

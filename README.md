@@ -136,6 +136,7 @@ except ValidationError as e:
         {
             "kind": "missing_property",
             "message": "`attack-pattern` is missing required property 'name'",
+            "object_id": "attack-pattern--d3046a90-580c-4004-8208-66915bc29830",
             "property": "name",
         }
     ]

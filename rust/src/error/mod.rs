@@ -49,6 +49,7 @@ pub const KNOWN_WARNING_KINDS: &[&str] = &[
     "extension_key_not_extension_definition",
     "external_reference_url_without_hashes",
     "hash_not_sha256",
+    "identifier_uuid_not_v4",
     "marking_definition_type_not_suggested",
     "network_traffic_missing_port",
     "observed_data_no_recognized_sco",
@@ -165,6 +166,19 @@ pub enum StixError {
         /// The name of the vocabulary the value was checked against.
         vocabulary: String,
     },
+    /// An error attributed to a specific STIX object.
+    ///
+    /// Wraps an object-scoped failure so its structured entries carry
+    /// `object_id`. `Display` delegates to the inner error, so human messages
+    /// are unchanged.
+    #[error("{error}")]
+    Located {
+        /// The identifier of the object the error applies to.
+        object_id: String,
+        /// The inner error.
+        #[source]
+        error: Box<StixError>,
+    },
     // Extension errors
     /// An extension key is not a known predefined extension.
     #[error("Extension key is not a known predefined extension")]
@@ -258,6 +272,7 @@ impl StixError {
             | StixError::SerializationError(_)
             | StixError::UnexpectedJsonFormat
             | StixError::JsonNull => "deserialization",
+            StixError::Located { error, .. } => error.envelope_category(),
             _ => "stix",
         }
     }
@@ -349,6 +364,7 @@ impl StixError {
                 1 => errors[0].to_string(),
                 n => format!("{n} validation errors occurred"),
             },
+            StixError::Located { error, .. } => error.envelope_message(),
             _ => self.to_string(),
         }
     }
@@ -368,6 +384,7 @@ impl StixError {
                     .collect::<Vec<_>>()
                     .join("; "),
             },
+            StixError::Located { error, .. } => error.display_message(),
             _ => self.to_string(),
         }
     }
@@ -382,6 +399,15 @@ impl StixError {
         match self {
             StixError::ValidationErrors(errors) if !errors.is_empty() => {
                 errors.iter().flat_map(|e| e.errors()).collect()
+            }
+            StixError::Located { object_id, error } => {
+                let mut entries = error.errors();
+                for entry in &mut entries {
+                    if entry.object_id.is_none() {
+                        entry.object_id = Some(object_id.clone());
+                    }
+                }
+                entries
             }
             _ => {
                 let mut entries = self.to_entries();
@@ -649,6 +675,13 @@ mod tests {
                 expected: "a string".to_string(),
                 got: "integer `1`".to_string(),
             },
+            StixError::Located {
+                object_id: "attack-pattern--12345678-1234-5678-1234-567812345678".to_string(),
+                error: Box::new(StixError::MissingProperty {
+                    object_type: "attack-pattern".to_string(),
+                    property: "name".to_string(),
+                }),
+            },
         ]
     }
 
@@ -769,5 +802,46 @@ mod tests {
         let envelope = error.to_json();
         assert!(envelope.get("v").is_none());
         assert!(envelope.get("version").is_none());
+    }
+
+    #[test]
+    fn located_stamps_object_id_without_changing_the_message() {
+        let inner = StixError::MissingProperty {
+            object_type: "attack-pattern".to_string(),
+            property: "name".to_string(),
+        };
+        let message = inner.to_string();
+        let located = StixError::Located {
+            object_id: "attack-pattern--12345678-1234-5678-1234-567812345678".to_string(),
+            error: Box::new(inner),
+        };
+
+        assert_eq!(located.to_string(), message);
+        assert_eq!(located.display_message(), message);
+        assert_eq!(located.envelope_category(), "validation");
+
+        let entries = located.errors();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(
+            entries[0].object_id.as_deref(),
+            Some("attack-pattern--12345678-1234-5678-1234-567812345678")
+        );
+        assert_eq!(entries[0].message, message);
+    }
+
+    #[test]
+    fn located_preserves_an_existing_object_id() {
+        let inner = StixError::Located {
+            object_id: "indicator--inner".to_string(),
+            error: Box::new(StixError::EmptyList),
+        };
+        let outer = StixError::Located {
+            object_id: "indicator--outer".to_string(),
+            error: Box::new(inner),
+        };
+        assert_eq!(
+            outer.errors()[0].object_id.as_deref(),
+            Some("indicator--inner")
+        );
     }
 }
