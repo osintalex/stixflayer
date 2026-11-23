@@ -33,14 +33,6 @@ pub struct Cli {
     #[arg(long)]
     pub print_schema: bool,
 
-    /// Accept custom properties such as ATT&CK's x_mitre_* fields.
-    #[arg(long)]
-    pub allow_custom: bool,
-
-    /// Skip semantic (SHOULD-level) checks and report only structural errors.
-    #[arg(long)]
-    pub no_strict: bool,
-
     /// Exit 1 when any warning is reported.
     #[arg(long)]
     pub fail_on_warnings: bool,

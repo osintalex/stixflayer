@@ -9,6 +9,7 @@ mod test {
     use crate::{
         custom_objects::{CustomObject, CustomObjectBuilder},
         types::{Identifier, Timestamp},
+        validation::validate_value_from_object_parts,
     };
 
     // Functions for editing otherwise un-editable fields, for testing only
@@ -81,7 +82,7 @@ mod test {
     }
 
     #[test]
-    fn deserialize_custom_wrong_ext() {
+    fn deserialize_custom_property_extension_is_generic() {
         let json = r#"{
             "type": "my-favorite-sdo",
             "spec_version": "2.1",
@@ -100,7 +101,7 @@ mod test {
 
         let result = CustomObject::from_json(json);
 
-        assert!(result.is_err());
+        assert!(result.is_ok());
     }
 
     #[test]
@@ -118,7 +119,81 @@ mod test {
 
         let result = CustomObject::from_json(json);
 
-        assert!(result.is_err());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn extensionless_custom_object_warns() {
+        let json = r#"{
+            "type": "x-example-com-customobject",
+            "spec_version": "2.1",
+            "id": "x-example-com-customobject--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+            "created": "2014-02-20T09:16:08.989000Z",
+            "modified": "2014-02-20T09:16:08.989000Z",
+            "some_custom_stuff": 14
+        }"#;
+        let value: Value = serde_json::from_str(json).unwrap();
+        let (result, warnings) =
+            validate_value_from_object_parts::<CustomObject>(value, true, true);
+
+        assert!(result.is_ok());
+        assert!(warnings
+            .iter()
+            .any(|warning| warning.kind == "custom_missing_extension"));
+        assert!(crate::error::KNOWN_WARNING_KINDS.contains(&"custom_missing_extension"));
+    }
+
+    #[test]
+    fn custom_object_with_new_sdo_does_not_warn() {
+        let json = r#"{
+            "type": "x-example-com-customobject",
+            "spec_version": "2.1",
+            "id": "x-example-com-customobject--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+            "created": "2014-02-20T09:16:08.989000Z",
+            "modified": "2014-02-20T09:16:08.989000Z",
+            "some_custom_stuff": 14,
+            "extensions": {
+                "extension-definition--9c59fd79-4215-4ba2-920d-3e4f320e1e62": {
+                    "extension_type": "new-sdo"
+                }
+            }
+        }"#;
+        let value: Value = serde_json::from_str(json).unwrap();
+        let (result, warnings) =
+            validate_value_from_object_parts::<CustomObject>(value, true, true);
+
+        assert!(result.is_ok());
+        assert!(!warnings
+            .iter()
+            .any(|warning| warning.kind == "custom_missing_extension"));
+    }
+
+    #[test]
+    fn extensionless_custom_object_still_checks_type_name() {
+        let json = r#"{
+            "type": "Bad_Custom_Type",
+            "spec_version": "2.1",
+            "id": "Bad_Custom_Type--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+            "created": "2014-02-20T09:16:08.989000Z",
+            "modified": "2014-02-20T09:16:08.989000Z",
+            "some_custom_stuff": 14
+        }"#;
+
+        assert!(CustomObject::from_json(json).is_err());
+    }
+
+    #[test]
+    fn extensionless_custom_object_still_checks_property_names() {
+        let json = r#"{
+            "type": "x-example-com-customobject",
+            "spec_version": "2.1",
+            "id": "x-example-com-customobject--cc7fa653-c35f-43db-afdd-dce4c3a241d5",
+            "created": "2014-02-20T09:16:08.989000Z",
+            "modified": "2014-02-20T09:16:08.989000Z",
+            "bad-key": 14
+        }"#;
+
+        assert!(CustomObject::from_json(json).is_err());
     }
 
     #[test]

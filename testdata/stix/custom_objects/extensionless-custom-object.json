@@ -1,0 +1,9 @@
+{
+    "type": "x-example-com-customobject",
+    "spec_version": "2.1",
+    "id": "x-example-com-customobject--4527e5de-8572-446a-a57a-706f15467461",
+    "created": "2024-01-01T00:00:00.000Z",
+    "modified": "2024-01-01T00:00:00.000Z",
+    "name": "Extension-less custom object",
+    "description": "A custom object that does not declare a new-sdo/new-sco/new-sro extension."
+}

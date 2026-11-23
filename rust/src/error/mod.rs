@@ -16,7 +16,6 @@ pub use helpers::{add_error, return_multiple_errors};
 /// This is the machine-readable contract; the docs catalog and the
 /// `all_variants` drift test keep it in sync with the implementation.
 pub const KNOWN_ERROR_KINDS: &[&str] = &[
-    "custom_missing_extension",
     "deserialization_error",
     "empty_list",
     "illegal_builder_property",
@@ -45,6 +44,7 @@ pub const KNOWN_ERROR_KINDS: &[&str] = &[
 
 /// Every warning `kind` the engine can currently produce.
 pub const KNOWN_WARNING_KINDS: &[&str] = &[
+    "custom_missing_extension",
     "dictionary_key_not_lowercase",
     "extension_key_not_extension_definition",
     "external_reference_url_without_hashes",
@@ -190,11 +190,6 @@ pub enum StixError {
     /// The object cannot be versioned; the string explains why.
     #[error("Cannot version this object: {0}")]
     UnableToVersion(String),
-    // Customization errors
-    /// A custom object must carry an extension with an appropriate
-    /// `new_object` extension type.
-    #[error("Custom objects must have an extension with an appropriate new_object extension type")]
-    CustomMissingExtension,
     // (De)serialization and JSON parsing related errors
     /// A JSON `null` was encountered; nulls are not allowed in STIX 2.1.
     #[error("JSON nulls are not allowed in STIX 2.1")]
@@ -266,7 +261,6 @@ impl StixError {
             | StixError::InvalidVocabValue { .. }
             | StixError::ParsePatternError(_, _)
             | StixError::WrongExtension
-            | StixError::CustomMissingExtension
             | StixError::UnknownExtension => "validation",
             StixError::DeserializationError(_)
             | StixError::SerializationError(_)
@@ -655,7 +649,6 @@ mod tests {
             StixError::UnknownExtension,
             StixError::WrongExtension,
             StixError::UnableToVersion("no timestamps".to_string()),
-            StixError::CustomMissingExtension,
             StixError::JsonNull,
             StixError::UnexpectedJsonFormat,
             StixError::UnrecognizedObject(strum::ParseError::VariantNotFound),

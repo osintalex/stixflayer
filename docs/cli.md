@@ -69,11 +69,13 @@ cat testdata/stix/valid/bundle.json | stixflayer -
 | `-j`, `--jobs <N>` | Worker threads. `0` (the default) uses every logical core. |
 | `--json` | Write the machine-readable report instead of human-readable output. |
 | `--print-schema` | Print the JSON Schema for the report and exit without validating. |
-| `--allow-custom` | Accept custom properties such as ATT&CK's `x_mitre_*` fields. |
-| `--no-strict` | Skip semantic (SHOULD-level) checks and report only structural errors. |
 | `--fail-on-warnings` | Exit `1` when any warning is reported. |
 | `-h`, `--help` | Print usage. |
 | `-V`, `--version` | Print the crate version. |
+
+STIX 2.1 allows custom properties, so they are accepted and validated by
+default; no flag is required. SHOULD-level findings are reported as warnings
+and do not affect the exit code unless `--fail-on-warnings` is set.
 
 Validation runs on objects in parallel. The report is ordered by path, so the
 same inputs produce the same output at any `--jobs` setting.
@@ -142,6 +144,21 @@ feed.jsonl: error [deserialization_error] line 3: expected value at line 1 colum
 If every line is non-STIX, the file is skipped as `not_stix`. Lines that are
 skipped do not change the exit code. `summary.objects` counts the objects
 validated across all lines.
+
+## Relationship validation
+
+Relationships are validated strictly: endpoints must be SDOs or SCOs, and a
+spec-defined relationship name must match its defined source/target pair.
+Undefined pairs use `related-to` or a user-defined relationship name. There is
+no flag to accept non-conformant relationship shapes.
+
+```console
+stixflayer testdata/stix/custom_objects/custom-object-relationship.json; echo $?
+```
+
+```console
+1
+```
 
 ## Human-readable output
 
@@ -222,6 +239,5 @@ this repository, the command runs against the bundled fixtures:
   run: stixflayer --json --fail-on-warnings testdata/stix/valid/bundle.json
 ```
 
-Use `--allow-custom` for ATT&CK-style documents whose objects carry
-`x_mitre_*` properties, and `--no-strict` when only structural errors should
-fail the run.
+Custom properties such as ATT&CK's `x_mitre_*` fields are accepted by default.
+Non-conformant relationship shapes are still reported as errors.

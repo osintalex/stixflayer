@@ -1,5 +1,4 @@
-use crate::error::CheckContext;
-use crate::error::Entry;
+use crate::error::{CheckContext, Entry};
 use crate::{
     base::{check_timestamp_ordering, Stix},
     error::StixError as Error,
@@ -86,5 +85,56 @@ impl Stix for Relationship {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::base::Stix;
+    use crate::relationship_objects::types::RelationshipType;
+
+    fn relationship(
+        relationship_type: RelationshipType,
+        source: &str,
+        target: &str,
+    ) -> Relationship {
+        Relationship {
+            relationship_type,
+            source_ref: source.parse().unwrap(),
+            target_ref: target.parse().unwrap(),
+            start_time: None,
+            stop_time: None,
+        }
+    }
+
+    const CUSTOM: &str = "x-mitre-detection-strategy--550e8400-e29b-41d4-a716-446655440000";
+    const ATTACK_PATTERN: &str = "attack-pattern--550e8400-e29b-41d4-a716-446655440001";
+    const TOOL: &str = "tool--550e8400-e29b-41d4-a716-446655440002";
+
+    #[test]
+    fn custom_endpoint_is_rejected() {
+        let relationship = relationship(RelationshipType::RelatedTo, CUSTOM, ATTACK_PATTERN);
+        let mut ctx = CheckContext::new();
+
+        assert!(relationship.check(&mut ctx).is_err());
+        assert!(ctx.warnings().is_empty());
+    }
+
+    #[test]
+    fn undefined_pair_is_rejected() {
+        let relationship = relationship(RelationshipType::Uses, TOOL, ATTACK_PATTERN);
+        let mut ctx = CheckContext::new();
+
+        assert!(relationship.check(&mut ctx).is_err());
+    }
+
+    #[test]
+    fn defined_pair_is_accepted() {
+        let relationship = relationship(RelationshipType::Uses, ATTACK_PATTERN, TOOL);
+        let mut ctx = CheckContext::new();
+
+        assert!(relationship.check(&mut ctx).is_ok());
+        assert!(ctx.warnings().is_empty());
     }
 }

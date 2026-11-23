@@ -95,3 +95,4 @@ pub use meta_objects::marking_definition::MarkingDefinitionBuilder;
 pub use object::FromJson;
 pub use relationship_objects::RelationshipObjectBuilder;
 pub use types::{ExtensionType, Hashes, Identified, Identifier, KillChainPhase, Timestamp};
+pub use validation::ValidationOptions;

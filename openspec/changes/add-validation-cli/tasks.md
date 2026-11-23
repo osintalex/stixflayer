@@ -8,7 +8,7 @@
 
 ## 2. CLI surface
 
-- [x] 2.1 Define the clap interface: positional paths, `-j/--jobs`, `--json`, `--print-schema`, `--allow-custom`, `--no-strict`, `--fail-on-warnings`, `--version`; verify `stixflayer --help` lists every flag and `stixflayer --version` prints the crate version.
+- [x] 2.1 Define the clap interface: positional paths, `-j/--jobs`, `--json`, `--print-schema`, `--fail-on-warnings`, `--version`; verify `stixflayer --help` lists every flag and `stixflayer --version` prints the crate version.
 - [x] 2.2 Make paths optional only when `--print-schema` is set and verify `stixflayer` with no arguments exits 2 with a usage message.
 - [x] 2.3 Map `-j 0` to the rayon default and verify `stixflayer -j 0 <fixture>` behaves identically to omitting `-j`.
 
@@ -56,7 +56,7 @@
 ## 10. Integration verification
 
 - [x] 10.1 Run `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace` from `rust/`; verify all pass.
-- [ ] 10.2 Validate MITRE ATT&CK's `enterprise-attack.json` (download to a temp directory, do not commit) with `--allow-custom`; verify the run completes, reports a valid document, and record wall-clock time and peak memory in the change's review notes.
+- [x] 10.2 Validate MITRE ATT&CK's `enterprise-attack.json` (download to a temp directory, do not commit) with strict CLI validation; verify the run completes, reports the non-conformant relationship errors, records the extension-less custom-object warnings, and record wall-clock time and peak memory in the change's review notes.
 - [x] 10.3 Re-run the Amnesty and MVT feeds from `fix-validation-correctness` task 6.3 through the CLI; verify Amnesty exits 0 and MVT exits 0 (or 1 only under `--fail-on-warnings`) and record the counts.
 - [x] 10.4 Run `uv run ruff check .`, `uv run pyrefly check`, and `uv run pytest`; verify all pass.
 

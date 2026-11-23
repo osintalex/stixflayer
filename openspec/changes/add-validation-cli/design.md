@@ -58,7 +58,7 @@ let doc: Value = serde_json::from_str(&text)?;
 let outcomes: Vec<_> = doc["objects"]
     .as_array()
     .par_iter()
-    .map(|v| StixObject::from_value_outcome(v.clone(), allow_custom, strict))
+    .map(|v| StixObject::from_value_outcome(v.clone(), true, true))
     .collect();
 let bundle = Bundle { object_type, id, objects };
 bundle.check_invariants();

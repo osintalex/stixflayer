@@ -7,5 +7,5 @@ mod tests;
 pub mod validation;
 
 pub use builder::CustomObjectBuilder;
-pub use object::CustomObject;
+pub use object::{CustomObject, CustomObjectKind};
 pub use validation::check_custom_object_type;

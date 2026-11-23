@@ -51,6 +51,17 @@ print(ap.x_mitre_detection)
 #> Monitor command history
 ```
 
+## Custom objects and relationships
+
+STIX 2.1 §11.2 says custom objects **SHOULD** declare a `new-sdo`, `new-sco`,
+or `new-sro` extension, not MUST. An extension-less custom object validates as
+a generic custom object and reports a `custom_missing_extension` warning.
+
+Relationship validation remains strict: endpoints must be SDOs or SCOs, and a
+spec-defined relationship name must match its defined source/target pair.
+There is no leniency mode for non-conformant relationship shapes. The CLI
+accepts custom properties by default, matching STIX 2.1.
+
 ## Semantic checks: `strict`
 
 With `strict=True` (the default), STIX MUST rules produce errors and SHOULD

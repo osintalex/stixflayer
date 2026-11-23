@@ -118,11 +118,28 @@ impl CustomObjectBuilder {
         })
     }
 
+    /// Create a `CustomObjectBuilder` from an extension-less generic custom object.
+    ///
+    /// The builder preserves the parsed object exactly; it does not add a
+    /// `new-sdo` / `new-sco` / `new-sro` extension.
+    pub fn from_generic(old: &CustomObject) -> Result<CustomObjectBuilder, Error> {
+        Ok(CustomObjectBuilder {
+            object_type: old.object_type.clone(),
+            common_properties: CommonPropertiesBuilder::from_existing(
+                "custom",
+                &old.common_properties,
+            )?,
+            custom_properties: old.custom_properties.clone(),
+        })
+    }
+
     /// Create a new STIX 2.1 `CustomObjectBuilder` by cloning the fields from an already-parsed
     /// `CustomObject`, preserving its `id`, `created`, `modified`, and `revoked` properties exactly.
     /// Unlike `version()`, this does not treat the object as the basis for a new version.
     pub fn from_parsed(old: &CustomObject) -> Result<CustomObjectBuilder, Error> {
-        let object_type = old.get_object_type()?;
+        let Some(object_type) = old.get_object_type() else {
+            return Self::from_generic(old);
+        };
         let object_type_name = old.object_type.clone();
         let custom_properties = old.custom_properties.clone();
 
@@ -185,7 +202,7 @@ impl CustomObjectBuilder {
             )));
         }
 
-        if old.get_object_type()? == ExtensionType::NewSco {
+        if old.get_object_type() == Some(ExtensionType::NewSco) {
             return Err(Error::UnableToVersion(format!(
                 "Custom object {} is an SCO. SCOs cannot be versioned.",
                 old.common_properties.id

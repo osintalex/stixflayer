@@ -11,6 +11,7 @@ use crate::{
     error::{add_error, return_multiple_errors, Entry, Outcome, StixError as Error},
     object::StixObject,
     types::{Identified, Identifier},
+    validation::ValidationOptions,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -69,15 +70,33 @@ impl Bundle {
         Self::from_json_parts(json).0
     }
 
+    /// Deserialize a bundle with explicit validation options.
+    pub fn from_json_with_options(json: &str, options: ValidationOptions) -> Result<Self, Error> {
+        Self::from_json_parts_with_options(json, options).0
+    }
+
     /// Deserialize a bundle and return the warnings collected from every object.
     pub fn from_json_outcome(json: &str) -> Outcome<Self> {
-        let (result, warnings) = Self::from_json_parts(json);
+        Self::from_json_outcome_with_options(json, ValidationOptions::new(true, true))
+    }
+
+    /// Deserialize a bundle with explicit validation options and return warnings.
+    pub fn from_json_outcome_with_options(json: &str, options: ValidationOptions) -> Outcome<Self> {
+        let (result, warnings) = Self::from_json_parts_with_options(json, options);
         Outcome::from_result(result, warnings)
     }
 
     /// Shared implementation for [`Self::from_json`] and
     /// [`Self::from_json_outcome`].
     pub fn from_json_parts(json: &str) -> (Result<Self, Error>, Vec<Entry>) {
+        Self::from_json_parts_with_options(json, ValidationOptions::new(true, true))
+    }
+
+    /// Options-aware shared implementation for bundle parsing.
+    pub fn from_json_parts_with_options(
+        json: &str,
+        options: ValidationOptions,
+    ) -> (Result<Self, Error>, Vec<Entry>) {
         #[derive(Deserialize)]
         struct RawBundle {
             #[serde(rename = "type")]
@@ -95,7 +114,8 @@ impl Bundle {
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
         for value in raw.objects {
-            let (result, mut object_warnings) = StixObject::from_value_parts(value, true, true);
+            let (result, mut object_warnings) =
+                StixObject::from_value_parts_with_options(value, options);
             warnings.append(&mut object_warnings);
             match result {
                 Ok(object) => objects.push(object),

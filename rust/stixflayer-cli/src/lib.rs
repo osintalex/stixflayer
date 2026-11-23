@@ -56,9 +56,11 @@ pub fn run() -> i32 {
 /// Discovers, validates, and assembles the report for the parsed arguments.
 fn validate_inputs(cli: &Cli) -> Result<Report, InputError> {
     let inputs = discover(&cli.paths)?;
+    // STIX 2.1 allows custom properties, and SHOULD findings are warnings
+    // rather than opt-in checks. The CLI always validates the full spec.
     let options = Options {
-        allow_custom: cli.allow_custom,
-        strict: !cli.no_strict,
+        allow_custom: true,
+        strict: true,
     };
 
     let documents = run_pool(cli.jobs, || {

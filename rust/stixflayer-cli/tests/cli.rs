@@ -71,12 +71,20 @@ fn help_lists_every_flag() {
         "--jobs",
         "--json",
         "--print-schema",
-        "--allow-custom",
-        "--no-strict",
         "--fail-on-warnings",
         "--version",
     ] {
         assert!(help.contains(flag), "help is missing {flag}:\n{help}");
+    }
+    for removed in [
+        "--allow-custom",
+        "--allow-custom-relationships",
+        "--no-strict",
+    ] {
+        assert!(
+            !help.contains(removed),
+            "help still exposes non-spec flag {removed}:\n{help}"
+        );
     }
 }
 
@@ -386,25 +394,55 @@ fn unparseable_stix_extension_is_invalid() {
 }
 
 #[test]
-fn allow_custom_accepts_custom_properties() {
+fn custom_properties_are_accepted_by_default() {
     let fixture = fixture("allow_custom/valid/sdos/indicator-custom.json");
-    let (rejected, _) = run_json(&[&fixture]);
-    assert_eq!(rejected, 1);
-
-    let (accepted, report) = run_json(&["--allow-custom", &fixture]);
-    assert_eq!(accepted, 0);
+    let (code, report) = run_json(&[&fixture]);
+    assert_eq!(code, 0);
     assert_eq!(report["summary"]["valid"], 1);
 }
 
 #[test]
-fn no_strict_skips_semantic_checks() {
-    let fixture = fixture("invalid/sco/ipv4-bad-format.json");
-    let (strict, _) = run_json(&[&fixture]);
-    assert_eq!(strict, 1);
+fn extensionless_custom_object_is_valid_with_a_warning() {
+    let fixture = fixture("custom_objects/extensionless-custom-object.json");
+    let (code, report) = run_json(&[&fixture]);
+    assert_eq!(code, 0);
+    assert_eq!(report["results"][0]["valid"], true);
+    assert!(report["results"][0]["warnings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|warning| warning["kind"] == "custom_missing_extension"));
+}
 
-    let (lenient, report) = run_json(&["--no-strict", &fixture]);
-    assert_eq!(lenient, 0);
-    assert_eq!(report["summary"]["valid"], 1);
+#[test]
+fn custom_object_relationship_endpoints_stay_strict() {
+    let fixture = fixture("custom_objects/custom-object-relationship.json");
+    let (code, report) = run_json(&[&fixture]);
+    assert_eq!(code, 1);
+    assert!(report["results"][0]["errors"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|error| error["kind"] == "invalid_nested_object"));
+}
+
+#[test]
+fn undefined_relationship_pairs_stay_strict() {
+    let fixture = fixture("custom_objects/tool-uses-attack-pattern.json");
+    let (code, report) = run_json(&[&fixture]);
+    assert_eq!(code, 1);
+    assert!(report["results"][0]["errors"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|error| error["kind"] == "invalid_nested_object"));
+}
+
+#[test]
+fn semantic_errors_are_not_opt_out() {
+    let fixture = fixture("invalid/sco/ipv4-bad-format.json");
+    let (code, _) = run_json(&[&fixture]);
+    assert_eq!(code, 1);
 }
 
 #[test]
@@ -471,12 +509,7 @@ fn every_matrix_fixture_matches_the_engine_verdict() {
         for (name, rule) in rules {
             let path = fixture(&rule.fixture);
             let text = fs::read_to_string(&path).unwrap();
-            let mut args = vec!["--json"];
-            if rule.allow_custom {
-                args.push("--allow-custom");
-            }
-            args.push(path.as_str());
-            let (code, report) = run_json(&args);
+            let (code, report) = run_json(&[path.as_str()]);
 
             let results = report["results"].as_array().unwrap();
             let skipped = report["skipped"].as_array().unwrap();
@@ -491,10 +524,18 @@ fn every_matrix_fixture_matches_the_engine_verdict() {
 
             let cli_valid = results[0]["valid"].as_bool().unwrap();
             let value: Value = serde_json::from_str(&text).unwrap();
+            // The CLI always accepts custom properties, matching STIX 2.1.
+            // Matrix rules that deliberately set allow_custom=false are
+            // library-level strictness checks, not CLI expectations.
+            if !rule.allow_custom && rule.fixture.starts_with("allow_custom/") {
+                assert!(cli_valid, "rule {name} should be valid in the CLI");
+                continue;
+            }
+
             let engine_valid = if value.get("type").and_then(Value::as_str) == Some("bundle") {
                 Bundle::from_json_outcome(&text).valid
             } else {
-                StixObject::from_value_outcome(value, rule.allow_custom, true).valid
+                StixObject::from_value_outcome(value, true, true).valid
             };
             assert_eq!(
                 cli_valid, engine_valid,

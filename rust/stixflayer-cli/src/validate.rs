@@ -14,11 +14,12 @@ use stixflayer::bundles::Bundle;
 use stixflayer::error::Entry;
 use stixflayer::object::StixObject;
 use stixflayer::types::Identifier;
+use stixflayer::ValidationOptions;
 
 /// Engine parsing options exposed by the CLI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Options {
-    /// Accept `x_`-prefixed custom properties.
+    /// Accept custom properties.
     pub allow_custom: bool,
     /// Run semantic (`SHOULD`-level) checks in addition to structural checks.
     pub strict: bool,
@@ -27,9 +28,15 @@ pub struct Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
-            allow_custom: false,
+            allow_custom: true,
             strict: true,
         }
+    }
+}
+
+impl Options {
+    fn engine(self) -> ValidationOptions {
+        ValidationOptions::new(self.allow_custom, self.strict)
     }
 }
 
@@ -174,7 +181,7 @@ fn classify_value(value: Value, options: &Options) -> Document {
     if object_type == "bundle" {
         validate_bundle(value, options)
     } else {
-        let outcome = StixObject::from_value_outcome(value, options.allow_custom, options.strict);
+        let outcome = StixObject::from_value_outcome_with_options(value, options.engine());
         Document::Result {
             valid: outcome.valid,
             errors: outcome.errors,
@@ -226,9 +233,7 @@ fn validate_bundle(value: Value, options: &Options) -> Document {
     let object_count = raw_objects.len();
     let outcomes: Vec<_> = raw_objects
         .par_iter()
-        .map(|value| {
-            StixObject::from_value_outcome(value.clone(), options.allow_custom, options.strict)
-        })
+        .map(|value| StixObject::from_value_outcome_with_options(value.clone(), options.engine()))
         .collect();
 
     let mut objects = Vec::with_capacity(object_count);
@@ -513,7 +518,7 @@ mod tests {
     }
 
     #[test]
-    fn custom_properties_require_allow_custom() {
+    fn custom_properties_are_accepted_by_default() {
         let text = r#"{
             "type": "identity",
             "spec_version": "2.1",
@@ -525,18 +530,18 @@ mod tests {
         }"#;
         assert!(matches!(
             validate_document("identity.json", text, &options()),
-            Document::Result { valid: false, .. }
+            Document::Result { valid: true, .. }
         ));
         assert!(matches!(
             validate_document(
                 "identity.json",
                 text,
                 &Options {
-                    allow_custom: true,
-                    strict: true
+                    allow_custom: false,
+                    strict: true,
                 }
             ),
-            Document::Result { valid: true, .. }
+            Document::Result { valid: false, .. }
         ));
     }
 
@@ -562,7 +567,7 @@ mod tests {
                 text,
                 &Options {
                     allow_custom: false,
-                    strict: false
+                    strict: false,
                 }
             ),
             Document::Result { valid: true, .. }

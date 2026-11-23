@@ -145,19 +145,19 @@ The CLI SHALL exit `0` when every validated document is valid, `1` when at least
 - **WHEN** `--fail-on-warnings` is set and a document produces only warnings
 - **THEN** the exit code is 1
 
-### Requirement: Validation options
+### Requirement: Custom properties are accepted by default
 
-`--allow-custom` SHALL accept custom properties, and `--no-strict` SHALL skip semantic checks. Both SHALL map to the engine's existing parsing options and MUST NOT change the report shape.
+The CLI SHALL accept and validate custom properties without requiring a flag, because STIX 2.1 permits them. Custom-property names and suffix rules SHALL still be enforced. The report shape MUST NOT change.
 
 #### Scenario: ATT&CK-style custom properties
 
-- **WHEN** a document contains `x_mitre_*` properties and `--allow-custom` is set
+- **WHEN** a document contains `x_mitre_*` properties
 - **THEN** the document validates without `unknown_property` errors
 
-#### Scenario: Custom properties rejected by default
+#### Scenario: Invalid custom-property names are still rejected
 
-- **WHEN** the same document is validated without `--allow-custom`
-- **THEN** it is invalid with an `unknown_property` entry
+- **WHEN** a document contains a custom property whose name violates the STIX 2.1 custom-property rules
+- **THEN** validation reports the corresponding error
 
 ### Requirement: Human-readable output
 

@@ -3,6 +3,7 @@ mod test {
         bundles::Bundle,
         domain_objects::sdo::{DomainObjectBuilder, DomainObjectType},
         object::StixObject,
+        validation::ValidationOptions,
     };
 
     #[test]
@@ -41,6 +42,30 @@ mod test {
             panic!()
         };
         assert_eq!(indicator.name.as_ref().unwrap(), "Poison Ivy Malware");
+    }
+
+    #[test]
+    fn from_json_outcome_with_options_preserves_the_outcome_shape() {
+        let json = r#"{
+            "type": "bundle",
+            "id": "bundle--44580eb5-a924-475f-970c-8b47ee07f641",
+            "objects": [
+                {
+                    "type": "attack-pattern",
+                    "spec_version": "2.1",
+                    "id": "attack-pattern--089a0ad8-367a-4326-ba2e-35b506fa4c29",
+                    "created": "2016-05-12T08:17:27.000Z",
+                    "modified": "2016-05-12T08:17:27.000Z",
+                    "name": "Spear Phishing"
+                }
+            ]
+        }"#;
+
+        let outcome = Bundle::from_json_outcome_with_options(json, ValidationOptions::default());
+        assert!(outcome.valid);
+        assert!(outcome.value.is_some());
+        assert!(outcome.errors.is_empty());
+        assert!(outcome.warnings.is_empty());
     }
 
     #[test]
