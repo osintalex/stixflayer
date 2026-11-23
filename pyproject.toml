@@ -19,6 +19,7 @@ dependencies = []
 manifest-path = "rust/Cargo.toml"
 module-name = "stixflayer"
 bindings = "pyo3"
+features = ["pyo3"]
 
 [tool.ruff]
 line-length = 120

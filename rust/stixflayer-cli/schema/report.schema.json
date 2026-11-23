@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/osintalex/stixflayer/schema/report.schema.json",
+  "title": "stixflayer validation report",
+  "description": "The stable JSON report emitted by `stixflayer --json`. The envelope evolves by adding fields only; `schema_version` remains 1 for additive changes.",
+  "type": "object",
+  "required": ["schema_version", "summary", "results", "skipped"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Report schema version. Always 1 for this report shape."
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "results": {
+      "type": "array",
+      "description": "Validated documents, ordered by path.",
+      "items": {
+        "$ref": "#/$defs/fileResult"
+      }
+    },
+    "skipped": {
+      "type": "array",
+      "description": "Documents skipped before validation, ordered by path.",
+      "items": {
+        "$ref": "#/$defs/skipped"
+      }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "description": "One MUST-level error or SHOULD-level warning. The containing list carries the severity.",
+      "required": ["kind", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "Stable machine-readable finding kind, such as missing_property."
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable finding message."
+        },
+        "property": {
+          "type": "string",
+          "description": "The property this finding refers to, when known."
+        },
+        "value": {
+          "type": "string",
+          "description": "The offending value, when known."
+        },
+        "vocabulary": {
+          "type": "string",
+          "description": "The vocabulary a value was checked against, when applicable."
+        },
+        "object_id": {
+          "type": "string",
+          "description": "The STIX object identifier this finding applies to, when known."
+        }
+      }
+    },
+    "fileResult": {
+      "type": "object",
+      "description": "The verdict for one validated document. The parsed STIX document is never included.",
+      "required": ["path", "valid", "errors", "warnings"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "The input path, or '-' for standard input."
+        },
+        "valid": {
+          "type": "boolean",
+          "description": "True when errors is empty."
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entry"
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entry"
+          }
+        }
+      }
+    },
+    "skipped": {
+      "type": "object",
+      "description": "A document that was not STIX 2.1 and was not validated.",
+      "required": ["path", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "The input path, or '-' for standard input."
+        },
+        "reason": {
+          "type": "string",
+          "description": "A free-form skip reason: not_json, not_stix, or unsupported_spec_version."
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "description": "Aggregate counts derived from results and skipped.",
+      "required": [
+        "files",
+        "valid",
+        "invalid",
+        "skipped",
+        "objects",
+        "errors",
+        "warnings"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "valid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "invalid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "objects": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "errors": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warnings": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

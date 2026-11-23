@@ -2,7 +2,8 @@
 """Release gate: decide whether a package's manifest version advanced.
 
 Compares the version in a manifest (``pyproject.tom`` or ``Cargo.toml``)
-against the latest release tag of that package (``py-v*`` / ``rust-v*``).
+against the latest release tag of that package (``py-v*``, ``rust-v*``, or
+``cli-v*``).
 A release is due if and only if the manifest version is strictly greater
 than the version in the latest matching tag, or no matching tag exists yet
 (first release). Prints GitHub Actions output assignments:

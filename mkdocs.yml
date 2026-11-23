@@ -21,6 +21,7 @@ exclude_docs: |
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
+  - CLI: cli.md
   - Guides:
       - "Parsing and validation": guides/parsing.md
       - "Building objects": guides/building.md

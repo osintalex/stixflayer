@@ -9,13 +9,13 @@ readme = "../README.md"
 documentation = "https://docs.rs/stixflayer"
 
 [workspace]
-members = [".", "stixflayer_derive"]
+members = [".", "stixflayer_derive", "stixflayer-cli"]
 
 [lib]
 name = "stixflayer"
 
 [features]
-default = ["pyo3"]
+default = []
 pyo3 = ["dep:pyo3", "pyo3/abi3-py311"]
 
 [dependencies]
