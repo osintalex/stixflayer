@@ -188,25 +188,28 @@ fn check_required_fields(object_type: &DomainObjectType) -> Result<(), Error> {
             }
         }
         DomainObjectType::Indicator(ref indicator) => {
-            if indicator.pattern.is_empty()
-                || indicator.pattern_type.is_empty()
-                || indicator.valid_from.0 == JiffTimestamp::UNIX_EPOCH
-            {
-                return Err(Error::ValidationErrors(vec![
-                    Error::MissingProperty {
-                        object_type: object_type.to_string(),
-                        property: "pattern".to_string(),
-                    },
-                    Error::MissingProperty {
-                        object_type: object_type.to_string(),
-                        property: "pattern_type".to_string(),
-                    },
-                    Error::MissingProperty {
-                        object_type: object_type.to_string(),
-                        property: "valid_from".to_string(),
-                    },
-                ]));
+            // Report only the required properties that are actually absent or
+            // empty; `valid_from`'s epoch default stands in for "absent".
+            let mut errors = Vec::new();
+            if indicator.pattern.is_empty() {
+                errors.push(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "pattern".to_string(),
+                });
             }
+            if indicator.pattern_type.is_empty() {
+                errors.push(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "pattern_type".to_string(),
+                });
+            }
+            if indicator.valid_from.0 == JiffTimestamp::UNIX_EPOCH {
+                errors.push(Error::MissingProperty {
+                    object_type: object_type.to_string(),
+                    property: "valid_from".to_string(),
+                });
+            }
+            return_multiple_errors(errors)?;
         }
         DomainObjectType::Infrastructure(ref infrastructure) => {
             if infrastructure.name.is_empty() {
@@ -224,17 +227,17 @@ fn check_required_fields(object_type: &DomainObjectType) -> Result<(), Error> {
                 });
             }
         }
-        DomainObjectType::Location(ref location) => {
-            let _ = location.stix_check();
-        }
+        DomainObjectType::Location(_) => {}
         DomainObjectType::Malware(ref malware) => {
-            if malware.name.is_none() || malware.name.as_ref().unwrap().is_empty() {
+            // The spec requires `name` only for a malware family.
+            if malware.is_family
+                && (malware.name.is_none() || malware.name.as_ref().unwrap().is_empty())
+            {
                 return Err(Error::MissingProperty {
                     object_type: object_type.to_string(),
                     property: "name".to_string(),
                 });
             }
-            let _ = malware.stix_check();
         }
         DomainObjectType::MalwareAnalysis(ref malware_analysis) => {
             if malware_analysis.product.is_empty() {
@@ -532,5 +535,25 @@ impl RelationshipObject {
     pub(crate) fn modified(mut self, datetime: &str) -> Self {
         self.common_properties.modified = Some(Timestamp(datetime.parse().unwrap()));
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn indicator_reports_only_the_absent_required_field() {
+        let indicator = Indicator {
+            pattern: "[domain-name:value = 'example.com']".to_string(),
+            pattern_type: "stix".to_string(),
+            ..Indicator::default()
+        };
+
+        let error = check_required_fields(&DomainObjectType::Indicator(indicator)).unwrap_err();
+        let entries = error.errors();
+        assert_eq!(entries.len(), 1, "expected one finding, got {entries:?}");
+        assert_eq!(entries[0].kind, "missing_property");
+        assert_eq!(entries[0].property.as_deref(), Some("valid_from"));
     }
 }

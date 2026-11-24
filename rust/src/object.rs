@@ -2,7 +2,7 @@
 use crate::error::CheckContext;
 use crate::{
     base::Stix,
-    custom_objects::CustomObject,
+    custom_objects::{CustomObject, CustomObjectKind},
     cyber_observable_objects::sco::{CyberObject, CyberObjectType},
     cyber_observable_objects::sco_types::{
         Artifact, AutonomousSystem, Directory, DomainName, EmailAddress, EmailMessage,
@@ -22,10 +22,12 @@ use crate::{
         marking_definition::MarkingDefinition,
     },
     relationship_objects::{Relationship, RelationshipObject, RelationshipObjectType, Sighting},
-    types::{get_object_type, ExtensionType, Identified},
+    types::{get_object_type, Identified},
     validation::{
         validate_value_from_object, validate_value_from_object_outcome,
-        validate_value_from_object_parts,
+        validate_value_from_object_outcome_with_options,
+        validate_value_from_object_parts_with_options, validate_value_from_object_with_options,
+        ValidationOptions,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -85,6 +87,13 @@ impl Default for Options {
     }
 }
 
+impl Options {
+    /// Converts the envelope options into engine validation options.
+    pub fn validation_options(&self) -> crate::validation::ValidationOptions {
+        crate::validation::ValidationOptions::new(self.allow_custom, self.strict)
+    }
+}
+
 fn default_strict() -> bool {
     true
 }
@@ -112,13 +121,14 @@ impl StixObject {
     /// Get the object type of a STIX Object
     pub fn get_object_type(&self) -> Result<&str, Error> {
         match self {
-            // If the object is a custom object, check its extensions property for its type
-            StixObject::Custom(custom_object) => match custom_object.get_object_type()? {
-                ExtensionType::NewSdo => Ok("sdo"),
-                ExtensionType::NewSro => Ok("sro"),
-                ExtensionType::NewSco => Ok("sco"),
-                _ => unreachable!(),
-            },
+            // If the object is a custom object, report the kind its extension
+            // declares, or "custom" for a generic custom object.
+            StixObject::Custom(custom_object) => Ok(match custom_object.get_kind() {
+                CustomObjectKind::Sdo => "sdo",
+                CustomObjectKind::Sro => "sro",
+                CustomObjectKind::Sco => "sco",
+                CustomObjectKind::Generic => "custom",
+            }),
             _ => Ok(self.as_ref()),
         }
     }
@@ -198,8 +208,16 @@ impl StixObject {
 
     /// Outcome-returning variant of [`Self::from_json`].
     pub fn from_json_outcome(json_str: &str, allow_custom: bool) -> Outcome<Self> {
+        Self::from_json_outcome_with_options(json_str, ValidationOptions::new(allow_custom, true))
+    }
+
+    /// Outcome-returning variant of [`Self::from_json`] with explicit options.
+    pub fn from_json_outcome_with_options(
+        json_str: &str,
+        options: ValidationOptions,
+    ) -> Outcome<Self> {
         match serde_json::from_str(json_str) {
-            Ok(value) => Self::from_value_outcome(value, allow_custom, true),
+            Ok(value) => Self::from_value_outcome_with_options(value, options),
             Err(e) => Outcome::err(Error::DeserializationError(e.to_string()), Vec::new()),
         }
     }
@@ -211,6 +229,14 @@ impl StixObject {
         allow_custom: bool,
         strict: bool,
     ) -> (Result<Self, Error>, Vec<crate::error::Entry>) {
+        Self::from_value_parts_with_options(value, ValidationOptions::new(allow_custom, strict))
+    }
+
+    /// Options-aware variant of [`Self::from_value_parts`].
+    pub fn from_value_parts_with_options(
+        value: Value,
+        options: ValidationOptions,
+    ) -> (Result<Self, Error>, Vec<crate::error::Entry>) {
         let type_name = value
             .get("type")
             .and_then(|v| v.as_str())
@@ -219,7 +245,7 @@ impl StixObject {
         macro_rules! dispatch {
             ($ty:ty, $variant:path) => {{
                 let (result, warnings) =
-                    validate_value_from_object_parts::<$ty>(value, allow_custom, strict);
+                    validate_value_from_object_parts_with_options::<$ty>(value, options);
                 (result.map($variant), warnings)
             }};
         }
@@ -238,6 +264,14 @@ impl StixObject {
 
     /// Outcome-returning variant of [`Self::from_value`].
     pub fn from_value_outcome(value: Value, allow_custom: bool, strict: bool) -> Outcome<Self> {
+        Self::from_value_outcome_with_options(value, ValidationOptions::new(allow_custom, strict))
+    }
+
+    /// Options-aware variant of [`Self::from_value_outcome`].
+    pub fn from_value_outcome_with_options(
+        value: Value,
+        options: ValidationOptions,
+    ) -> Outcome<Self> {
         let type_name = value
             .get("type")
             .and_then(|v| v.as_str())
@@ -245,76 +279,68 @@ impl StixObject {
             .to_string();
         match get_object_type(&type_name).as_ref() {
             "sdo" => {
-                validate_value_from_object_outcome::<DomainObject>(value, allow_custom, strict)
+                validate_value_from_object_outcome_with_options::<DomainObject>(value, options)
                     .map(StixObject::Sdo)
             }
-            "sro" => validate_value_from_object_outcome::<RelationshipObject>(
-                value,
-                allow_custom,
-                strict,
+            "sro" => validate_value_from_object_outcome_with_options::<RelationshipObject>(
+                value, options,
             )
             .map(StixObject::Sro),
-            "sco" => validate_value_from_object_outcome::<CyberObject>(value, allow_custom, strict)
+            "sco" => validate_value_from_object_outcome_with_options::<CyberObject>(value, options)
                 .map(StixObject::Sco),
             "language-content" => {
-                validate_value_from_object_outcome::<LanguageContent>(value, allow_custom, strict)
+                validate_value_from_object_outcome_with_options::<LanguageContent>(value, options)
                     .map(StixObject::LanguageContent)
             }
-            "extension-definition" => validate_value_from_object_outcome::<ExtensionDefinition>(
-                value,
-                allow_custom,
-                strict,
-            )
+            "extension-definition" => validate_value_from_object_outcome_with_options::<
+                ExtensionDefinition,
+            >(value, options)
             .map(StixObject::ExtensionDefinition),
             "marking-definition" => {
-                validate_value_from_object_outcome::<MarkingDefinition>(value, allow_custom, strict)
+                validate_value_from_object_outcome_with_options::<MarkingDefinition>(value, options)
                     .map(StixObject::MarkingDefinition)
             }
-            _ => validate_value_from_object_outcome::<CustomObject>(value, allow_custom, strict)
+            _ => validate_value_from_object_outcome_with_options::<CustomObject>(value, options)
                 .map(StixObject::Custom),
         }
     }
 
     /// Deserialize any STIX Object from an already-parsed JSON value.
     pub fn from_value(value: Value, allow_custom: bool, strict: bool) -> Result<Self, Error> {
+        Self::from_value_with_options(value, ValidationOptions::new(allow_custom, strict))
+    }
+
+    /// Options-aware variant of [`Self::from_value`].
+    pub fn from_value_with_options(
+        value: Value,
+        options: ValidationOptions,
+    ) -> Result<Self, Error> {
         let type_name = value
             .get("type")
             .and_then(|v| v.as_str())
             .unwrap_or_default();
         match get_object_type(type_name).as_ref() {
-            "sdo" => Ok(StixObject::Sdo(validate_value_from_object(
-                value,
-                allow_custom,
-                strict,
+            "sdo" => Ok(StixObject::Sdo(validate_value_from_object_with_options(
+                value, options,
             )?)),
-            "sro" => Ok(StixObject::Sro(validate_value_from_object(
-                value,
-                allow_custom,
-                strict,
+            "sro" => Ok(StixObject::Sro(validate_value_from_object_with_options(
+                value, options,
             )?)),
-            "sco" => Ok(StixObject::Sco(validate_value_from_object(
-                value,
-                allow_custom,
-                strict,
+            "sco" => Ok(StixObject::Sco(validate_value_from_object_with_options(
+                value, options,
             )?)),
-            "language-content" => Ok(StixObject::LanguageContent(validate_value_from_object(
-                value,
-                allow_custom,
-                strict,
-            )?)),
-            "extension-definition" => Ok(StixObject::ExtensionDefinition(
-                validate_value_from_object(value, allow_custom, strict)?,
+            "language-content" => Ok(StixObject::LanguageContent(
+                validate_value_from_object_with_options(value, options)?,
             )),
-            "marking-definition" => Ok(StixObject::MarkingDefinition(validate_value_from_object(
-                value,
-                allow_custom,
-                strict,
-            )?)),
+            "extension-definition" => Ok(StixObject::ExtensionDefinition(
+                validate_value_from_object_with_options(value, options)?,
+            )),
+            "marking-definition" => Ok(StixObject::MarkingDefinition(
+                validate_value_from_object_with_options(value, options)?,
+            )),
             // "object-marking" => Ok(StixObject::ObjectMarking(validate_value_from_object(value, allow_custom, strict)?)),
-            _ => Ok(StixObject::Custom(validate_value_from_object(
-                value,
-                allow_custom,
-                strict,
+            _ => Ok(StixObject::Custom(validate_value_from_object_with_options(
+                value, options,
             )?)),
         }
     }
@@ -347,11 +373,7 @@ impl StixObject {
             )));
         }
 
-        Self::from_value(
-            envelope.object,
-            envelope.options.allow_custom,
-            envelope.options.strict,
-        )
+        Self::from_value_with_options(envelope.object, envelope.options.validation_options())
     }
 }
 
@@ -942,6 +964,10 @@ mod tests {
         );
         let json = object.to_string();
         let err = parse_sdo(&json, true, "2.1", false).unwrap_err();
+        let err = match err {
+            Error::Located { error, .. } => *error,
+            other => other,
+        };
         assert!(
             matches!(err, Error::UnknownProperties { .. }),
             "expected UnknownProperties, got {err:?}"

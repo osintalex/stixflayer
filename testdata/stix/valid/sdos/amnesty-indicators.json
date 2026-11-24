@@ -1,0 +1,34 @@
+{
+    "type": "bundle",
+    "id": "bundle--5d0092c5-5f74-4287-9642-33f4c354e56d",
+    "objects": [
+        {
+            "type": "indicator",
+            "spec_version": "2.1",
+            "id": "indicator--ce02123b-f44b-4ace-b659-1dc32c547e10",
+            "created": "2023-03-29T12:58:43.40085Z",
+            "modified": "2023-03-29T12:58:43.40085Z",
+            "indicator_types": [
+                "malicious-activity"
+            ],
+            "pattern": "[domain-name:value='automatedrelax.org']",
+            "pattern_type": "stix",
+            "pattern_version": "2.1",
+            "valid_from": "2023-03-29T12:58:43.40085Z"
+        },
+        {
+            "type": "indicator",
+            "spec_version": "2.1",
+            "id": "indicator--2a1c9b7e-3f4d-4a5b-8c6d-7e8f9a0b1c2d",
+            "created": "2023-03-29T12:58:43.40085Z",
+            "modified": "2023-03-29T12:58:43.40085Z",
+            "indicator_types": [
+                "malicious-activity"
+            ],
+            "pattern": "[ipv4-addr:value='203.0.113.42']",
+            "pattern_type": "stix",
+            "pattern_version": "2.1",
+            "valid_from": "2023-03-29T12:58:43.40085Z"
+        }
+    ]
+}

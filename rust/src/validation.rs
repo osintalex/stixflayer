@@ -29,6 +29,31 @@ use crate::{
     properties::type_properties,
 };
 
+/// Options controlling one validation pass.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ValidationOptions {
+    /// Accept unknown properties as custom properties.
+    pub allow_custom: bool,
+    /// Run semantic (`SHOULD`-level) checks in addition to structural checks.
+    pub strict: bool,
+}
+
+impl ValidationOptions {
+    /// Creates options with the given custom-property and semantic settings.
+    pub fn new(allow_custom: bool, strict: bool) -> Self {
+        Self {
+            allow_custom,
+            strict,
+        }
+    }
+}
+
+impl Default for ValidationOptions {
+    fn default() -> Self {
+        Self::new(false, true)
+    }
+}
+
 /// Validates a STIX object from a JSON value and returns the typed struct.
 ///
 /// - `allow_custom: false` rejects unknown properties against the registry.
@@ -49,6 +74,14 @@ pub fn validate_value<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
     validate_value_from_object(value, allow_custom, strict)
 }
 
+/// Validates a STIX object from a JSON value with explicit options.
+pub fn validate_value_with_options<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
+    value: Value,
+    options: ValidationOptions,
+) -> Result<T, Error> {
+    validate_value_from_object_with_options(value, options)
+}
+
 /// Outcome-returning variant of [`validate_value`].
 pub fn validate_value_outcome<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
     value: Value,
@@ -56,6 +89,14 @@ pub fn validate_value_outcome<T: DeserializeOwned + Stix + CustomPropertiesHolde
     strict: bool,
 ) -> Outcome<T> {
     validate_value_from_object_outcome(value, allow_custom, strict)
+}
+
+/// Outcome-returning variant of [`validate_value_with_options`].
+pub fn validate_value_outcome_with_options<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
+    value: Value,
+    options: ValidationOptions,
+) -> Outcome<T> {
+    validate_value_from_object_outcome_with_options(value, options)
 }
 
 /// Validates a STIX object from its raw object [`Value`] without re-serializing.
@@ -67,7 +108,17 @@ pub fn validate_value_from_object<T: DeserializeOwned + Stix + CustomPropertiesH
     allow_custom: bool,
     strict: bool,
 ) -> Result<T, Error> {
-    validate_value_from_object_parts(value, allow_custom, strict).0
+    validate_value_from_object_with_options(value, ValidationOptions::new(allow_custom, strict))
+}
+
+/// Options-aware variant of [`validate_value_from_object`].
+pub fn validate_value_from_object_with_options<
+    T: DeserializeOwned + Stix + CustomPropertiesHolder,
+>(
+    value: Value,
+    options: ValidationOptions,
+) -> Result<T, Error> {
+    validate_value_from_object_parts_with_options(value, options).0
 }
 
 /// Outcome-returning variant of [`validate_value_from_object`].
@@ -79,8 +130,35 @@ pub fn validate_value_from_object_outcome<T: DeserializeOwned + Stix + CustomPro
     allow_custom: bool,
     strict: bool,
 ) -> Outcome<T> {
-    let (result, warnings) = validate_value_from_object_parts(value, allow_custom, strict);
+    validate_value_from_object_outcome_with_options(
+        value,
+        ValidationOptions::new(allow_custom, strict),
+    )
+}
+
+/// Outcome-returning variant of [`validate_value_from_object_with_options`].
+pub fn validate_value_from_object_outcome_with_options<
+    T: DeserializeOwned + Stix + CustomPropertiesHolder,
+>(
+    value: Value,
+    options: ValidationOptions,
+) -> Outcome<T> {
+    let (result, warnings) = validate_value_from_object_parts_with_options(value, options);
     Outcome::from_result(result, warnings)
+}
+
+/// Wraps an object-scoped error with the object's identifier.
+///
+/// Errors already attributed by an inner layer are returned unchanged so the
+/// identifier is stamped once.
+fn attach_object_id(object_id: Option<&str>, error: Error) -> Error {
+    match object_id {
+        Some(id) if !matches!(&error, Error::Located { .. }) => Error::Located {
+            object_id: id.to_string(),
+            error: Box::new(error),
+        },
+        _ => error,
+    }
 }
 
 /// Shared implementation behind the `Result` and `Outcome` entry points.
@@ -88,10 +166,30 @@ pub fn validate_value_from_object_outcome<T: DeserializeOwned + Stix + CustomPro
 /// Returns the typed value (or structured error) together with the warnings
 /// collected during the same validation pass.
 pub fn validate_value_from_object_parts<T: DeserializeOwned + Stix + CustomPropertiesHolder>(
-    mut value: Value,
+    value: Value,
     allow_custom: bool,
     strict: bool,
 ) -> (Result<T, Error>, Vec<Entry>) {
+    validate_value_from_object_parts_with_options(
+        value,
+        ValidationOptions::new(allow_custom, strict),
+    )
+}
+
+/// Options-aware shared implementation behind the `Result` and `Outcome`
+/// entry points.
+pub fn validate_value_from_object_parts_with_options<
+    T: DeserializeOwned + Stix + CustomPropertiesHolder,
+>(
+    mut value: Value,
+    options: ValidationOptions,
+) -> (Result<T, Error>, Vec<Entry>) {
+    let allow_custom = options.allow_custom;
+    let strict = options.strict;
+
+    // Read the id before `value` is moved so object-scoped findings can be
+    // attributed to the object they concern.
+    let object_id = value.get("id").and_then(Value::as_str).map(str::to_owned);
     let type_name = value
         .get("type")
         .and_then(|v| v.as_str())
@@ -172,11 +270,23 @@ pub fn validate_value_from_object_parts<T: DeserializeOwned + Stix + CustomPrope
                         } if p == property
                     )
                 }) {
-                    return (Err(return_multiple_errors(errors).unwrap_err()), Vec::new());
+                    return (
+                        Err(attach_object_id(
+                            object_id.as_deref(),
+                            return_multiple_errors(errors).unwrap_err(),
+                        )),
+                        Vec::new(),
+                    );
                 }
             }
             errors.push(classified);
-            return (Err(return_multiple_errors(errors).unwrap_err()), Vec::new());
+            return (
+                Err(attach_object_id(
+                    object_id.as_deref(),
+                    return_multiple_errors(errors).unwrap_err(),
+                )),
+                Vec::new(),
+            );
         }
     };
 
@@ -191,7 +301,7 @@ pub fn validate_value_from_object_parts<T: DeserializeOwned + Stix + CustomPrope
 
     let result = match return_multiple_errors(errors) {
         Ok(()) => Ok(typed),
-        Err(error) => Err(error),
+        Err(error) => Err(attach_object_id(object_id.as_deref(), error)),
     };
     (result, warnings)
 }
@@ -201,6 +311,14 @@ mod tests {
     use super::*;
     use crate::domain_objects::sdo::DomainObject;
     use std::collections::BTreeMap;
+
+    /// Strips the object-attribution wrapper so tests can inspect the variant.
+    fn inner(error: Error) -> Error {
+        match error {
+            Error::Located { error, .. } => *error,
+            other => other,
+        }
+    }
 
     #[test]
     fn valid_sdo_deserializes() {
@@ -226,7 +344,7 @@ mod tests {
             "name": "Spear Phishing",
             "junk": "value"
         });
-        let err = validate_value::<DomainObject>(value, false, true).unwrap_err();
+        let err = inner(validate_value::<DomainObject>(value, false, true).unwrap_err());
         assert!(
             matches!(err, Error::UnknownProperties { .. }),
             "expected UnknownProperties, got {err:?}"
@@ -260,7 +378,7 @@ mod tests {
             "name": "Spear Phishing",
             "junk": "value"
         });
-        let err = validate_value::<DomainObject>(value, false, true).unwrap_err();
+        let err = inner(validate_value::<DomainObject>(value, false, true).unwrap_err());
         match err {
             Error::ValidationErrors(errors) => {
                 assert!(
@@ -290,9 +408,13 @@ mod tests {
             "spec_version": "2.1"
         });
         let err = validate_value::<DomainObject>(value, false, true).unwrap_err();
-        assert!(
-            matches!(err, Error::MissingProperty { ref property, .. } if property == "name"),
-            "expected MissingProperty name, got {err:?}"
+        let entries = err.errors();
+        assert_eq!(entries.len(), 1, "entries: {entries:?}");
+        assert_eq!(entries[0].kind, "missing_property");
+        assert_eq!(entries[0].property.as_deref(), Some("name"));
+        assert_eq!(
+            entries[0].object_id.as_deref(),
+            Some("attack-pattern--12345678-1234-5678-1234-567812345678")
         );
     }
 
@@ -309,7 +431,7 @@ mod tests {
             "spec_version": 2.1,
             "name": "Spear Phishing"
         });
-        let err = validate_value::<DomainObject>(value, false, true).unwrap_err();
+        let err = inner(validate_value::<DomainObject>(value, false, true).unwrap_err());
         assert!(
             matches!(err, Error::DeserializationError(_)),
             "expected DeserializationError, got {err:?}"
@@ -330,7 +452,7 @@ mod tests {
         // Non-strict still fails because the required `name` field cannot be deserialized.
         assert!(validate_value::<DomainObject>(value.clone(), true, false).is_err());
         // When allow_custom is true the unknown field is ignored; but `name` is still required.
-        let err = validate_value::<DomainObject>(value, true, false).unwrap_err();
+        let err = inner(validate_value::<DomainObject>(value, true, false).unwrap_err());
         assert!(
             !matches!(err, Error::UnknownProperties { .. }),
             "unknown property should not be reported in non-strict mode: {err:?}"
@@ -373,7 +495,7 @@ mod tests {
             "name": "Spear Phishing",
             "x_vendor_severity": 5
         });
-        let err = validate_value::<DomainObject>(value, false, true).unwrap_err();
+        let err = inner(validate_value::<DomainObject>(value, false, true).unwrap_err());
         assert!(
             matches!(err, Error::UnknownProperties { .. }),
             "got {err:?}"
@@ -417,7 +539,7 @@ mod tests {
                 "name": "Spear Phishing",
                 key: "value"
             });
-            let err = validate_value::<DomainObject>(value, true, true).unwrap_err();
+            let err = inner(validate_value::<DomainObject>(value, true, true).unwrap_err());
             assert!(
                 matches!(err, Error::ValidationError(_) | Error::ValidationErrors(_)),
                 "{key}: expected ValidationError, got {err:?}"
@@ -528,5 +650,26 @@ mod tests {
             "x_bytes_hex": "not-hex"
         });
         assert!(validate_value::<CustomObject>(invalid, true, true).is_err());
+    }
+
+    #[test]
+    fn default_and_explicit_strict_options_agree() {
+        let value = serde_json::json!({
+            "type": "identity",
+            "id": "identity--550e8400-e29b-41d4-a716-446655440000",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "spec_version": "2.1",
+            "name": "Acme",
+            "identity_class": "bogus-class"
+        });
+
+        let default = validate_value_outcome::<DomainObject>(value.clone(), false, true);
+        let explicit = validate_value_outcome_with_options::<DomainObject>(
+            value,
+            ValidationOptions::new(false, true),
+        );
+
+        assert_eq!(default, explicit);
     }
 }

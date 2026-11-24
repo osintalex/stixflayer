@@ -9,7 +9,7 @@ use crate::{
     custom_objects::validation::check_custom_object_type,
     cyber_observable_objects::sco::check_sco_properties,
     domain_objects::sdo::check_sdo_properties,
-    error::{add_error, return_multiple_errors, StixError as Error},
+    error::{add_error, return_multiple_errors, Entry, StixError as Error},
     relationship_objects::{check_sro_properties, Related, RelationshipObjectBuilder},
     types::{get_extension_type, ExtensionType, Identified, Identifier},
     validation::validate_value,
@@ -19,15 +19,48 @@ use serde_json::Value;
 use serde_with::skip_serializing_none;
 use std::{collections::BTreeMap, str::FromStr};
 
+/// The object kind inferred for a custom object.
+///
+/// A custom object can declare that it is a new SDO, SCO, or SRO through an
+/// `extensions` entry with the corresponding `extension_type`. Without such a
+/// declaration it is a generic custom object: STIX 2.1 §11.2 says custom
+/// objects **SHOULD** use the extension mechanism, not MUST.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CustomObjectKind {
+    /// A custom object declared as a new SDO.
+    Sdo,
+    /// A custom object declared as a new SCO.
+    Sco,
+    /// A custom object declared as a new SRO.
+    Sro,
+    /// A custom object without a new-object extension.
+    Generic,
+}
+
+impl CustomObjectKind {
+    /// Returns the corresponding extension type, or `None` for a generic
+    /// custom object.
+    pub fn extension_type(self) -> Option<ExtensionType> {
+        match self {
+            Self::Sdo => Some(ExtensionType::NewSdo),
+            Self::Sco => Some(ExtensionType::NewSco),
+            Self::Sro => Some(ExtensionType::NewSro),
+            Self::Generic => None,
+        }
+    }
+}
+
 /// A STIX object of unknown type.
 ///
-/// This struct exists to represent custom STIX objects that do not have a recognized "type" field.
-/// The object must have an `extensions` dictionary containing an extension with an `extension_type` of "new-sdo", "new-sro", or "new-sco".
+/// This struct represents custom STIX objects that do not have a recognized
+/// `type` field. A custom object may declare itself as a new SDO, SCO, or SRO
+/// with an `extensions` entry whose `extension_type` is `new-sdo`, `new-sco`,
+/// or `new-sro`. Without that declaration it is validated as a generic custom
+/// object under the §11.2 custom-object rules.
 ///
-/// The properties common to all STIX objects are accessible and validated, with the validation informed by the object type inferred from the new object extension.
-///
-/// Any other fields in the JSON string are stored in a flattened `custom_properties` Map, which will re-serialize back to the same fields when the object is serialized to a
-/// JSON string.
+/// The properties common to all STIX objects are accessible and validated. Any
+/// other fields in the JSON string are stored in a flattened
+/// `custom_properties` map, which re-serializes back to the same fields.
 #[skip_serializing_none]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CustomObject {
@@ -51,34 +84,43 @@ impl CustomObject {
         validate_value(value, true, true)
     }
 
-    /// Returns whether a custom STIX Object is an SDO, SRO, or SCO, as determined by its new object extension
-    pub fn get_object_type(&self) -> Result<ExtensionType, Error> {
-        // Custom Objects in STIX 2.1 MUST include an extension with extension_type of "new-sdo," "new-sro," or "new-sco" defining the object type
-        let mut object_type = None;
-        match &self.common_properties.extensions {
-            Some(extensions) => {
-                // Loop through all extensions looking for a custom object extension type (it is possible that there are both custom property and custom object extensions for the same object)
-                for (extension_key, extension) in extensions.iter() {
-                    let Ok(id) = Identifier::from_str(extension_key) else {
-                        continue;
-                    };
-                    if id.get_type() == "extension-definition" {
-                        match get_extension_type(extension).ok_or(Error::CustomMissingExtension)? {
-                            // If this is a property extension, keep looking
-                            ExtensionType::PropertyExtension => continue,
-                            ExtensionType::ToplevelPropertyExtension => continue,
-                            object_extension => {
-                                object_type = Some(object_extension);
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            None => return Err(Error::CustomMissingExtension),
+    /// Returns the kind inferred from the object's new-object extension.
+    ///
+    /// A custom object without a `new-sdo`, `new-sco`, or `new-sro` extension is
+    /// [`CustomObjectKind::Generic`]. STIX 2.1 §11.2 makes the extension
+    /// mechanism a SHOULD, so this is not an error.
+    pub fn get_kind(&self) -> CustomObjectKind {
+        let Some(extensions) = &self.common_properties.extensions else {
+            return CustomObjectKind::Generic;
         };
 
-        object_type.ok_or(Error::CustomMissingExtension)
+        // Look through all extensions for a custom object extension type. It is
+        // possible to have both property and new-object extensions on one object.
+        for (extension_key, extension) in extensions.iter() {
+            let Ok(id) = Identifier::from_str(extension_key) else {
+                continue;
+            };
+            if id.get_type() != "extension-definition" {
+                continue;
+            }
+            match get_extension_type(extension) {
+                Some(ExtensionType::NewSdo) => return CustomObjectKind::Sdo,
+                Some(ExtensionType::NewSco) => return CustomObjectKind::Sco,
+                Some(ExtensionType::NewSro) => return CustomObjectKind::Sro,
+                // Property extensions do not declare an object kind.
+                Some(ExtensionType::PropertyExtension)
+                | Some(ExtensionType::ToplevelPropertyExtension) => continue,
+                None => continue,
+            }
+        }
+
+        CustomObjectKind::Generic
+    }
+
+    /// Returns the new-object extension type, or `None` for a generic custom
+    /// object.
+    pub fn get_object_type(&self) -> Option<ExtensionType> {
+        self.get_kind().extension_type()
     }
 
     /// Returns the `modified` timestamp as a String if it exists, or `None` if it does not
@@ -140,30 +182,55 @@ impl Stix for CustomObject {
         // We check the common properties first because this will catch any errors in `extensions` before we try to read them
         return_multiple_errors(common_errors)?;
 
-        // Get the custom object type, returning an error if it cannot be found
-        let object_type = self.get_object_type()?;
+        let kind = self.get_kind();
+
+        // A missing new-object extension is a SHOULD finding, not an error.
+        // §11.2 says custom objects SHOULD use the extension mechanism.
+        if kind == CustomObjectKind::Generic {
+            ctx.warn(
+                Entry::new(
+                    "custom_missing_extension",
+                    format!(
+                        "Custom object {} does not declare a new-sdo, new-sco, or new-sro extension; it was validated as a generic custom object",
+                        self.common_properties.id
+                    ),
+                )
+                .property("extensions"),
+            );
+        }
 
         let mut errors = Vec::new();
 
         // Validate custom object type name constraints
         add_error(&mut errors, check_custom_object_type(&self.object_type));
 
+        // The identifier must use the same object type as the object.
+        if self.common_properties.id.get_type() != self.object_type {
+            errors.push(Error::ValidationError(format!(
+                "The `id` prefix '{}' does not match the custom object type '{}'",
+                self.common_properties.id.get_type(),
+                self.object_type
+            )));
+        }
+        add_error(&mut errors, self.common_properties.id.check(ctx));
+
         // Check object type specific constraints on common properties
-        match object_type {
+        match kind {
             // The custom object is an SDO
-            ExtensionType::NewSdo => {
+            CustomObjectKind::Sdo => {
                 add_error(&mut errors, check_sdo_properties(&self.common_properties));
             }
             // The custom object is an SRO
-            ExtensionType::NewSro => {
+            CustomObjectKind::Sro => {
                 add_error(&mut errors, check_sro_properties(&self.common_properties));
             }
             // The custom object is an SCO
-            ExtensionType::NewSco => {
+            CustomObjectKind::Sco => {
                 add_error(&mut errors, check_sco_properties(&self.common_properties));
             }
-            // This must be a custom object extension type
-            _ => unreachable!(),
+            // Generic custom objects do not have SDO/SCO/SRO-specific
+            // common-property requirements.
+            CustomObjectKind::Generic => {}
         }
 
         // Validate custom property names and any hex/binary suffix values.

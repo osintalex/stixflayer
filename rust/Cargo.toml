@@ -1,28 +1,43 @@
 [package]
 name = "stixflayer"
-version = "0.1.1"
-edition = "2021"
-license = "BSD-3-Clause"
-description = "Fast STIX 2.1 parsing, validation, and serialization in Rust"
-repository = "https://github.com/osintalex/stixflayer"
-readme = "../README.md"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Fast, spec-correct STIX 2.1 parsing, validation, and serialization in Rust."
+repository.workspace = true
+readme = "README.md"
 documentation = "https://docs.rs/stixflayer"
 
 [workspace]
-members = [".", "stixflayer_derive"]
+members = [".", "stixflayer_derive", "stixflayer-cli"]
+
+# Single source of truth for the library's version: `stixflayer_derive` inherits
+# the same value so the two crates always release in lockstep.
+[workspace.package]
+version = "0.1.1"
+edition = "2021"
+license = "BSD-3-Clause"
+repository = "https://github.com/osintalex/stixflayer"
+
+# Intra-workspace dependencies are declared once. The derive is required
+# exactly because its "API" is the source text it emits, which is validated
+# against this crate's internals (see openspec design D2).
+[workspace.dependencies]
+stixflayer_derive = { path = "stixflayer_derive", version = "=0.1.1" }
+stixflayer = { path = ".", version = "0.1.1", default-features = false }
 
 [lib]
 name = "stixflayer"
 
 [features]
-default = ["pyo3"]
+default = []
 pyo3 = ["dep:pyo3", "pyo3/abi3-py311"]
 
 [dependencies]
 addr = "0.15.6"
 base64 = "0.22.1"
 convert_case = "0.7.1"
-stixflayer_derive = { path = "stixflayer_derive", version = "0.1.0" }
+stixflayer_derive = { workspace = true }
 email_address = "0.2"
 hex = "0.4.3"
 identyhash = "0.1.0"

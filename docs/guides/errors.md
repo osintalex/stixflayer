@@ -74,7 +74,9 @@ except DeserializationError as e:
 
 | Kind | Extra fields | Meaning |
 |---|---|---|
+| `custom_missing_extension` | `property`, `object_id` | Custom object has no `new-sdo`/`new-sco`/`new-sro` extension; validated as a generic custom object (**SHOULD**) |
 | `hash_not_sha256` | `property`, `value`, `object_id` | Hash algorithm other than SHA-256 |
+| `identifier_uuid_not_v4` | `property`, `object_id` | Non-SCO identifier uses UUIDv5; STIX 2.1 §2.9 recommends UUIDv4 (**SHOULD**) |
 | `dictionary_key_not_lowercase` | `property`, `value`, `object_id` | Uppercase `extensions` key |
 | `extension_key_not_extension_definition` | `property`, `value`, `object_id` | Extension key is not an extension-definition id or a recognized predefined extension |
 | `external_reference_url_without_hashes` | `property`, `value`, `object_id` | URL present without `hashes` |

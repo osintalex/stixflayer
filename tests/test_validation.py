@@ -42,12 +42,6 @@ class TestValidFixtures:
 
 
 class TestInvalidFixtures:
-    def test_invalid_indicator_missing_name(self):
-        """Indicator missing required name raises ValidationError."""
-        json_str = load_fixture("invalid/sdo/indicator-no-name.json")
-        with pytest.raises(stixflayer.ValidationError, match="missing required property 'name'"):
-            stixflayer.Indicator.from_json(json_str)
-
     def test_invalid_indicator_bad_pattern_type(self):
         """Indicator with a non-suggested pattern_type parses and warns."""
         json_str = load_fixture("invalid/sdo/indicator-bad-pattern-type.json")
@@ -76,7 +70,7 @@ class TestInvalidFixtures:
 
     def test_invalid_indicator_non_strict_parses(self):
         """Invalid fixture parses successfully when strict=False."""
-        json_str = load_fixture("invalid/sdo/indicator-no-name.json")
+        json_str = load_fixture("invalid/sdo/indicator-spec-version-2.0.json")
         obj = stixflayer.Indicator.from_json(json_str, strict=False)
         assert obj.type == "indicator"
 
@@ -116,7 +110,7 @@ class TestInvalidFixtures:
 
     def test_validation_error_is_stix_error(self):
         """ValidationError is a subclass of the base StixError."""
-        json_str = load_fixture("invalid/sdo/indicator-no-name.json")
+        json_str = load_fixture("invalid/sdo/indicator-spec-version-2.0.json")
         with pytest.raises(stixflayer.StixError):
             stixflayer.Indicator.from_json(json_str)
 

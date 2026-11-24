@@ -52,6 +52,21 @@ pub fn classify_top_level_type_error(
     object_type: &str,
     json_obj: &serde_json::Value,
 ) -> RustStixError {
+    match error {
+        // Preserve object attribution while reclassifying the inner error.
+        RustStixError::Located { object_id, error } => RustStixError::Located {
+            object_id,
+            error: Box::new(classify_top_level_type_error(*error, object_type, json_obj)),
+        },
+        other => classify_unlocated_type_error(other, object_type, json_obj),
+    }
+}
+
+fn classify_unlocated_type_error(
+    error: RustStixError,
+    object_type: &str,
+    json_obj: &serde_json::Value,
+) -> RustStixError {
     let RustStixError::DeserializationError(message) = &error else {
         return error;
     };

@@ -1,5 +1,5 @@
 //! STIX 2.1 compliant identifiers.
-use crate::error::CheckContext;
+use crate::error::{CheckContext, Entry};
 use crate::{common::string::stix_case, error::StixError as Error, taxonomy::is_sco_type_name};
 use serde::Serialize;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
@@ -14,7 +14,7 @@ use uuid::uuid;
 /// It consists of two parts, the object-type and a UUID.
 /// The object type must exactly match the type property of the object being identified or referenced.
 /// The UUID is either an RFC 9562 compliant UUIDv4 or UUIDv5.
-/// The latter is used only for Cyber-observable objects. All other objects use UUIDv4
+/// The latter is used only for Cyber-observable objects. Other objects SHOULD use UUIDv4.
 ///
 /// `Identifier` `impl`'s `Display` and `FromStr`, and its String representation is {object-type}--{UUID}
 ///
@@ -135,12 +135,12 @@ impl FromStr for Identifier {
 }
 
 impl crate::base::Stix for Identifier {
-    fn check(&self, _ctx: &mut CheckContext) -> Result<(), Error> {
+    fn check(&self, ctx: &mut CheckContext) -> Result<(), Error> {
         check_object_type(self.get_type())?;
 
         // Check UUID version.
         // STIX 2.1 spec section 2.9:
-        // - Non-SCO objects MUST use UUIDv4.
+        // - Non-SCO objects SHOULD use UUIDv4.
         // - SCOs MUST use UUIDv5 when ID contributing properties exist.
         // - SCOs MUST use UUIDv4 when no contributing properties exist.
         // At the Identifier level we enforce version bounds only; correctness
@@ -156,11 +156,17 @@ impl crate::base::Stix for Identifier {
             }
             Some(Version::Sha1) => {
                 if !is_sco_type_name(self.get_type()) {
-                    return Err(Error::InvalidUuid {
-                        message:
-                            "STIX Objects other than SCOs **MUST** only use UUIDv4's in their id's"
-                                .to_string(),
-                    });
+                    // SHOULD-level finding: UUIDv5 is accepted, but UUIDv4 is
+                    // recommended for SDOs, SROs, Meta Objects, and Bundles.
+                    ctx.warn(
+                        Entry::new(
+                            "identifier_uuid_not_v4",
+                            format!(
+                                "STIX objects other than SCOs SHOULD use UUIDv4 identifiers; '{self}' uses UUIDv5"
+                            ),
+                        )
+                        .property("id"),
+                    );
                 }
             }
             Some(_) => {
@@ -193,4 +199,45 @@ fn check_object_type(object_type: &str) -> Result<(), Error> {
 pub trait Identified {
     /// Returns the identifier of the object.
     fn get_id(&self) -> &Identifier;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::base::Stix;
+
+    fn parse(id: &str) -> Identifier {
+        id.parse().expect("valid identifier")
+    }
+
+    #[test]
+    fn non_sco_uuidv5_identifier_warns_instead_of_failing() {
+        let id = parse("relationship--de7d55fe-1e1e-5e1e-8e1e-1e1e1e1e1e1e");
+        let mut ctx = CheckContext::new();
+        assert!(id.check(&mut ctx).is_ok());
+
+        let warnings = ctx.into_warnings();
+        assert_eq!(warnings.len(), 1, "expected one warning, got {warnings:?}");
+        assert_eq!(warnings[0].kind, "identifier_uuid_not_v4");
+        assert_eq!(warnings[0].property.as_deref(), Some("id"));
+        assert!(warnings[0].message.contains("UUIDv4"));
+        assert!(warnings[0].message.contains("SHOULD"));
+    }
+
+    #[test]
+    fn non_sco_uuidv1_identifier_remains_an_error() {
+        let id = parse("relationship--de7d55fe-1e1e-1e1e-8e1e-1e1e1e1e1e1e");
+        let mut ctx = CheckContext::new();
+        let error = id.check(&mut ctx).unwrap_err();
+        assert!(matches!(error, Error::InvalidUuid { .. }));
+        assert_eq!(error.errors()[0].kind, "invalid_uuid");
+    }
+
+    #[test]
+    fn sco_uuidv5_identifier_does_not_warn() {
+        let id = parse("file--de7d55fe-1e1e-5e1e-8e1e-1e1e1e1e1e1e");
+        let mut ctx = CheckContext::new();
+        assert!(id.check(&mut ctx).is_ok());
+        assert!(ctx.into_warnings().is_empty());
+    }
 }

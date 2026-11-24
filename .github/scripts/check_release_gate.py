@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Release gate: decide whether a package's manifest version advanced.
 
-Compares the version in a manifest (``pyproject.tom`` or ``Cargo.toml``)
-against the latest release tag of that package (``py-v*`` / ``rust-v*``).
+Compares the effective version of a package (``pyproject.toml`` or a
+``Cargo.toml``) against the latest release tag of that package (``py-v*``,
+``rust-v*``, or ``cli-v*``). Cargo manifests are resolved through
+``cargo metadata`` so workspace-inherited versions (``version.workspace =
+true``) compare as the number cargo would publish.
 A release is due if and only if the manifest version is strictly greater
 than the version in the latest matching tag, or no matching tag exists yet
 (first release). Prints GitHub Actions output assignments:
@@ -23,6 +26,7 @@ version comes from the manifest and the tags come from
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import tomllib
@@ -30,13 +34,41 @@ from pathlib import Path
 
 
 def read_manifest_version(path: Path) -> str:
-    """Read the package version from a pyproject.toml or Cargo.toml manifest."""
+    """Read the effective package version from a pyproject.toml or Cargo.toml manifest."""
     data = tomllib.loads(path.read_text(encoding="utf-8"))
     if "project" in data and "version" in data["project"]:  # pyproject.toml
         return str(data["project"]["version"])
-    if "package" in data and "version" in data["package"]:  # Cargo.toml
-        return str(data["package"]["version"])
+    if "package" in data:  # Cargo.toml
+        return read_cargo_version(path)
     raise SystemExit(f"no package version found in {path}")
+
+
+def read_cargo_version(path: Path) -> str:
+    """Resolve a Cargo package's effective version, including workspace inheritance."""
+    manifest = path.resolve()
+    try:
+        result = subprocess.run(
+            [
+                "cargo",
+                "metadata",
+                "--format-version",
+                "1",
+                "--no-deps",
+                "--manifest-path",
+                str(manifest),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except FileNotFoundError:
+        raise SystemExit(f"cargo is required to read the version from {path}") from None
+    except subprocess.CalledProcessError as error:
+        raise SystemExit(f"cargo metadata failed for {path}:\n{error.stderr.strip()}") from None
+    for package in json.loads(result.stdout)["packages"]:
+        if Path(package["manifest_path"]).resolve() == manifest:
+            return str(package["version"])
+    raise SystemExit(f"no package matching {path} in cargo metadata output")
 
 
 def parse_version(text: str) -> tuple[int, ...]:

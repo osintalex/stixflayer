@@ -3,6 +3,7 @@ mod test {
         bundles::Bundle,
         domain_objects::sdo::{DomainObjectBuilder, DomainObjectType},
         object::StixObject,
+        validation::ValidationOptions,
     };
 
     #[test]
@@ -41,6 +42,30 @@ mod test {
             panic!()
         };
         assert_eq!(indicator.name.as_ref().unwrap(), "Poison Ivy Malware");
+    }
+
+    #[test]
+    fn from_json_outcome_with_options_preserves_the_outcome_shape() {
+        let json = r#"{
+            "type": "bundle",
+            "id": "bundle--44580eb5-a924-475f-970c-8b47ee07f641",
+            "objects": [
+                {
+                    "type": "attack-pattern",
+                    "spec_version": "2.1",
+                    "id": "attack-pattern--089a0ad8-367a-4326-ba2e-35b506fa4c29",
+                    "created": "2016-05-12T08:17:27.000Z",
+                    "modified": "2016-05-12T08:17:27.000Z",
+                    "name": "Spear Phishing"
+                }
+            ]
+        }"#;
+
+        let outcome = Bundle::from_json_outcome_with_options(json, ValidationOptions::default());
+        assert!(outcome.valid);
+        assert!(outcome.value.is_some());
+        assert!(outcome.errors.is_empty());
+        assert!(outcome.warnings.is_empty());
     }
 
     #[test]
@@ -108,8 +133,55 @@ mod test {
 
         let result = Bundle::from_json(json);
         assert!(result.is_err());
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("indicator--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f"));
+        let err = result.unwrap_err();
+        assert!(err
+            .to_string()
+            .contains("indicator--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f"));
+
+        let entries = err.errors();
+        assert_eq!(entries.len(), 1, "entries: {entries:?}");
+        assert_eq!(
+            entries[0].object_id.as_deref(),
+            Some("relationship--cc7fa653-c35f-43db-afdd-dce4c3a241d5")
+        );
+    }
+
+    #[test]
+    fn duplicate_id_entries_carry_the_duplicated_id() {
+        let json = r#"{
+            "type": "bundle",
+            "id": "bundle--44af6c39-c09b-49c5-9de2-394224b04982",
+            "objects": [
+                {
+                    "type": "indicator",
+                    "spec_version": "2.1",
+                    "id": "indicator--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+                    "created": "2014-02-20T09:16:08.989Z",
+                    "modified": "2014-02-20T09:16:08.989Z",
+                    "pattern": "[ipv4-addr:value = '192.0.2.1']",
+                    "pattern_type": "stix",
+                    "valid_from": "2014-02-20T09:16:08.989Z"
+                },
+                {
+                    "type": "indicator",
+                    "spec_version": "2.1",
+                    "id": "indicator--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
+                    "created": "2014-02-20T09:16:08.989Z",
+                    "modified": "2014-02-20T09:16:08.989Z",
+                    "pattern": "[ipv4-addr:value = '192.0.2.1']",
+                    "pattern_type": "stix",
+                    "valid_from": "2014-02-20T09:16:08.989Z"
+                }
+            ]
+        }"#;
+
+        let err = Bundle::from_json(json).unwrap_err();
+        let entries = err.errors();
+        assert_eq!(entries.len(), 1, "entries: {entries:?}");
+        assert_eq!(
+            entries[0].object_id.as_deref(),
+            Some("indicator--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f")
+        );
     }
 
     #[test]

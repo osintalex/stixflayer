@@ -5,9 +5,7 @@
 # settings, no template overrides. This keeps the Material fallback viable.
 
 site_name: stixflayer
-site_description: >-
-  Fast STIX 2.1 parsing, validation, and serialization — one Rust engine,
-  consumed by many languages.
+site_description: The fastest, most spec-correct STIX 2.1 library for Python, powered by a Rust engine, with a native CLI.
 site_url: https://osintalex.github.io/stixflayer/
 repo_url: https://github.com/osintalex/stixflayer
 repo_name: osintalex/stixflayer
@@ -21,6 +19,7 @@ exclude_docs: |
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
+  - CLI: cli.md
   - Guides:
       - "Parsing and validation": guides/parsing.md
       - "Building objects": guides/building.md
@@ -28,6 +27,7 @@ nav:
       - "Error handling": guides/errors.md
       - Vocabularies: guides/vocabularies.md
       - "STIX patterns": guides/patterns.md
+      - Conformance: guides/conformance.md
   - API reference:
       - Overview: api/overview.md
       - Exceptions: api/exceptions.md

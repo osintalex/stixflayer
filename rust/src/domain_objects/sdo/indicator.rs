@@ -49,12 +49,7 @@ impl Stix for Indicator {
             add_error(&mut errors, kill_chain_phases.check(ctx));
         }
 
-        // name is required for Indicator
-        if self.name.is_none() || self.name.as_ref().unwrap().trim().is_empty() {
-            errors.push(Error::ValidationError(
-                "Indicator is missing required property 'name'".to_string(),
-            ));
-        }
+        // `name` is optional for Indicator per the STIX 2.1 property table.
 
         // If the pattern is a STIX Pattern, validate it using the Rust implemtation of STIX Patterning
         if stix_case(&self.pattern_type) == "stix" {
@@ -291,6 +286,10 @@ mod tests {
         }"#;
 
         let err = DomainObject::from_json(json_str_invalid, false).unwrap_err();
+        let err = match err {
+            crate::error::StixError::Located { error, .. } => *error,
+            other => other,
+        };
         assert!(
             matches!(err, crate::error::StixError::UnknownProperties { .. }),
             "expected UnknownProperties, got {err:?}"

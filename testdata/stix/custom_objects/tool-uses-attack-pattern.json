@@ -1,0 +1,32 @@
+{
+    "type": "bundle",
+    "id": "bundle--55555555-5555-4555-8555-555555555555",
+    "objects": [
+        {
+            "type": "tool",
+            "spec_version": "2.1",
+            "id": "tool--66666666-6666-4666-8666-666666666666",
+            "created": "2024-01-01T00:00:00.000Z",
+            "modified": "2024-01-01T00:00:00.000Z",
+            "name": "Example tool"
+        },
+        {
+            "type": "attack-pattern",
+            "spec_version": "2.1",
+            "id": "attack-pattern--77777777-7777-4777-8777-777777777777",
+            "created": "2024-01-01T00:00:00.000Z",
+            "modified": "2024-01-01T00:00:00.000Z",
+            "name": "Example attack pattern"
+        },
+        {
+            "type": "relationship",
+            "spec_version": "2.1",
+            "id": "relationship--88888888-8888-4888-8888-888888888888",
+            "created": "2024-01-01T00:00:00.000Z",
+            "modified": "2024-01-01T00:00:00.000Z",
+            "relationship_type": "uses",
+            "source_ref": "tool--66666666-6666-4666-8666-666666666666",
+            "target_ref": "attack-pattern--77777777-7777-4777-8777-777777777777"
+        }
+    ]
+}

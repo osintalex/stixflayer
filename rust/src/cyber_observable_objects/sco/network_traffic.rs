@@ -424,9 +424,10 @@ mod tests {
                     "request_value": "/download.html",
                     "request_version": "http/1.1",
                     "request_header": {
-                        "Accept-Encoding": "gzip,deflate",
-                        "User-Agent": "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.6) Gecko/20040113",
-                        "Host": "www.example.com"
+                        "Accept-Encoding": ["gzip,deflate"],
+                        "User-Agent": ["Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.6) Gecko/20040113"],
+                        "Host": ["www.example.com"],
+                        "X-Forwarded-For": ["192.0.2.1", "192.0.2.2"]
                     }
                 }
             }             
@@ -435,14 +436,23 @@ mod tests {
         let result = CyberObject::from_json(json, false).unwrap();
 
         let mut rh = StixDictionary::new();
-        rh.insert("Accept-Encoding", "gzip,deflate".to_string())
+        rh.insert("Accept-Encoding", vec!["gzip,deflate".to_string()])
             .unwrap();
         rh.insert(
             "User-Agent",
-            "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.6) Gecko/20040113".to_string(),
+            vec![
+                "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.6) Gecko/20040113"
+                    .to_string(),
+            ],
         )
         .unwrap();
-        rh.insert("Host", "www.example.com".to_string()).unwrap();
+        rh.insert("Host", vec!["www.example.com".to_string()])
+            .unwrap();
+        rh.insert(
+            "X-Forwarded-For",
+            vec!["192.0.2.1".to_string(), "192.0.2.2".to_string()],
+        )
+        .unwrap();
 
         let hre = SpecialExtensions::NetworkTrafficExtensions(
             NetworkTrafficExtensions::HttpRequestExt(HttpRequestExtension {
@@ -561,7 +571,8 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_network_traffic_http_request_invalid_header() {
+    fn deserialize_network_traffic_http_request_string_header_invalid() {
+        // A request_header value must be a list of strings, not a bare string.
         let json = r#"{
             "type": "network-traffic",
             "spec_version": "2.1",
@@ -577,9 +588,8 @@ mod tests {
                     "request_value": "/download.html",
                     "request_version": "http/1.1",
                     "request_header": {
-                        "Accept-Encoding": ["gzip,deflate"],
-                        "Host": ["www.example.com"],
-                        "x-foobar": ["something"]
+                        "Accept-Encoding": "gzip,deflate",
+                        "Host": "www.example.com"
                     }
                 }
             }

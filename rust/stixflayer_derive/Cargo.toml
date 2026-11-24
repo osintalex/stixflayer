@@ -1,10 +1,10 @@
 [package]
 name = "stixflayer_derive"
-version = "0.1.0"
-edition = "2021"
-license = "BSD-3-Clause"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Procedural macros for the stixflayer STIX 2.1 library"
-repository = "https://github.com/osintalex/stixflayer"
+repository.workspace = true
 
 [lib]
 proc-macro = true

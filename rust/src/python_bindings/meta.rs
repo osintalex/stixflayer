@@ -380,6 +380,11 @@ impl CustomObject {
         Ok(CustomObject(builder, warnings))
     }
 
+    #[getter]
+    fn warnings(&self, py: Python<'_>) -> PyObject {
+        entries_to_py(py, &self.1)
+    }
+
     fn to_json(&self) -> Result<String, PyErr> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
         serde_json::to_string(&obj).map_err(|e| PyErr::new::<StixError, _>(e.to_string()))
@@ -445,12 +450,13 @@ impl CustomObject {
     #[getter]
     fn extension_type(&self) -> Result<String, PyErr> {
         let obj = self.0.clone().build_no_validate().map_err(stix_to_pyerr)?;
-        let ext_type = obj.get_object_type().map_err(stix_to_pyerr)?;
-        Ok(match ext_type {
-            ExtensionType::NewSdo => "new-sdo".to_string(),
-            ExtensionType::NewSro => "new-sro".to_string(),
-            ExtensionType::NewSco => "new-sco".to_string(),
-            _ => "unknown".to_string(),
+        Ok(match obj.get_object_type() {
+            Some(ExtensionType::NewSdo) => "new-sdo".to_string(),
+            Some(ExtensionType::NewSro) => "new-sro".to_string(),
+            Some(ExtensionType::NewSco) => "new-sco".to_string(),
+            Some(ExtensionType::PropertyExtension)
+            | Some(ExtensionType::ToplevelPropertyExtension)
+            | None => "generic".to_string(),
         })
     }
 

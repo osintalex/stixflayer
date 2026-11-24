@@ -96,32 +96,32 @@ class TestCustomObjectErrors:
         assert isinstance(obj.custom_properties, dict)
         assert obj.custom_properties["x_risk_score"] == 5
 
-    def test_wrong_extension_type_in_extensions_is_rejected(self):
-        bad_json = {
+    def test_property_extension_only_is_treated_as_generic(self):
+        generic_json = {
             "type": "vendor-enrichment-sdo",
             "spec_version": "2.1",
-            "id": "vendor-enrichment-sdo--12345678-1234-1234-1234-123456789abc",
+            "id": "vendor-enrichment-sdo--12345678-1234-4234-8234-123456789abc",
             "created": TS,
             "modified": TS,
-            "name": "Bad",
+            "name": "Generic",
             "extensions": {
                 EXT_ID: {"extension_type": "property-extension"},
             },
         }
-        with pytest.raises(stixflayer.ValidationError, match="extension|property-extension"):
-            stixflayer.CustomObject.from_json(json.dumps(bad_json))
+        obj = stixflayer.CustomObject.from_json(json.dumps(generic_json))
+        assert "custom_missing_extension" in [warning["kind"] for warning in obj.warnings]
 
-    def test_custom_object_missing_extensions_rejected(self):
-        bad_json = {
+    def test_custom_object_missing_extensions_is_generic(self):
+        generic_json = {
             "type": "vendor-enrichment-sdo",
             "spec_version": "2.1",
-            "id": "vendor-enrichment-sdo--12345678-1234-1234-1234-123456789abc",
+            "id": "vendor-enrichment-sdo--12345678-1234-4234-8234-123456789abc",
             "created": TS,
             "modified": TS,
-            "name": "Bad",
+            "name": "Generic",
         }
-        with pytest.raises(stixflayer.ValidationError, match="extension"):
-            stixflayer.CustomObject.from_json(json.dumps(bad_json))
+        obj = stixflayer.CustomObject.from_json(json.dumps(generic_json))
+        assert "custom_missing_extension" in [warning["kind"] for warning in obj.warnings]
 
     def test_custom_object_type_with_underscore_rejected(self):
         with pytest.raises(stixflayer.ValidationError, match="underscore"):

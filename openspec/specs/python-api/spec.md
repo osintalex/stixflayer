@@ -33,3 +33,22 @@ The package SHALL provide `.pyi` stubs covering its public entry points so that 
 
 - **WHEN** a function, class, or exception is added to or removed from the compiled extension's public surface
 - **THEN** the corresponding `.pyi` stubs are updated in the same change
+
+#### Scenario: Stubs declare warnings
+
+- **WHEN** the shipped stubs are inspected
+- **THEN** object classes declare `warnings` and the exception hierarchy declares `warnings`
+
+### Requirement: Validation outcomes are exposed through warnings
+
+Objects returned by constructors and `from_json` SHALL expose a `.warnings` list. Exceptions SHALL expose both `.errors` and `.warnings`. Python validation is exception-based: MUST violations raise, and SHOULD findings are carried on the returned object or on the raised exception.
+
+#### Scenario: Object exposes warnings
+
+- **WHEN** an object with a SHOULD finding is constructed
+- **THEN** the returned object has a `.warnings` list containing the finding
+
+#### Scenario: Exception exposes warnings
+
+- **WHEN** validation raises for a MUST violation and also collected a SHOULD finding
+- **THEN** the exception has `.errors` and `.warnings`

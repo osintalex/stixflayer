@@ -1,0 +1,25 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "stixflayer-cli"
+version = "0.1.0"
+description = "Command-line STIX 2.1 validator built on the stixflayer engine"
+requires-python = ">=3.8"
+license = { text = "BSD-3-Clause" }
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Environment :: Console",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/osintalex/stixflayer"
+Documentation = "https://osintalex.github.io/stixflayer/cli/"
+
+[tool.maturin]
+manifest-path = "Cargo.toml"
+bindings = "bin"
+strip = true

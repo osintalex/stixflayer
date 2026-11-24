@@ -67,6 +67,63 @@ class TestExceptionWarnings:
         assert any(entry["kind"] == "open_vocab_value_not_suggested" for entry in warnings)
 
 
+class TestObjectAttribution:
+    ATTACK_PATTERN_ID = "attack-pattern--550e8400-e29b-41d4-a716-446655440010"
+    BUNDLE_ID = "bundle--550e8400-e29b-41d4-a716-446655440011"
+
+    @staticmethod
+    def attack_pattern(**overrides):
+        data = {
+            "type": "attack-pattern",
+            "id": TestObjectAttribution.ATTACK_PATTERN_ID,
+            "spec_version": "2.1",
+            "created": "2016-05-12T08:17:27Z",
+            "modified": "2016-05-12T08:17:27Z",
+            "name": "Spear Phishing",
+        }
+        data.update(overrides)
+        return data
+
+    @classmethod
+    def bundle(cls, *objects):
+        return json.dumps({"type": "bundle", "id": cls.BUNDLE_ID, "objects": list(objects)})
+
+    def test_bundle_missing_required_property_names_the_object(self):
+        obj = self.attack_pattern()
+        del obj["name"]
+        with pytest.raises(stixflayer.ValidationError) as exc_info:
+            stixflayer.Bundle.from_json(self.bundle(obj))
+
+        assert exc_info.value.errors[0]["kind"] == "missing_property"
+        assert exc_info.value.errors[0]["object_id"] == self.ATTACK_PATTERN_ID
+
+    def test_bundle_wrong_json_type_names_the_object(self):
+        obj = self.attack_pattern(name=42)
+        with pytest.raises(stixflayer.DeserializationError) as exc_info:
+            stixflayer.Bundle.from_json(self.bundle(obj))
+
+        assert exc_info.value.errors[0]["kind"] == "deserialization_error"
+        assert exc_info.value.errors[0]["object_id"] == self.ATTACK_PATTERN_ID
+
+    def test_single_object_parse_names_the_object(self):
+        obj = self.attack_pattern()
+        del obj["name"]
+        with pytest.raises(stixflayer.ValidationError) as exc_info:
+            stixflayer.AttackPattern.from_json(json.dumps(obj))
+
+        assert exc_info.value.errors[0]["object_id"] == self.ATTACK_PATTERN_ID
+
+    def test_unattributable_input_does_not_invent_an_id(self):
+        obj = self.attack_pattern()
+        del obj["id"]
+        del obj["name"]
+        with pytest.raises(stixflayer.StixError) as exc_info:
+            stixflayer.AttackPattern.from_json(json.dumps(obj))
+
+        assert all("object_id" not in entry for entry in exc_info.value.errors)
+        assert any("attack-pattern" in entry["message"] for entry in exc_info.value.errors)
+
+
 class TestBundleAttribution:
     def test_bundle_and_objects_carry_warnings(self):
         bundle_json = json.dumps(
