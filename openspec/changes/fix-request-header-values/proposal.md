@@ -4,7 +4,7 @@
 
 STIX 2.1 §6.12.2 defines `request_header` as a dictionary whose values MUST be lists of strings, so a repeated header can be represented. `HttpRequestExtension` currently models it as `StixDictionary<String>`, which rejects the spec-conformant list shape and accepts a single string. The engine is therefore wrong in both directions for a published HTTP extension property, and an existing Rust test asserts the incorrect behavior.
 
-The same section's example renders header values as bare strings, contradicting its normative MUST. This change follows the normative text, matching how the engine already models `EmailMessage.additional_header_fields`, whose examples show the same inconsistency.
+The original OASIS Standard's §6.12.2.1 example rendered header values as bare strings, contradicting the normative MUST; STIX 2.1 Errata 01 (02 April 2025) corrects that example to lists of strings. This change follows the normative text and the errata, matching how the engine already models `EmailMessage.additional_header_fields`.
 
 This is a small, isolated conformance fix. It matters now because the `reposition-python-first` conformance page is public and cites HTTP header handling as evidence of spec correctness.
 

@@ -8,7 +8,7 @@ See `proposal.md` — Why. Current state that shapes the approach:
 - `StixDictionary<Vec<String>>` is already the model for other repeated-value dictionaries: `EmailMessage.additional_header_fields` and `Process.startup_info`.
 - `dict_to_extension` deserializes the raw extension dictionary with serde, so the value type is enforced before `check()` runs.
 - Two Rust tests currently encode the wrong behavior: `deserialize_network_traffic_http_dict` uses string values, and `deserialize_network_traffic_http_request_invalid_header` asserts that list values are invalid.
-- The §6.12.2 example shows bare string values, contradicting the normative MUST in the same section. The same inconsistency appears in the `additional_header_fields` examples; the engine already models that property as `StixDictionary<Vec<String>>`.
+- The original OASIS Standard's §6.12.2.1 example shows bare string values, contradicting the normative MUST in the same section. STIX 2.1 Errata 01 (02 April 2025) corrects the example to lists of strings. The engine already models `EmailMessage.additional_header_fields` as `StixDictionary<Vec<String>>` under the same normative wording.
 
 ## Goals / Non-Goals
 
@@ -39,7 +39,7 @@ This is the existing model for repeated header-style values (`additional_header_
 
 STIX 2.1 §6.12.2 says each value MUST be a list of strings. Accepting a bare string would keep the engine permissive toward non-conformant input, which is the opposite of the project's positioning. The crate is pre-1.0, so a direct Rust API break is acceptable.
 
-The section's example uses bare strings, but an example does not override a MUST in the same property table. `EmailMessage.additional_header_fields` has the same normative wording and the same example inconsistency; this crate already follows the normative text there, so this change makes `request_header` consistent with it.
+The original section's example used bare strings, but an example does not override a MUST in the same property table; STIX 2.1 Errata 01 (02 April 2025) corrects that example to lists of strings. `EmailMessage.additional_header_fields` has the same normative wording and the engine already follows the normative text there, so this change makes `request_header` consistent with it.
 
 *Alternative rejected:* a custom deserializer that accepts `String` and wraps it in a one-element list. It preserves compatibility but makes a non-conformant document validate, and it hides the shape error from users.
 
