@@ -34,9 +34,7 @@ def test_custom_object_with_new_sdo_does_not_warn():
                 "created": "2024-01-01T00:00:00.000Z",
                 "modified": "2024-01-01T00:00:00.000Z",
                 "extensions": {
-                    "extension-definition--9c59fd79-4215-4ba2-920d-3e4f320e1e62": {
-                        "extension_type": "new-sdo"
-                    }
+                    "extension-definition--9c59fd79-4215-4ba2-920d-3e4f320e1e62": {"extension_type": "new-sdo"}
                 },
                 "name": "Custom SDO",
             }
