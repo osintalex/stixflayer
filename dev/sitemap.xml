@@ -22,7 +22,13 @@
         <loc>https://osintalex.github.io/stixflayer/dev/api/vocabularies/</loc>
       </url>
       <url>
+        <loc>https://osintalex.github.io/stixflayer/dev/cli/</loc>
+      </url>
+      <url>
         <loc>https://osintalex.github.io/stixflayer/dev/guides/building/</loc>
+      </url>
+      <url>
+        <loc>https://osintalex.github.io/stixflayer/dev/guides/conformance/</loc>
       </url>
       <url>
         <loc>https://osintalex.github.io/stixflayer/dev/guides/errors/</loc>

@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Fast STIX 2.1 parsing, validation, and serialization — one Rust engine, consumed by many languages.">
+        <meta name="description" content="The fastest, most spec-correct STIX 2.1 library for Python, powered by a Rust engine, with a native CLI.">
       
       
       
@@ -298,6 +298,32 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  CLI
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -316,10 +342,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
@@ -337,8 +363,8 @@
           </label>
         
         
-          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
-            <label class="md-nav__title" for="__nav_3">
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+            <label class="md-nav__title" for="__nav_4">
               <span class="md-nav__icon md-icon"></span>
               
   
@@ -489,6 +515,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#custom-objects-and-relationships" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Custom objects and relationships
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#semantic-checks-strict" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -611,6 +648,33 @@
 
                 
               
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conformance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Conformance
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
             </ul>
           </nav>
         
@@ -639,10 +703,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   
@@ -660,8 +724,8 @@
           </label>
         
         
-          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-            <label class="md-nav__title" for="__nav_4">
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5">
               <span class="md-nav__icon md-icon"></span>
               
   
@@ -903,6 +967,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#custom-objects-and-relationships" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Custom objects and relationships
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#semantic-checks-strict" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -958,7 +1033,8 @@
 <h1 id="validation-modes">Validation modes<a class="headerlink" href="#validation-modes" title="Permanent link">&para;</a></h1>
 <p>stixflayer validates by default. Two options control how lenient parsing and
 construction are: <code>allow_custom</code> for custom properties, and <code>strict</code> for
-semantic checks.</p>
+semantic checks. For the specification basis of each rule and the public feeds
+the validator is tested against, see <a href="../conformance/">conformance</a>.</p>
 <h2 id="what-is-always-enforced">What is always enforced<a class="headerlink" href="#what-is-always-enforced" title="Permanent link">&para;</a></h2>
 <p>Structural checks run in every mode: required properties must be present, JSON
 types must match, unknown properties are rejected unless <code>allow_custom=True</code>,
@@ -998,6 +1074,14 @@ Pass <code>allow_custom=True</code> to accept them.</p>
 <a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="nb">print</span><span class="p">(</span><span class="n">ap</span><span class="o">.</span><span class="n">x_mitre_detection</span><span class="p">)</span>
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="c1">#&gt; Monitor command history</span>
 </code></pre></div>
+<h2 id="custom-objects-and-relationships">Custom objects and relationships<a class="headerlink" href="#custom-objects-and-relationships" title="Permanent link">&para;</a></h2>
+<p>STIX 2.1 §11.2 says custom objects <strong>SHOULD</strong> declare a <code>new-sdo</code>, <code>new-sco</code>,
+or <code>new-sro</code> extension, not MUST. An extension-less custom object validates as
+a generic custom object and reports a <code>custom_missing_extension</code> warning.</p>
+<p>Relationship validation remains strict: endpoints must be SDOs or SCOs, and a
+spec-defined relationship name must match its defined source/target pair.
+There is no leniency mode for non-conformant relationship shapes. The CLI
+accepts custom properties by default, matching STIX 2.1.</p>
 <h2 id="semantic-checks-strict">Semantic checks: <code>strict</code><a class="headerlink" href="#semantic-checks-strict" title="Permanent link">&para;</a></h2>
 <p>With <code>strict=True</code> (the default), STIX MUST rules produce errors and SHOULD
 recommendations produce warnings. Errors raise; warnings never do.</p>

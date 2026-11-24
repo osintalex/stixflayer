@@ -1,0 +1,1535 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="The fastest, most spec-correct STIX 2.1 library for Python, powered by a Rust engine, with a native CLI.">
+      
+      
+      
+        <link rel="canonical" href="https://osintalex.github.io/stixflayer/dev/guides/conformance/">
+      
+      
+        <link rel="describedby" href="../../llms.txt">
+        
+      
+      
+        <link rel="prev" href="../patterns/">
+      
+      
+        <link rel="next" href="../../api/overview/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.71">
+    
+    
+      
+        <title>Conformance - stixflayer</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.e442bf79.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.b60ce83d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
+    <div data-md-component="skip">
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="stixflayer" class="md-header__button md-logo" aria-label="stixflayer" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            stixflayer
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Conformance
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/osintalex/stixflayer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    osintalex/stixflayer
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="stixflayer" class="md-nav__button md-logo" aria-label="stixflayer" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    stixflayer
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/osintalex/stixflayer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    osintalex/stixflayer
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Home
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Quickstart
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  CLI
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Guides
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+            <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Guides
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parsing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Parsing and validation
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../building/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Building objects
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Validation modes
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Error handling
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vocabularies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Vocabularies
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../patterns/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  STIX patterns
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Conformance
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Conformance
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#must-and-should" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        MUST and SHOULD
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requiredness-follows-the-property-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Requiredness follows the property tables
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spec-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Spec notes
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Spec notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dictionary-keys-allow-up-to-250-characters" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Dictionary keys allow up to 250 characters
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#language-tags-are-well-formed-rfc-5646-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Language tags are well-formed RFC 5646 values
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#http-header-names-are-unrestricted-and-values-are-lists-of-strings" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        HTTP header names are unrestricted and values are lists of strings
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zero-qualifier-values-are-rejected" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Zero qualifier values are rejected
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hash-values-in-patterns-are-not-inspected" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Hash values in patterns are not inspected
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#leading-block-comments-are-skipped" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Leading block comments are skipped
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#negative-list-indices-are-accepted" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Negative list indices are accepted
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-sco-type-casing" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Custom SCO type casing
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reversed-or-empty-startstop-ranges" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Reversed or empty <code>START</code>/<code>STOP</code> ranges
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tested-against-public-feeds" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Tested against public feeds
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tested against public feeds">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#amnesty-indicators-without-a-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Amnesty: Indicators without a name
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mvt-a-uuidv5-relationship-identifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        MVT: a UUIDv5 relationship identifier
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mitre-attck-strict-relationship-shapes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        MITRE ATT&amp;CK: strict relationship shapes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  API reference
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  API reference
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Overview
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/exceptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Exceptions
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Functions
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/domain-objects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Domain objects
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/cyber-objects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Cyber-observables
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/vocabularies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Vocabularies
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#must-and-should" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        MUST and SHOULD
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requiredness-follows-the-property-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Requiredness follows the property tables
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spec-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Spec notes
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Spec notes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dictionary-keys-allow-up-to-250-characters" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Dictionary keys allow up to 250 characters
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#language-tags-are-well-formed-rfc-5646-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Language tags are well-formed RFC 5646 values
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#http-header-names-are-unrestricted-and-values-are-lists-of-strings" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        HTTP header names are unrestricted and values are lists of strings
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#zero-qualifier-values-are-rejected" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Zero qualifier values are rejected
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hash-values-in-patterns-are-not-inspected" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Hash values in patterns are not inspected
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#leading-block-comments-are-skipped" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Leading block comments are skipped
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#negative-list-indices-are-accepted" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Negative list indices are accepted
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-sco-type-casing" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Custom SCO type casing
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reversed-or-empty-startstop-ranges" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Reversed or empty <code>START</code>/<code>STOP</code> ranges
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tested-against-public-feeds" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Tested against public feeds
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tested against public feeds">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#amnesty-indicators-without-a-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Amnesty: Indicators without a name
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mvt-a-uuidv5-relationship-identifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        MVT: a UUIDv5 relationship identifier
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mitre-attck-strict-relationship-shapes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        MITRE ATT&amp;CK: strict relationship shapes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
+                
+                  
+
+  
+  
+
+
+<h1 id="conformance">Conformance<a class="headerlink" href="#conformance" title="Permanent link">&para;</a></h1>
+<p>The <a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html">OASIS STIX 2.1 specification</a>
+is authoritative. stixflayer follows its MUST/SHOULD distinction rather than
+the behaviour of any single implementation, and the notes below record the
+places where that is easy to get wrong.</p>
+<h2 id="must-and-should">MUST and SHOULD<a class="headerlink" href="#must-and-should" title="Permanent link">&para;</a></h2>
+<p>STIX 2.1 <a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_difggtnnudht">§12 Conformance</a>
+defines mandatory and recommended behaviour. stixflayer enforces the two
+separately:</p>
+<ul>
+<li>MUST violations are errors and reject the document.</li>
+<li>SHOULD findings are warnings and never reject a document.</li>
+</ul>
+<p>Objects returned by constructors and <code>from_json</code> expose <code>.warnings</code>;
+exceptions expose both <code>.errors</code> and <code>.warnings</code>. The CLI reports warnings
+without changing the exit code unless <code>--fail-on-warnings</code> is set. The
+<code>expected_warnings</code> entries in <code>testdata/test_matrix.json</code> exercise the
+warning path.</p>
+<h2 id="requiredness-follows-the-property-tables">Requiredness follows the property tables<a class="headerlink" href="#requiredness-follows-the-property-tables" title="Permanent link">&para;</a></h2>
+<p>Optional properties are accepted when absent, and conditional requirements
+apply only when their condition holds. In particular:</p>
+<ul>
+<li><code>Indicator.name</code> is optional (<a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_wfiae74706sw">§4.7.1</a>).</li>
+<li><code>Malware.name</code> is required only for a malware family, when <code>is_family</code> is
+  <code>true</code> (<a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_gc4ooz6oaz7y">§4.11.1</a>).</li>
+<li>A missing required property produces one <code>missing_property</code> finding per
+  absent field; present fields are not reported.</li>
+</ul>
+<p>The regression fixtures are <code>testdata/stix/valid/sdo/indicator-no-name.json</code>,
+<code>testdata/stix/valid/sdos/malware-instance-no-name.json</code>, and
+<code>testdata/stix/invalid/sdo/indicator-no-valid-from.json</code>, with matching rules
+in <code>testdata/test_matrix.json</code>.</p>
+<h2 id="spec-notes">Spec notes<a class="headerlink" href="#spec-notes" title="Permanent link">&para;</a></h2>
+<h3 id="dictionary-keys-allow-up-to-250-characters">Dictionary keys allow up to 250 characters<a class="headerlink" href="#dictionary-keys-allow-up-to-250-characters" title="Permanent link">&para;</a></h3>
+<p>STIX 2.1 <a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_f6e8afjdtrse">§2.3 Dictionary</a>
+caps dictionary keys at 250 ASCII characters and says they SHOULD be
+lowercase. stixflayer accepts keys up to that limit and reports uppercase
+<code>extensions</code> keys as the <code>dictionary_key_not_lowercase</code> warning rather than
+rejecting them. The length rule is covered by the
+<code>dictionary_keys_allow_up_to_250_characters</code> unit test in <code>rust/src/dictionary.rs</code>.</p>
+<h3 id="language-tags-are-well-formed-rfc-5646-values">Language tags are well-formed RFC 5646 values<a class="headerlink" href="#language-tags-are-well-formed-rfc-5646-values" title="Permanent link">&para;</a></h3>
+<p>The common <code>lang</code> property (<a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_xzbicbtscatx">§3.2 Common Properties</a>)
+and <code>Software.languages</code> (<a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_7rkyhtkdthok">§6.14 Software</a>)
+must be well-formed RFC 5646 tags. Both accept ISO 639-2 three-letter codes
+such as <code>eng</code>; registry membership is a SHOULD. <code>testdata/stix/invalid/common/invalid-language.json</code>
+covers the rejection path.</p>
+<h3 id="http-header-names-are-unrestricted-and-values-are-lists-of-strings">HTTP header names are unrestricted and values are lists of strings<a class="headerlink" href="#http-header-names-are-unrestricted-and-values-are-lists-of-strings" title="Permanent link">&para;</a></h3>
+<p><a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_b0e376hgtml8">§6.12.2 HTTP Request Extension</a>
+defines <code>request_header</code> as a dictionary whose keys are header field names and
+does not restrict them to a fixed list. stixflayer accepts any valid dictionary
+key and preserves case. Each header value MUST be a list of strings, so a
+repeated header such as <code>X-Forwarded-For</code> can be represented; a bare string
+value is rejected with a deserialization error. STIX 2.1 Errata 01 corrects the
+original section's bare-string example to match this normative rule. See the
+comment and check in <code>rust/src/extensions/network_traffic.rs</code>, plus the
+<code>http-request-header-values-valid</code> and <code>http-request-header-string-invalid</code>
+rules in <code>testdata/test_matrix.json</code>.</p>
+<h3 id="zero-qualifier-values-are-rejected">Zero qualifier values are rejected<a class="headerlink" href="#zero-qualifier-values-are-rejected" title="Permanent link">&para;</a></h3>
+<p><a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_itrc2pdxk4ef">§9.5.1 Observation Expression Qualifiers</a>
+requires <code>REPEATS</code> to be a positive integer and <code>WITHIN</code> to be a positive
+value. stixflayer rejects <code>REPEATS 0</code> and <code>WITHIN 0</code>; both are covered by
+<code>testdata/stix/invalid/patterns/semantic.json</code>.</p>
+<h3 id="hash-values-in-patterns-are-not-inspected">Hash values in patterns are not inspected<a class="headerlink" href="#hash-values-in-patterns-are-not-inspected" title="Permanent link">&para;</a></h3>
+<p>Pattern validation follows the grammar and comparison rules. A hash value is a
+string comparison (<a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_de6g573394q2">§9.6.4 Native Format Comparison</a>),
+so the validator does not inspect the hash format. Fixture <code>V46</code> in
+<code>testdata/stix/valid/patterns/grammar-edges.json</code> covers this.</p>
+<h3 id="leading-block-comments-are-skipped">Leading block comments are skipped<a class="headerlink" href="#leading-block-comments-are-skipped" title="Permanent link">&para;</a></h3>
+<p><a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_me3pzm77qfnf">§9.3 STIX Patterns</a>
+allows comments in a pattern. A pattern may start with a block comment because
+the grammar skips comments. Fixture <code>V31</code> in
+<code>testdata/stix/valid/patterns/grammar-edges.json</code> covers this.</p>
+<h3 id="negative-list-indices-are-accepted">Negative list indices are accepted<a class="headerlink" href="#negative-list-indices-are-accepted" title="Permanent link">&para;</a></h3>
+<p>The grammar accepts a negative integer index, so an index such as
+<code>body_multipart[-1]</code> validates. <a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_tqad81km2lrm">§9.7.2 List Object Properties</a>
+defines the index form as <code>0...N-1</code> or <code>*</code>; the parser is deliberately
+compatible with the grammar here. Fixture <code>V38</code> in
+<code>testdata/stix/valid/patterns/grammar-edges.json</code> covers this.</p>
+<h3 id="custom-sco-type-casing">Custom SCO type casing<a class="headerlink" href="#custom-sco-type-casing" title="Permanent link">&para;</a></h3>
+<p>A custom SCO type name must be 3-250 characters of lowercase ASCII letters,
+digits, or hyphens (<a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_7f3c4jgkyhl3">§11.2 Custom Objects</a>).
+The rule is implemented in <code>ObjectPath::validate</code> in <code>rust/src/pattern/expr.rs</code>;
+<code>testdata/stix/valid/patterns/spec-examples.json</code> includes a custom SCO path.</p>
+<h3 id="reversed-or-empty-startstop-ranges">Reversed or empty <code>START</code>/<code>STOP</code> ranges<a class="headerlink" href="#reversed-or-empty-startstop-ranges" title="Permanent link">&para;</a></h3>
+<p><a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_itrc2pdxk4ef">§9.5.1 Observation Expression Qualifiers</a>
+defines the matched range as <code>x &lt;= observation &lt; y</code> but does not prohibit
+<code>x &gt;= y</code>. Reversed and equal ranges are accepted. Both cases are covered by
+<code>testdata/stix/valid/patterns/compliance.json</code>.</p>
+<h2 id="tested-against-public-feeds">Tested against public feeds<a class="headerlink" href="#tested-against-public-feeds" title="Permanent link">&para;</a></h2>
+<p>The validator is checked against three public STIX 2.1 data sets. The commands
+below are reproducible with a downloaded copy of each file:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="go">stixflayer --json malware.stix2</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="go">stixflayer --json cellebrite.stix2</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="go">stixflayer --json enterprise-attack.json</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Feed</th>
+<th>Objects</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://raw.githubusercontent.com/AmnestyTech/investigations/master/2023-03-29_android_campaign/malware.stix2">Amnesty International IOC feed</a></td>
+<td>4,375</td>
+<td>0 errors, 0 warnings</td>
+</tr>
+<tr>
+<td><a href="https://raw.githubusercontent.com/mvt-project/mvt-indicators/main/cellebrite/cellebrite.stix2">MVT Cellebrite indicators</a></td>
+<td>3</td>
+<td>0 errors, 1 warning</td>
+</tr>
+<tr>
+<td><a href="https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json">MITRE ATT&amp;CK Enterprise</a></td>
+<td>26,699</td>
+<td>exit <code>1</code>: 1,575 errors, 41,609 warnings</td>
+</tr>
+</tbody>
+</table>
+<h3 id="amnesty-indicators-without-a-name">Amnesty: Indicators without a name<a class="headerlink" href="#amnesty-indicators-without-a-name" title="Permanent link">&para;</a></h3>
+<p>The Amnesty feed contains Indicators that omit <code>name</code>. <code>name</code> is optional for
+Indicators (<a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_wfiae74706sw">§4.7.1</a>),
+so the feed validates with no findings. The <code>amnesty-indicator-bundle-valid</code>
+rule and its fixture reproduce the shape without vendoring the feed.</p>
+<h3 id="mvt-a-uuidv5-relationship-identifier">MVT: a UUIDv5 relationship identifier<a class="headerlink" href="#mvt-a-uuidv5-relationship-identifier" title="Permanent link">&para;</a></h3>
+<p>The MVT feed validates with no errors and one <code>identifier_uuid_not_v4</code>
+warning. <a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_64yvzeku5a5c">§2.9 Identifier</a>
+says SDO, SRO, Meta, and Bundle identifiers SHOULD use UUIDv4, not MUST. The
+relationship identifier is therefore a SHOULD finding; <code>--fail-on-warnings</code>
+turns it into exit <code>1</code>. <code>stix2</code> also accepts the feed.</p>
+<h3 id="mitre-attck-strict-relationship-shapes">MITRE ATT&amp;CK: strict relationship shapes<a class="headerlink" href="#mitre-attck-strict-relationship-shapes" title="Permanent link">&para;</a></h3>
+<p>ATT&amp;CK's <code>x-mitre-*</code> custom objects are accepted and produce
+<code>custom_missing_extension</code> warnings, because <a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_7f3c4jgkyhl3">§11.2</a>
+makes the <code>new-sdo</code>/<code>new-sco</code>/<code>new-sro</code> extension a SHOULD.</p>
+<p>The reported errors are intentional strictness. <a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_e2e1szrqfoan">§5.1 Relationship</a>
+says a Relationship links two SDOs or SCOs; the <code>x-mitre-*</code> objects do not
+declare an extension that makes them SDOs. <a href="https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_axjijf603msy">§4.1.2</a>
+does not list <code>tool -&gt; attack-pattern</code> for <code>uses</code>, and undefined pairs should
+use <code>related-to</code> or a user-defined relationship name. The CLI has no flag to
+accept non-conformant relationship shapes.</p>
+<p>Ecosystem behaviour is mixed here: <code>stix2-validator</code> also rejects a minimal
+custom object without an extension, because it cannot locate a base schema.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../patterns/" class="md-footer__link md-footer__link--prev" aria-label="Previous: STIX patterns">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                STIX patterns
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../api/overview/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Overview
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; stflayer contributors
+    </div>
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      
+        
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["content.code.annotate","content.code.copy","content.code.select","content.tabs.link","navigation.footer","navigation.sections","navigation.top","search.highlight","search.suggest"],"redirect":null,"search":"../../assets/javascripts/workers/search.c47bb847.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a2388154.min.js"></script>
+      
+    
+  </body>
+</html>
