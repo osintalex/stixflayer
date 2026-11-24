@@ -264,21 +264,33 @@ jobs:
       contents: write # push the rust-v* release tag
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
-      - name: Check whether stixflayer_derive is already on crates.io
+      # The derive shares the workspace version, so a release always introduces a
+      # version that has never been published. Its presence on crates.io can
+      # therefore only mean an earlier attempt of this same release published it
+      # (e.g. the library publish failed and the run was retried): treat that as
+      # a retry and continue rather than skipping or failing.
+      - name: Publish stixflayer_derive
         id: derive
         working-directory: rust
-        run: |
-          version="$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "stixflayer_derive") | .version')"
-          status="$(curl -s -o /dev/null -w '%{http_code}' -A 'stixflayer-release-ci' "https://crates.io/api/v1/crates/stixflayer_derive/${version}")"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          if [ "$status" = "200" ]; then echo "published=true" >> "$GITHUB_OUTPUT"; else echo "published=false" >> "$GITHUB_OUTPUT"; fi
-          echo "stixflayer_derive ${version}: crates.io status ${status}"
-      - name: Publish stixflayer_derive
-        if: steps.derive.outputs.published == 'false'
-        working-directory: rust
-        run: cargo publish -p stixflayer_derive
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "stixflayer_derive") | .version')"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          log="$(mktemp)"
+          if cargo publish -p stixflayer_derive > "$log" 2>&1; then
+            cat "$log"
+            echo "published stixflayer_derive ${version}"
+          else
+            cat "$log" >&2
+            status="$(curl -s -o /dev/null -w '%{http_code}' -A 'stixflayer-release-ci' "https://crates.io/api/v1/crates/stixflayer_derive/${version}")"
+            if grep -Eqi 'already (uploaded|exists)' "$log" || [ "$status" = "200" ]; then
+              echo "stixflayer_derive ${version} was published by an earlier attempt of this release; continuing"
+            else
+              exit 1
+            fi
+          fi
       - name: Wait for crates.io to index stixflayer_derive
         working-directory: rust
         run: |
@@ -416,12 +428,18 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           set -e
+          # Publish derive → library → CLI, each only when that exact version is
+          # absent from crates.io. Versions are resolved from the workspace, so a
+          # present version can only be an earlier attempt of this same release
+          # (for example, rust-publish already published the derive): continue
+          # instead of failing. Every publish waits for crates.io indexing so the
+          # next crate can depend on the one just uploaded.
           publish_if_missing() {
             package="$1"
             version="$(cargo metadata --format-version 1 --no-deps | jq -r --arg p "$package" '.packages[] | select(.name == $p) | .version')"
             status="$(curl -s -o /dev/null -w '%{http_code}' -A 'stixflayer-release-ci' "https://crates.io/api/v1/crates/${package}/${version}")"
             if [ "$status" = "200" ]; then
-              echo "${package} ${version} is already published"
+              echo "${package} ${version} is already published by an earlier attempt of this release; continuing"
               return 0
             fi
             cargo publish -p "$package"
