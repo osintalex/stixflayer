@@ -55,13 +55,18 @@ must be well-formed RFC 5646 tags. Both accept ISO 639-2 three-letter codes
 such as `eng`; registry membership is a SHOULD. `testdata/stix/invalid/common/invalid-language.json`
 covers the rejection path.
 
-### HTTP header names are unrestricted
+### HTTP header names are unrestricted and values are lists of strings
 
 [§6.12.2 HTTP Request Extension](https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_b0e376hgtml8)
 defines `request_header` as a dictionary whose keys are header field names and
 does not restrict them to a fixed list. stixflayer accepts any valid dictionary
-key and preserves case; see the comment and check in
-`rust/src/extensions/network_traffic.rs`.
+key and preserves case. Each header value MUST be a list of strings, so a
+repeated header such as `X-Forwarded-For` can be represented; a bare string
+value is rejected with a deserialization error. STIX 2.1 Errata 01 corrects the
+original section's bare-string example to match this normative rule. See the
+comment and check in `rust/src/extensions/network_traffic.rs`, plus the
+`http-request-header-values-valid` and `http-request-header-string-invalid`
+rules in `testdata/test_matrix.json`.
 
 ### Zero qualifier values are rejected
 

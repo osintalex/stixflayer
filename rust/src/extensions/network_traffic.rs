@@ -73,7 +73,11 @@ pub struct HttpRequestExtension {
     /// Specifies the HTTP version portion of the HTTP request line, as a lowercase string.
     pub request_version: Option<String>,
     /// Specifies all of the HTTP header fields that may be found in the HTTP client request, as a dictionary.
-    pub request_header: Option<StixDictionary<String>>,
+    ///
+    /// Each value is a list of strings, so a repeated header can be represented.
+    ///
+    /// For more information see <https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_b0e376hgtml8>
+    pub request_header: Option<StixDictionary<Vec<String>>>,
     /// Specifies the length of the HTTP message body, if included, in bytes.
     #[serde(default, deserialize_with = "as_opt_u64")]
     pub message_body_length: Option<u64>,

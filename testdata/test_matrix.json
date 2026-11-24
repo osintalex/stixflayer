@@ -159,6 +159,20 @@
       "expected_warnings": [
         "network_traffic_missing_port"
       ]
+    },
+    "http-request-header-values-valid": {
+      "category": "sco",
+      "object_type": "network-traffic",
+      "rule": "http-request-ext request_header values are lists of strings; repeated headers are allowed",
+      "fixture": "valid/scos/network-traffic-http-request-headers.json",
+      "expected_behavior": "parses_successfully"
+    },
+    "http-request-header-string-invalid": {
+      "category": "sco",
+      "object_type": "network-traffic",
+      "rule": "http-request-ext request_header values MUST be lists of strings, not bare strings",
+      "fixture": "invalid/sco/network-traffic-http-request-header-string.json",
+      "expected_behavior": "deserialization_error"
     }
   },
   "custom_properties": {

@@ -398,7 +398,10 @@ fn http_request_headers_accept_custom_names() {
                 "http-request-ext": {
                     "request_method": "get",
                     "request_value": "/index.html",
-                    "request_header": {"X-Custom-Header": "value"}
+                    "request_header": {
+                        "X-Custom-Header": ["value"],
+                        "X-Repeated-Header": ["first", "second"]
+                    }
                 }
             }
         }),
@@ -407,6 +410,35 @@ fn http_request_headers_accept_custom_names() {
     );
     assert!(outcome.valid, "{:?}", outcome.errors);
     assert!(!kinds(&outcome).contains(&"dictionary_key_not_lowercase".to_string()));
+}
+
+#[test]
+fn http_request_header_string_value_is_invalid() {
+    let outcome: Outcome<CyberObject> = validate_value_outcome(
+        serde_json::json!({
+            "type": "network-traffic",
+            "id": "network-traffic--550e8400-e29b-41d4-a716-446655440004",
+            "spec_version": "2.1",
+            "protocols": ["http"],
+            "src_port": 80,
+            "dst_port": 80,
+            "src_ref": "ipv4-addr--550e8400-e29b-51d4-a716-446655440011",
+            "dst_ref": "ipv4-addr--550e8400-e29b-51d4-a716-446655440012",
+            "extensions": {
+                "http-request-ext": {
+                    "request_method": "get",
+                    "request_value": "/index.html",
+                    "request_header": {"X-Custom-Header": "value"}
+                }
+            }
+        }),
+        false,
+        true,
+    );
+    assert!(
+        !outcome.valid,
+        "a bare string header value must be rejected"
+    );
 }
 
 #[test]

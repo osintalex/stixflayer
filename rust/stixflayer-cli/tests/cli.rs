@@ -548,7 +548,7 @@ fn every_matrix_fixture_matches_the_engine_verdict() {
                     assert!(cli_valid, "rule {name} expected a valid document");
                     assert_eq!(code, 0);
                 }
-                Some("validation_error" | "stix_error") | None => {
+                Some("validation_error" | "stix_error" | "deserialization_error") | None => {
                     assert!(!cli_valid, "rule {name} expected an invalid document");
                     assert_eq!(code, 1);
                 }
