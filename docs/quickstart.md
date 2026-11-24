@@ -12,6 +12,14 @@ pip install stixflayer
 Requires Python 3.11 or newer. Rust users: `cargo add stixflayer`, with the API
 reference on [docs.rs](https://docs.rs/stixflayer).
 
+To validate STIX files without Python, install the standalone CLI:
+
+```console
+curl -LsSf https://github.com/osintalex/stixflayer/releases/latest/download/install.sh | sh
+```
+
+`pip install stixflayer-cli` and `cargo install stixflayer-cli` also work.
+
 ## Parse and validate a document
 
 Parsing validates: a document that fails STIX 2.1 rules is rejected at
@@ -94,8 +102,20 @@ except ValidationError as e:
     #> missing_property name
 ```
 
+## Validate from the command line
+
+The CLI validates a file, a directory, or standard input with one command:
+
+```console
+stixflayer testdata/stix/valid/bundle.json
+```
+
+Exit `0` means every document is valid, `1` means at least one is invalid, and
+`2` means a usage or I/O failure. Add `--json` for a machine-readable report.
+
 ## Next steps
 
+- [CLI reference](cli.md) — every option, report schema, and exit code
 - [Parsing and validation](guides/parsing.md) — bundles, objects, JSON round-trips
 - [Building objects](guides/building.md) — constructors and builders
 - [Validation modes](guides/validation.md) — strict vs `allow_custom`

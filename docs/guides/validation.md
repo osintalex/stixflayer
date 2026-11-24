@@ -2,7 +2,8 @@
 
 stixflayer validates by default. Two options control how lenient parsing and
 construction are: `allow_custom` for custom properties, and `strict` for
-semantic checks.
+semantic checks. For the specification basis of each rule and the public feeds
+the validator is tested against, see [conformance](conformance.md).
 
 ## What is always enforced
 

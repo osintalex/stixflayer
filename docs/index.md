@@ -6,10 +6,10 @@ hide:
 
 # 🧠 Stixflayer 🦑
 
-**Rust-native STIX 2.1. One spec-compliant core, consumed by many.** ⚡
+The fastest, most spec-correct STIX 2.1 library for Python, powered by a Rust engine, with a native CLI.
 
-Parse, validate, and serialize at **10–40× the speed** of the
-industry-standard Python validator — with *stricter* spec enforcement.
+Parse, validate, and serialize at **~30–43× the speed** of the industry-standard
+Python validator, with stricter spec enforcement.
 
 <div class="grid cards" markdown>
 
@@ -25,7 +25,8 @@ industry-standard Python validator — with *stricter* spec enforcement.
 
     ---
 
-    Parsing, building, validation modes, vocabularies, patterns, errors.
+    Parsing, building, validation modes, vocabularies, patterns, errors, and
+    conformance.
 
     [:material-book-open: Browse the guides](guides/parsing.md)
 
@@ -37,37 +38,45 @@ industry-standard Python validator — with *stricter* spec enforcement.
 
     [:material-api: Open the reference](api/overview.md)
 
--   🦀 **Rust**
+-   🖥️ **CLI**
 
     ---
 
-    The native crate, documented where Rust users expect it.
+    Validate files, directories, and standard input with the native binary.
+
+    [:material-console: Read the CLI reference](cli.md)
+
+-   🦀 **Rust crate**
+
+    ---
+
+    The native engine, documented where Rust users expect it.
 
     [:simple-rust: docs.rs/stixflayer](https://docs.rs/stixflayer)
 
 </div>
 
-## Why another STIX library? 🤔
+## Why stixflayer? 🤔
 
-- 🌍 **One engine, no validation gaps** — most STIX libraries are
-  reimplemented per language, so the same document can be valid in one and
-  rejected in another. stixflayer ships a single Rust core into every
-  language, so data validates the same way everywhere.
+- ⚙️ **One engine, no validation gaps** — the same Rust engine powers the
+  Python package and the CLI, so a document gets the same verdict through
+  every interface.
 - ⚔️ **Spec-first, not tool-first** — follows the OASIS STIX 2.1
   specification, including its MUST/SHOULD distinction. MUST violations fail;
   SHOULD findings are reported as warnings.
 - 🧐 **Complete structural validation** — rejects empty bundles, malformed
   identifiers, closed-enumeration violations, and incorrect SCO UUIDv5
-  hashes, at 10–40× the speed.
+  hashes.
 
 ## Performance 🚀
 
-| Operation                          | Baseline        | stixflayer | speedup   |
-| ---------------------------------- | --------------- | ---------- | --------- |
-| Parse + validate `apt1` bundle     | ~47 ms          | ~1.6 ms    | **~30×** 🏎️ |
-| Parse + validate `poisonivy` bundle | ~99 ms         | ~2.3 ms    | **~40×** 🏎️ |
-| Serialize `apt1` bundle            | ~0.6 ms         | ~0.06 ms   | **~10×** 🏎️ |
-| Serialize `poisonivy` bundle       | ~1.0 ms         | ~0.09 ms   | **~12×** 🏎️ |
+| Operation                           | Baseline | stixflayer | speedup |
+| ----------------------------------- | -------- | ---------- | ------- |
+| Parse + validate `apt1` bundle      | ~47 ms   | ~1.6 ms    | **~30×** |
+| Parse + validate `poisonivy` bundle | ~99 ms   | ~2.3 ms    | **~43×** |
+
+See [`benchmarks/BENCHMARKING.md`](https://github.com/osintalex/stixflayer/blob/main/benchmarks/BENCHMARKING.md)
+for the harness, fixtures, and how to reproduce the numbers.
 
 ## Install ⚡
 
@@ -75,7 +84,13 @@ industry-standard Python validator — with *stricter* spec enforcement.
 pip install stixflayer
 ```
 
-Requires Python 3.11+. Rust users: `cargo add stixflayer` 🦀 — API docs at
+The CLI is a standalone binary:
+
+```console
+curl -LsSf https://github.com/osintalex/stixflayer/releases/latest/download/install.sh | sh
+```
+
+Requires Python 3.11+. Rust users can `cargo add stixflayer`; API docs are at
 [docs.rs/stixflayer](https://docs.rs/stixflayer).
 
 ## Credits 🙏

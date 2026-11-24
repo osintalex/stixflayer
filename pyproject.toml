@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "stixflayer"
 version = "0.1.1"
-description = "STIX 2.1 library in Rust, exposed to Python"
+description = "Fast, spec-correct STIX 2.1 parsing, validation, and serialization for Python, powered by a Rust engine."
 requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Rust",
