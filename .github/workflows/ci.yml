@@ -177,6 +177,22 @@ jobs:
         run: |
           rustup target add ${{ matrix.target }}
           cargo build --workspace --target ${{ matrix.target }}
+      - name: Verify the musl CLI binary is statically linked
+        if: contains(matrix.target, 'musl')
+        run: |
+          binary="rust/target/${{ matrix.target }}/debug/stixflayer"
+          file "$binary"
+          headers="$(readelf -lW "$binary")"
+          if printf '%s\n' "$headers" | grep -q 'INTERP'; then
+            echo "expected a self-contained binary, but it has a PT_INTERP program header" >&2
+            exit 1
+          fi
+          dynamic="$(readelf -dW "$binary" 2>/dev/null || true)"
+          if printf '%s\n' "$dynamic" | grep -q '(NEEDED)'; then
+            echo "expected a self-contained binary, but it has DT_NEEDED entries" >&2
+            exit 1
+          fi
+          echo "no ELF interpreter and no shared-library dependencies"
 
   py-test:
     name: Python / tests (${{ matrix.os }}, py${{ matrix.python }})
